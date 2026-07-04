@@ -8,6 +8,11 @@ import { CmsIcon } from './CmsIcon'
 import { openBookingModal } from './openBookingModal'
 
 const packageIcons = [Rocket, Workflow, Megaphone]
+const fallbackCaseStudyLinks: Record<string, string> = {
+  'the-one-start': '/the-one#cota-cuti',
+  'the-one-system': '/the-one#curnon',
+  'the-one-scale': '/the-one#inkaholic',
+}
 
 function resolvePackageId(item: CmsBlockItem) {
   const hash = item.href?.match(/#([^#?]+)/)?.[1]
@@ -147,6 +152,7 @@ export function PackageCards({
         const id = cardIds[index]
         const highlight = highlightedId === id
         const Icon = packageIcons[index] ?? Rocket
+        const caseStudyLink = item.caseStudyLink?.trim() || fallbackCaseStudyLinks[id] || ''
 
         return (
           <article
@@ -203,9 +209,9 @@ export function PackageCards({
               >
                 {item.ctaText || chooseLabel}
               </button>
-              {item.caseStudyLink?.trim() && (
+              {caseStudyLink && (
                 <a
-                  href={item.caseStudyLink}
+                  href={caseStudyLink}
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-primary/25 px-4 py-2.5 text-sm font-extrabold text-primary transition-colors hover:bg-primary/10"
                 >
                   {caseStudyLabel}

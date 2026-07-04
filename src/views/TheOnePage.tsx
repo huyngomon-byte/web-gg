@@ -1,7 +1,18 @@
 'use client'
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { Bookmark, Check, ChevronRight, Heart, MessageCircle, MoreHorizontal, Send } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type TouchEvent } from 'react'
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Facebook,
+  Globe2,
+  Instagram,
+  MoreHorizontal,
+  Music2,
+  Plus,
+} from 'lucide-react'
 import { compactTheOneByLang, organizationSchema, websiteSchema, type BrandLang } from '../brandContent'
 import { BrandLayout } from '../components/BrandLayout'
 import { openBookingModal } from '../components/openBookingModal'
@@ -12,12 +23,13 @@ import { getOrderedCaseStudies } from '../data/caseStudyStories'
 import type { CaseStudy, CaseStudyMetric } from '../data/caseStudies'
 import { useScrollReveal } from '../hooks/useScrollReveal'
 
-type SocialKey = 'instagram' | 'facebook' | 'tiktok'
+type SocialKey = 'facebook' | 'instagram' | 'tiktok' | 'website'
 
-const socialPlatforms: Array<{ key: SocialKey; label: string }> = [
-  { key: 'instagram', label: 'Instagram' },
-  { key: 'facebook', label: 'Facebook' },
-  { key: 'tiktok', label: 'TikTok' },
+const socialPlatforms: Array<{ key: SocialKey; label: string; Icon: typeof Instagram }> = [
+  { key: 'facebook', label: 'Facebook', Icon: Facebook },
+  { key: 'instagram', label: 'Instagram', Icon: Instagram },
+  { key: 'tiktok', label: 'TikTok', Icon: Music2 },
+  { key: 'website', label: 'Website', Icon: Globe2 },
 ]
 
 const storyLogoById: Record<string, string> = {
@@ -28,15 +40,15 @@ const storyLogoById: Record<string, string> = {
   curnon: '/logo-curnon.png',
 }
 
-const appGradients = [
-  'linear-gradient(145deg,#ff3d8f,#ff6f61)',
-  'linear-gradient(145deg,#ff8a3d,#ffd166)',
-  'linear-gradient(145deg,#c026d3,#fb7185)',
-  'linear-gradient(145deg,#ef4444,#f59e0b)',
-  'linear-gradient(145deg,#ec4899,#f97316)',
-  'linear-gradient(145deg,#7c3aed,#f472b6)',
-  'linear-gradient(145deg,#f43f5e,#fbbf24)',
-  'linear-gradient(145deg,#db2777,#fb923c)',
+const tilePatterns: string[][] = [
+  [],
+  ['col-span-4 row-span-3'],
+  ['col-span-2 row-span-3', 'col-span-2 row-span-3'],
+  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-2 row-span-2'],
+  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1'],
+  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-2 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1'],
+  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-2 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1', 'col-span-2 row-span-1'],
+  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1', 'col-span-2 row-span-1'],
 ]
 
 function getStoryLogo(story: CaseStudy) {
@@ -69,57 +81,100 @@ function storyStorageKey(id: string) {
   return `gg99:viewed-story:${id}`
 }
 
-function likeStorageKey(id: string) {
-  return `gg99:liked-story:${id}`
+function buildMetricTiles(story: CaseStudy) {
+  const metricItems = story.keyMetrics.filter((metric) => metric.value.trim() || metric.label.trim())
+  const serviceItems: CaseStudyMetric[] = story.services.map((service) => ({ value: initials(service), label: service }))
+  const featured = metricItems.find((metric) => metric.featured)
+  const list = [featured, ...metricItems.filter((metric) => metric !== featured), ...serviceItems].filter(Boolean) as CaseStudyMetric[]
+  const visible = list.slice(0, 7)
+  const pattern = tilePatterns[visible.length] ?? tilePatterns[7]
+  return visible.map((metric, index) => ({
+    ...metric,
+    className: pattern[index] ?? 'col-span-1 row-span-1',
+    featured: metric.featured || index === 0,
+  }))
 }
 
-function buildMetricApps(story: CaseStudy) {
-  const metrics = story.keyMetrics.filter((metric) => metric.value.trim() || metric.label.trim())
-  const serviceApps: CaseStudyMetric[] = story.services.map((service) => ({ value: initials(service), label: service }))
-  return [...metrics, ...serviceApps].slice(0, 8)
+function carouselImagesForStory(story: CaseStudy) {
+  return Array.from(
+    new Set(
+      [
+        ...(story.backgroundImages ?? []),
+        story.screenBackground?.imageUrl,
+        story.backgroundImageUrl,
+      ].map((url) => String(url || '').trim()).filter(Boolean),
+    ),
+  )
 }
 
 function StoryRing({
   story,
   viewed,
+  compact,
   onClick,
 }: {
   story: CaseStudy
   viewed: boolean
+  compact: boolean
   onClick: (story: CaseStudy) => void
 }) {
   return (
-    <button type="button" onClick={() => onClick(story)} className="group min-w-[76px] text-center">
+    <button type="button" onClick={() => onClick(story)} className="ig-story-button group text-center">
       <span className={`ig-story-ring mx-auto ${viewed ? 'is-viewed' : ''}`}>
         <span className="ig-story-ring-inner">
           <img src={getStoryLogo(story)} alt={getDisplayName(story)} className="h-full w-full rounded-full object-contain" />
         </span>
       </span>
-      <span className="mt-2 block truncate text-[11px] font-bold text-on-surface-variant group-hover:text-primary">
-        {getDisplayName(story)}
+      {!compact && (
+        <span className="mt-2 block truncate text-[11px] font-bold text-on-surface-variant group-hover:text-primary">
+          {getDisplayName(story)}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function YourStoryRing({ compact }: { compact: boolean }) {
+  return (
+    <button type="button" onClick={openBookingModal} className="ig-story-button group text-center">
+      <span className="ig-story-ring is-your-story mx-auto">
+        <span className="ig-story-ring-inner relative">
+          <img src="/logo-gg.png" alt="GG99" className="h-full w-full rounded-full object-contain opacity-45" />
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-primary text-white">
+            <Plus size={14} strokeWidth={3} />
+          </span>
+        </span>
       </span>
+      {!compact && (
+        <span className="mt-2 block truncate text-[11px] font-bold text-on-surface-variant group-hover:text-primary">
+          Your story
+        </span>
+      )}
     </button>
   )
 }
 
 function StoriesBar({
   heading,
+  compact,
   stories,
   viewedStories,
   onStoryClick,
 }: {
   heading: string
+  compact: boolean
   stories: CaseStudy[]
   viewedStories: Set<string>
   onStoryClick: (story: CaseStudy) => void
 }) {
   return (
-    <section className="sticky top-24 z-30 border-y border-white/65 bg-white/[0.72] px-4 py-4 shadow-[0_14px_40px_rgba(219,39,119,0.08)] backdrop-blur-xl">
-      <div className="mx-auto max-w-[700px]">
-        <h1 className="ig-script-title text-center text-[46px] leading-none text-on-surface md:text-[58px]">{heading}</h1>
-        <div className="mt-4 flex gap-4 overflow-x-auto pb-1">
+    <section className={`ig-stories-bar sticky top-[88px] z-30 border-y border-white/65 bg-white/[0.72] px-4 shadow-[0_14px_40px_rgba(219,39,119,0.08)] backdrop-blur-xl ${compact ? 'is-compact py-2' : 'py-4'}`}>
+      <div className="mx-auto max-w-[900px]">
+        {!compact && <h1 className="ig-script-title text-center text-[46px] leading-none text-on-surface md:text-[58px]">{heading}</h1>}
+        <div className={`${compact ? 'mt-0' : 'mt-4'} flex gap-4 overflow-x-auto pb-1`}>
+          <YourStoryRing compact={compact} />
           {stories.map((story) => (
-            <StoryRing key={story.id} story={story} viewed={viewedStories.has(story.id)} onClick={onStoryClick} />
+            <StoryRing key={story.id} story={story} viewed={viewedStories.has(story.id)} compact={compact} onClick={onStoryClick} />
           ))}
         </div>
       </div>
@@ -127,76 +182,175 @@ function StoriesBar({
   )
 }
 
-function SocialMenu({ story }: { story: CaseStudy }) {
+function PostMoreMenu({ story, onCopy }: { story: CaseStudy; onCopy: (story: CaseStudy) => void }) {
   return (
     <details className="group relative">
       <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full text-on-surface transition-colors hover:bg-surface-container-low">
         <MoreHorizontal size={20} />
       </summary>
-      <div className="absolute right-0 top-10 z-20 min-w-40 overflow-hidden rounded-2xl border border-outline-variant/45 bg-white p-1 text-sm font-bold shadow-xl">
-        {socialPlatforms.map((platform) => {
-          const href = story.socialLinks?.[platform.key]?.trim()
-          return href ? (
-            <a key={platform.key} href={href} target="_blank" rel="noreferrer" className="block rounded-xl px-3 py-2 text-on-surface-variant hover:bg-primary/10 hover:text-primary">
-              {platform.label}
-            </a>
-          ) : (
-            <span key={platform.key} className="block rounded-xl px-3 py-2 text-on-surface-variant/45">
-              {platform.label}
-            </span>
-          )
-        })}
-      </div>
+      <button
+        type="button"
+        onClick={() => onCopy(story)}
+        className="absolute right-0 top-10 z-20 inline-flex min-w-36 items-center gap-2 rounded-2xl border border-outline-variant/45 bg-white px-3 py-2 text-sm font-bold text-on-surface-variant shadow-xl hover:bg-primary/10 hover:text-primary"
+      >
+        <Copy size={15} /> Copy link
+      </button>
     </details>
   )
 }
 
-function IPhoneStoryScreen({ story, index }: { story: CaseStudy; index: number }) {
-  const metricApps = buildMetricApps(story)
-  const screenStyle: CSSProperties = story.screenBackground?.imageUrl
-    ? { backgroundImage: `linear-gradient(rgba(255,255,255,0.04), rgba(255,255,255,0.04)), url("${story.screenBackground.imageUrl.replace(/"/g, '%22')}")` }
-    : { backgroundImage: story.screenBackground?.gradient || 'linear-gradient(145deg,#ffe4ec 0%,#ff6f91 54%,#ffd166 100%)' }
+function StoryMediaFrame({ story, index }: { story: CaseStudy; index: number }) {
+  const frameRef = useRef<HTMLDivElement | null>(null)
+  const touchStartX = useRef(0)
+  const images = useMemo(() => carouselImagesForStory(story), [story])
+  const metricTiles = useMemo(() => buildMetricTiles(story), [story])
+  const [activeImage, setActiveImage] = useState(0)
+  const [inView, setInView] = useState(true)
+  const [reducedMotion, setReducedMotion] = useState(false)
+  const fallbackStyle: CSSProperties = {
+    backgroundImage: story.screenBackground?.gradient || 'linear-gradient(145deg,#7f1d1d 0%,#db2777 48%,#f59e0b 100%)',
+  }
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const sync = () => setReducedMotion(media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
+  }, [])
+
+  useEffect(() => {
+    if (!('IntersectionObserver' in window)) return
+    const element = frameRef.current
+    if (!element) return
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.2 })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (images.length <= 1 || !inView || reducedMotion) return
+    const timer = window.setInterval(() => {
+      setActiveImage((current) => (current + 1) % images.length)
+    }, 4500)
+    return () => window.clearInterval(timer)
+  }, [images.length, inView, reducedMotion])
+
+  function goTo(delta: number) {
+    if (images.length <= 1) return
+    setActiveImage((current) => (current + delta + images.length) % images.length)
+  }
+
+  function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+    touchStartX.current = event.touches[0]?.clientX ?? 0
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const endX = event.changedTouches[0]?.clientX ?? 0
+    const delta = endX - touchStartX.current
+    if (Math.abs(delta) < 40) return
+    goTo(delta < 0 ? 1 : -1)
+  }
 
   return (
-    <div className="ig-phone-shell" data-reveal="scale" style={{ '--ri': index } as CSSProperties}>
-      <div className="ig-phone-screen" style={screenStyle}>
-        <div className="ig-status-bar">
-          <span>9:41</span>
-          <span>5G</span>
-        </div>
-        <div className="grid grid-cols-4 gap-3 px-3 pt-5">
-          {metricApps.map((metric, metricIndex) => (
+    <div
+      ref={frameRef}
+      className="story-media-frame relative aspect-[4/5] overflow-hidden bg-cover bg-center"
+      style={images.length ? undefined : fallbackStyle}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      data-reveal="scale"
+    >
+      {images.map((image, imageIndex) => (
+        <img
+          key={`${story.id}-bg-${image}`}
+          src={image}
+          alt=""
+          aria-hidden="true"
+          className={`absolute inset-0 h-full w-full object-cover transition duration-500 ${imageIndex === activeImage ? 'opacity-100' : 'opacity-0'}`}
+          loading={index === 0 ? 'eager' : 'lazy'}
+        />
+      ))}
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,8,16,0.42),rgba(20,8,16,0.14)_42%,rgba(20,8,16,0.72))]" aria-hidden="true" />
+
+      {images.length > 1 && (
+        <>
+          <div className="absolute right-4 top-4 z-20 hidden items-center gap-2 rounded-full bg-black/32 px-2.5 py-1.5 text-xs font-extrabold text-white backdrop-blur-md sm:flex">
+            <button type="button" onClick={() => goTo(-1)} aria-label="Previous background" className="rounded-full p-1 hover:bg-white/15">
+              <ChevronLeft size={16} />
+            </button>
+            <span>{activeImage + 1}/{images.length}</span>
+            <button type="button" onClick={() => goTo(1)} aria-label="Next background" className="rounded-full p-1 hover:bg-white/15">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          <div className="absolute inset-x-0 bottom-4 z-20 flex justify-center gap-1.5">
+            {images.map((image, imageIndex) => (
+              <button
+                type="button"
+                key={`${image}-dot`}
+                onClick={() => setActiveImage(imageIndex)}
+                aria-label={`Show background ${imageIndex + 1}`}
+                className={`h-1.5 rounded-full transition-all ${imageIndex === activeImage ? 'w-6 bg-white' : 'w-1.5 bg-white/48'}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      <div className="relative z-10 grid h-full grid-cols-4 grid-rows-5 gap-2 p-3 sm:p-4">
+        <div className="story-bento-grid col-span-4 row-span-3 grid grid-cols-4 grid-rows-3 gap-2">
+          {metricTiles.map((metric, metricIndex) => (
             <div
-              key={`${story.id}-app-${metricIndex}`}
-              className="ig-app-icon-wrap"
-              style={{ '--ri': metricIndex, '--app-bg': appGradients[metricIndex % appGradients.length] } as CSSProperties}
+              key={`${story.id}-metric-${metricIndex}`}
+              className={`story-glass-tile ${metric.className} ${metric.featured ? 'is-featured' : ''}`}
+              style={{ '--ri': metricIndex } as CSSProperties}
             >
-              <span className="ig-app-icon">
-                <span className="text-[12px] font-extrabold leading-none text-white">{metric.value || initials(metric.label)}</span>
-              </span>
-              <span className="ig-app-label">{metric.label}</span>
+              <span className="block text-[clamp(16px,2.2vw,30px)] font-extrabold leading-none text-white">{metric.value || initials(metric.label)}</span>
+              <span className="mt-1 block text-[10px] font-bold leading-tight text-white/78 sm:text-[11px]">{metric.label}</span>
             </div>
           ))}
         </div>
-        <div className="mx-3 mt-5 rounded-[22px] bg-white/86 p-4 text-left shadow-[0_16px_36px_rgba(0,0,0,0.12)] backdrop-blur">
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-primary">{story.category}</p>
-          <p className="mt-2 line-clamp-4 text-[12px] font-semibold leading-relaxed text-on-surface">{story.shortDescription}</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {story.services.slice(0, 4).map((service) => (
-              <span key={service} className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">
-                {service}
-              </span>
-            ))}
-          </div>
+
+        <div className="story-glass-tile col-span-4 row-span-1 justify-end text-left">
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-white/78">{story.category}</span>
+          <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-relaxed text-white sm:text-sm">{story.shortDescription}</p>
         </div>
-        <div className="ig-dock">
-          {['Ops', 'Ads', 'Data', 'Web'].map((label, dockIndex) => (
-            <span key={label} className="ig-dock-icon" style={{ background: appGradients[(dockIndex + 3) % appGradients.length] }}>
-              {label.slice(0, 1)}
-            </span>
-          ))}
-        </div>
+
+        <button
+          type="button"
+          onClick={openBookingModal}
+          className="col-span-4 row-span-1 self-end rounded-full border border-white/38 bg-white/20 px-4 py-3 text-sm font-extrabold text-white shadow-[0_16px_36px_rgba(0,0,0,0.18)] backdrop-blur-xl transition hover:bg-white/28"
+        >
+          About this story
+        </button>
       </div>
+    </div>
+  )
+}
+
+function PostSocialLinks({ story }: { story: CaseStudy }) {
+  const links = socialPlatforms
+    .map((platform) => ({ ...platform, href: story.socialLinks?.[platform.key]?.trim() || '' }))
+    .filter((platform) => platform.href)
+
+  if (!links.length) return null
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {links.map(({ key, label, href, Icon }) => (
+        <a
+          key={key}
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={label}
+          title={label}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/55 text-on-surface transition-colors hover:border-primary/45 hover:bg-primary/10 hover:text-primary"
+        >
+          <Icon size={18} />
+        </a>
+      ))}
     </div>
   )
 }
@@ -205,42 +359,24 @@ function InstagramPost({
   story,
   index,
   highlighted,
-  onShare,
+  onCopy,
 }: {
   story: CaseStudy
   index: number
   highlighted: boolean
-  onShare: (story: CaseStudy) => void
+  onCopy: (story: CaseStudy) => void
 }) {
   const seedLikes = parseLikes(story.likesSeed, 980 + index * 397)
-  const [liked, setLiked] = useState(false)
-  const [likes, setLikes] = useState(seedLikes)
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(likeStorageKey(story.id))
-    const isLiked = stored === '1'
-    setLiked(isLiked)
-    setLikes(seedLikes + (isLiked ? 1 : 0))
-  }, [seedLikes, story.id])
-
-  function toggleLike() {
-    setLiked((current) => {
-      const next = !current
-      window.localStorage.setItem(likeStorageKey(story.id), next ? '1' : '0')
-      setLikes(seedLikes + (next ? 1 : 0))
-      return next
-    })
-  }
 
   return (
     <article
       id={story.id}
       data-reveal="scale"
       style={{ '--ri': index } as CSSProperties}
-      className={`story-post scroll-mt-32 overflow-hidden rounded-[28px] border bg-white shadow-[0_24px_70px_rgba(219,39,119,0.12)] transition duration-500 ${highlighted ? 'is-highlighted' : ''}`}
+      className={`story-post scroll-mt-40 overflow-hidden rounded-[28px] border bg-white shadow-[0_24px_70px_rgba(219,39,119,0.12)] transition duration-500 ${highlighted ? 'is-highlighted' : ''}`}
     >
       <header className="flex items-center gap-3 border-b border-outline-variant/35 px-4 py-3">
-        <img src={getStoryLogo(story)} alt={getDisplayName(story)} className="h-10 w-10 rounded-full border border-outline-variant/45 object-contain" />
+        <img src={getStoryLogo(story)} alt={getDisplayName(story)} className="h-11 w-11 rounded-full border border-outline-variant/45 object-contain" />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <p className="truncate text-sm font-extrabold text-on-surface">{getAccountName(story)}</p>
@@ -250,31 +386,14 @@ function InstagramPost({
           </div>
           <p className="truncate text-xs font-semibold text-on-surface-variant">{story.headline}</p>
         </div>
-        <SocialMenu story={story} />
+        <PostMoreMenu story={story} onCopy={onCopy} />
       </header>
 
-      <div className="bg-[#fff8fb] p-3 sm:p-5">
-        <IPhoneStoryScreen story={story} index={index} />
-      </div>
+      <StoryMediaFrame story={story} index={index} />
 
       <footer className="px-4 pb-4 pt-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={toggleLike} aria-label={liked ? 'Unlike' : 'Like'} className={`transition-colors ${liked ? 'text-primary' : 'text-on-surface hover:text-primary'}`}>
-              <Heart size={25} fill={liked ? 'currentColor' : 'none'} />
-            </button>
-            <button type="button" onClick={openBookingModal} aria-label="Comment" className="text-on-surface transition-colors hover:text-primary">
-              <MessageCircle size={25} />
-            </button>
-            <button type="button" onClick={() => onShare(story)} aria-label="Share" className="text-on-surface transition-colors hover:text-primary">
-              <Send size={24} />
-            </button>
-          </div>
-          <button type="button" onClick={() => onShare(story)} aria-label="Bookmark" className="text-on-surface transition-colors hover:text-primary">
-            <Bookmark size={24} />
-          </button>
-        </div>
-        <p className="mt-3 text-sm font-extrabold text-on-surface">Liked by {compactNumber(likes)} people</p>
+        <PostSocialLinks story={story} />
+        <p className="mt-3 text-sm font-extrabold text-on-surface">Liked by {compactNumber(seedLikes)} people</p>
         <p className="mt-2 text-sm leading-relaxed text-on-surface">
           <span className="font-extrabold">{getAccountName(story)}</span>{' '}
           {story.caption || story.shortDescription}
@@ -282,6 +401,60 @@ function InstagramPost({
         <p className="mt-2 text-xs font-bold uppercase tracking-[0.08em] text-on-surface-variant">{story.category}</p>
       </footer>
     </article>
+  )
+}
+
+function StickyStoryRail({
+  stories,
+  onStoryClick,
+}: {
+  stories: CaseStudy[]
+  onStoryClick: (story: CaseStudy) => void
+}) {
+  const firstStory = stories[0]
+
+  return (
+    <aside className="hidden xl:block">
+      <div className="sticky top-32 space-y-4">
+        <div className="rounded-[24px] border border-white/70 bg-white/80 p-5 shadow-[0_20px_60px_rgba(219,39,119,0.12)] backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <img src="/logo-gg.png" alt="The One - GG99" className="h-12 w-12 rounded-full border border-outline-variant/35 object-contain" />
+            <div>
+              <p className="text-sm font-extrabold text-on-surface">The One - GG99</p>
+              <p className="text-xs font-semibold text-on-surface-variant">Client story feed</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={openBookingModal}
+            className="btn-shine mt-4 w-full rounded-full bg-primary px-4 py-2.5 text-sm font-extrabold text-on-primary gg-btn-primary"
+          >
+            Start your story
+          </button>
+        </div>
+
+        <div className="rounded-[24px] border border-white/70 bg-white/80 p-5 shadow-[0_20px_60px_rgba(219,39,119,0.1)] backdrop-blur-xl">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-primary">Suggested stories</p>
+          <div className="mt-4 space-y-3">
+            {stories.slice(0, 4).map((story) => (
+              <button key={story.id} type="button" onClick={() => onStoryClick(story)} className="flex w-full items-center gap-3 text-left">
+                <img src={getStoryLogo(story)} alt="" className="h-10 w-10 rounded-full border border-outline-variant/35 object-contain" />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-extrabold text-on-surface">{getDisplayName(story)}</span>
+                  <span className="block truncate text-xs font-semibold text-on-surface-variant">{story.category}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {firstStory && (
+          <a href={`#${encodeURIComponent(firstStory.id)}`} className="inline-flex items-center gap-2 px-2 text-sm font-extrabold text-primary">
+            Back to top story <ChevronRight size={16} />
+          </a>
+        )}
+      </div>
+    </aside>
   )
 }
 
@@ -314,6 +487,7 @@ export default function TheOnePage({ lang = 'vi', cmsPage, siteSettings }: { lan
   const [viewedStories, setViewedStories] = useState<Set<string>>(() => new Set())
   const [highlightedId, setHighlightedId] = useState('')
   const [toast, setToast] = useState('')
+  const [compactStories, setCompactStories] = useState(false)
   const storyHeading = heroBlock?.heading?.trim() || 'The One Stories'
   const finalCtaLabel = heroBlock?.ctaLabel?.trim() || 'How about our stories?'
 
@@ -326,6 +500,13 @@ export default function TheOnePage({ lang = 'vi', cmsPage, siteSettings }: { lan
     })
     setViewedStories(viewed)
   }, [orderedCaseStudies])
+
+  useEffect(() => {
+    const onScroll = () => setCompactStories(window.scrollY > 170)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   useEffect(() => {
     const scrollToHash = () => {
@@ -342,8 +523,6 @@ export default function TheOnePage({ lang = 'vi', cmsPage, siteSettings }: { lan
     return () => window.removeEventListener('hashchange', scrollToHash)
   }, [])
 
-  const storiesById = useMemo(() => new Map(orderedCaseStudies.map((story) => [story.id, story])), [orderedCaseStudies])
-
   function handleStoryClick(story: CaseStudy) {
     window.sessionStorage.setItem(storyStorageKey(story.id), '1')
     setViewedStories((current) => new Set(current).add(story.id))
@@ -353,7 +532,7 @@ export default function TheOnePage({ lang = 'vi', cmsPage, siteSettings }: { lan
     window.setTimeout(() => setHighlightedId(''), 1200)
   }
 
-  async function handleShare(story: CaseStudy) {
+  async function handleCopy(story: CaseStudy) {
     const url = `${window.location.origin}${window.location.pathname}#${encodeURIComponent(story.id)}`
     try {
       await navigator.clipboard.writeText(url)
@@ -369,19 +548,28 @@ export default function TheOnePage({ lang = 'vi', cmsPage, siteSettings }: { lan
       <SeoHead meta={cmsPage?.meta ?? c.meta} schema={[organizationSchema, websiteSchema]} lang={lang} />
 
       <article className="min-h-screen bg-[linear-gradient(180deg,#fff5f7_0%,#ffe4ec_35%,#fff1c8_100%)] pb-16 pt-24">
-        <StoriesBar heading={storyHeading} stories={orderedCaseStudies} viewedStories={viewedStories} onStoryClick={handleStoryClick} />
+        <StoriesBar
+          heading={storyHeading}
+          compact={compactStories}
+          stories={orderedCaseStudies}
+          viewedStories={viewedStories}
+          onStoryClick={handleStoryClick}
+        />
 
-        <section className="mx-auto mt-8 grid max-w-[700px] gap-7 px-3 sm:px-5">
-          {orderedCaseStudies.map((story, index) => (
-            <InstagramPost
-              key={story.id}
-              story={storiesById.get(story.id) || story}
-              index={index}
-              highlighted={highlightedId === story.id}
-              onShare={handleShare}
-            />
-          ))}
-          <FinalStoryCta label={finalCtaLabel} />
+        <section className="mx-auto mt-8 grid max-w-[1180px] gap-8 px-3 sm:px-5 xl:grid-cols-[minmax(0,860px)_280px]">
+          <div className="mx-auto grid w-full max-w-[860px] gap-7">
+            {orderedCaseStudies.map((story, index) => (
+              <InstagramPost
+                key={story.id}
+                story={story}
+                index={index}
+                highlighted={highlightedId === story.id}
+                onCopy={handleCopy}
+              />
+            ))}
+            <FinalStoryCta label={finalCtaLabel} />
+          </div>
+          <StickyStoryRail stories={orderedCaseStudies} onStoryClick={handleStoryClick} />
         </section>
       </article>
 

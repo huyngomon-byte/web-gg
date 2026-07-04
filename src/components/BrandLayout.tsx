@@ -26,6 +26,7 @@ export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta
   const [bookingOpen, setBookingOpen] = useState(false)
   const [showTop, setShowTop] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const localizedSettings = getLocalizedSiteSettings(siteSettings, lang)
   const header = localizedSettings.header
   const navItems = header.navLinks.filter((item) => item.label.trim() && item.href.trim())
@@ -38,6 +39,17 @@ export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta
     const onScroll = () => setShowTop(window.scrollY > 400)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px)')
+    const sync = () => {
+      setIsDesktop(media.matches)
+      if (media.matches) setMenuOpen(false)
+    }
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
   }, [])
 
   useEffect(() => {
@@ -75,7 +87,8 @@ export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta
             )}
           </a>
 
-          <div className="hidden items-center gap-7 lg:flex">
+          {isDesktop && (
+          <div className="items-center gap-7 lg:flex">
             {navItems.map((item) => (
               <a
                 key={item.href}
@@ -86,6 +99,7 @@ export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta
               </a>
             ))}
           </div>
+          )}
 
           <div className="ml-auto flex items-center gap-2">
             {showHeaderCta && (
@@ -96,6 +110,7 @@ export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta
                 {headerCtaLabel}
               </button>
             )}
+            {!isDesktop && (
             <button
               type="button"
               onClick={() => setMenuOpen((value) => !value)}
@@ -105,15 +120,12 @@ export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta
             >
               {menuOpen ? <X size={19} /> : <Menu size={19} />}
             </button>
+            )}
           </div>
         </nav>
 
-        <div
-          className={[
-            'mx-auto mt-2 max-w-[1200px] overflow-hidden rounded-3xl border border-white/70 bg-white/95 shadow-[0_22px_60px_rgba(219,39,119,0.16)] backdrop-blur-xl transition-all duration-300 lg:hidden',
-            menuOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-3 opacity-0',
-          ].join(' ')}
-        >
+        {menuOpen && !isDesktop && (
+        <div className="mx-auto mt-2 max-w-[1200px] overflow-hidden rounded-3xl border border-white/70 bg-white/95 shadow-[0_22px_60px_rgba(219,39,119,0.16)] backdrop-blur-xl transition-all duration-300 lg:hidden">
           <div className="grid gap-1 p-3">
             {navItems.map((item) => (
               <a
@@ -139,6 +151,7 @@ export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta
             )}
           </div>
         </div>
+        )}
       </header>
 
       <main className={flushTop ? 'mesh' : 'pt-24 mesh'}>{children}</main>

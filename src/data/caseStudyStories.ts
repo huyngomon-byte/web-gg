@@ -16,6 +16,7 @@ export function storyFromCmsItem(item: CmsBlockItem) {
       const cmsMetrics = (item.keyMetrics ?? []).slice(0, 10).map((metric) => ({
         value: metric.value ?? '',
         label: metric.label ?? '',
+        featured: metric.featured,
       }))
       const keyMetrics = Array.from({ length: 10 }, (_, index) => {
         const metric = cmsMetrics[index]
@@ -46,6 +47,7 @@ export function storyFromCmsItem(item: CmsBlockItem) {
         videoUrl: item.videoUrl || fallback.videoUrl,
         embedUrl: item.embedUrl || fallback.embedUrl,
         backgroundImageUrl: item.backgroundImageUrl || item.imageUrl || fallback.backgroundImageUrl,
+        backgroundImages: (item.backgroundImages?.length ? item.backgroundImages : fallback.backgroundImages) ?? [],
         screenBackground: {
           imageUrl: item.screenBackground?.imageUrl || fallback.screenBackground?.imageUrl || '',
           gradient: item.screenBackground?.gradient || fallback.screenBackground?.gradient || '',
@@ -54,6 +56,7 @@ export function storyFromCmsItem(item: CmsBlockItem) {
           instagram: item.socialLinks?.instagram || fallback.socialLinks?.instagram || '',
           facebook: item.socialLinks?.facebook || fallback.socialLinks?.facebook || '',
           tiktok: item.socialLinks?.tiktok || fallback.socialLinks?.tiktok || '',
+          website: item.socialLinks?.website || fallback.socialLinks?.website || '',
         },
         ctaText: item.ctaText || fallback.ctaText,
       }

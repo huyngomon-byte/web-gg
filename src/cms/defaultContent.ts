@@ -18,7 +18,8 @@ const theOnePackageItems: CmsBlockItem[] = [
   {
     title: 'The One Start',
     icon: 'Rocket',
-    href: '',
+    href: '/packages#the-one-start',
+    caseStudyLink: '/the-one#cota-cuti',
     imageUrl: '',
     body: [
       'For brands starting to build a consistent digital presence.',
@@ -33,7 +34,8 @@ const theOnePackageItems: CmsBlockItem[] = [
     title: 'The One System',
     label: 'Most Popular',
     icon: 'Workflow',
-    href: '',
+    href: '/packages#the-one-system',
+    caseStudyLink: '/the-one#curnon',
     imageUrl: '',
     body: [
       'For brands that need content, website and paid media running as one stable system.',
@@ -47,7 +49,8 @@ const theOnePackageItems: CmsBlockItem[] = [
   {
     title: 'The One Scale',
     icon: 'Megaphone',
-    href: '',
+    href: '/packages#the-one-scale',
+    caseStudyLink: '/the-one#inkaholic',
     imageUrl: '',
     body: [
       'For brands ready for strong growth: large campaigns, event execution, branch expansion or specific revenue targets.',
@@ -80,11 +83,13 @@ const theOneStoryItems: CmsBlockItem[] = caseStudies.map((story) => ({
   videoUrl: '',
   embedUrl: '',
   backgroundImageUrl: '',
+  backgroundImages: story.backgroundImages,
   screenBackground: story.screenBackground,
   socialLinks: {
-    instagram: '',
-    facebook: '',
-    tiktok: '',
+    instagram: story.socialLinks?.instagram ?? '',
+    facebook: story.socialLinks?.facebook ?? '',
+    tiktok: story.socialLinks?.tiktok ?? '',
+    website: story.socialLinks?.website ?? '',
   },
   ctaText: story.ctaText,
 }))
@@ -114,11 +119,11 @@ export const defaultCmsPages: CmsPageContent[] = [
         heading: compactHomeByLang.en.whatIs.title,
         body: compactHomeByLang.en.whatIs.body,
         items: [
-          { title: 'The One Performance Marketing Agency', body: 'Tut - tricks and real performance.', icon: 'Megaphone', href: 'phinoi', imageUrl: '/logo-phinoi.png' },
-          { title: 'The One Production House', body: 'Ideas, Contents, and Productions.', icon: 'Sparkles', href: 'cota-cuti', imageUrl: '/logo-cotacuti.png' },
-          { title: 'The One Consultant', body: 'KPIs, Targets, Optimization & Growth Strategies.', icon: 'Target', href: 'inkaholic', imageUrl: '/logo-inkaholic.png' },
-          { title: 'The Cheating One', body: 'faster, better and cheaper', icon: 'Rocket', href: 'qanda-books', imageUrl: '/logo-qandabook.png' },
-          { title: 'The One knows about failure.', body: '', icon: 'Search', href: 'curnon', imageUrl: '/logo-curnon.png' },
+          { title: 'The One knows about failure.', body: 'Premium local watch growth with connected promotions, marketplaces and reporting.', icon: 'Search', href: 'curnon', imageUrl: '/logo-curnon.png', showOnHomepage: true, homepageOrder: '0' },
+          { title: 'The One Performance Marketing Agency', body: 'Tut - tricks and real performance.', icon: 'Megaphone', href: 'phinoi', imageUrl: '/logo-phinoi.png', showOnHomepage: true, homepageOrder: '1' },
+          { title: 'The One Production House', body: 'Ideas, Contents, and Productions.', icon: 'Sparkles', href: 'cota-cuti', imageUrl: '/logo-cotacuti.png', showOnHomepage: true, homepageOrder: '2' },
+          { title: 'The One Consultant', body: 'KPIs, Targets, Optimization & Growth Strategies.', icon: 'Target', href: 'inkaholic', imageUrl: '/logo-inkaholic.png', showOnHomepage: true, homepageOrder: '3' },
+          { title: 'The Cheating One', body: 'faster, better and cheaper', icon: 'Rocket', href: 'qanda-books', imageUrl: '/logo-qandabook.png', showOnHomepage: true, homepageOrder: '4' },
         ],
       },
       {

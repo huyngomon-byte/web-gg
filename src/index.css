@@ -864,6 +864,44 @@
 
 .home-package-card { min-height: 100%; }
 
+.package-card {
+  cursor: pointer;
+  scroll-margin-top: 132px;
+}
+
+.package-card.is-selected {
+  border-color: rgba(219, 39, 119, 0.62);
+  box-shadow: 0 22px 62px -30px rgba(219, 39, 119, 0.85), 0 0 0 1px rgba(219, 39, 119, 0.16) inset;
+}
+
+.package-card.is-anchor-highlighted {
+  animation: packageAnchorPulse 0.8s ease both;
+}
+
+@keyframes packageAnchorPulse {
+  0% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0.32), 0 22px 62px -30px rgba(219, 39, 119, 0.85); }
+  100% { box-shadow: 0 0 0 8px rgba(219, 39, 119, 0), 0 22px 62px -30px rgba(219, 39, 119, 0.85); }
+}
+
+.home-explore-grid {
+  min-height: min(70vh, 720px);
+}
+
+.home-explore-tile {
+  aspect-ratio: 1;
+  min-height: 0;
+}
+
+@media (min-width: 768px) {
+  .home-explore-grid {
+    min-height: min(58vh, 620px);
+  }
+
+  .home-explore-tile {
+    aspect-ratio: auto;
+  }
+}
+
 .home-package-featured {
   border-color: rgba(219, 39, 119, 0.38);
   box-shadow: 0 18px 55px -28px rgba(219, 39, 119, 0.75), 0 0 0 1px rgba(245, 158, 11, 0.18) inset;
@@ -901,10 +939,14 @@
   letter-spacing: 0;
 }
 
+.ig-story-button {
+  min-width: 96px;
+}
+
 .ig-story-ring {
   display: flex;
-  width: 68px;
-  height: 68px;
+  width: 88px;
+  height: 88px;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
@@ -914,6 +956,7 @@
 }
 
 .ig-story-ring.is-viewed { background: conic-gradient(#d1d5db, #e5e7eb, #d1d5db); }
+.ig-story-ring.is-your-story { background: conic-gradient(#ffffff, #fdf2f8, #ffffff); }
 
 .ig-story-ring:hover {
   transform: translateY(-2px) scale(1.03);
@@ -937,6 +980,71 @@
 .story-post.is-highlighted {
   border-color: rgba(219, 39, 119, 0.85);
   box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.13), 0 28px 90px rgba(219, 39, 119, 0.18);
+}
+
+.ig-stories-bar {
+  min-height: 64px;
+  transition: padding 0.22s ease, min-height 0.22s ease;
+}
+
+.ig-stories-bar.is-compact {
+  min-height: 56px;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+.ig-stories-bar.is-compact .overflow-x-auto {
+  padding-bottom: 0 !important;
+  scrollbar-width: none;
+}
+
+.ig-stories-bar.is-compact .overflow-x-auto::-webkit-scrollbar {
+  display: none;
+}
+
+.ig-stories-bar.is-compact .ig-story-button {
+  min-width: 50px;
+}
+
+.ig-stories-bar.is-compact .ig-story-ring {
+  width: 40px;
+  height: 40px;
+  padding: 2px;
+}
+
+.ig-stories-bar.is-compact .ig-story-ring-inner {
+  border-width: 2px;
+}
+
+.story-media-frame {
+  border-radius: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.story-bento-grid {
+  grid-auto-flow: dense;
+}
+
+.story-glass-tile {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.17);
+  padding: 10px;
+  color: white;
+  text-shadow: 0 1px 12px rgba(0,0,0,0.32);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.14);
+  backdrop-filter: blur(18px);
+}
+
+.story-glass-tile.is-featured {
+  background: rgba(255,255,255,0.25);
 }
 
 .ig-phone-shell {
@@ -1048,8 +1156,21 @@
 
 @media (max-width: 640px) {
   .ig-story-ring {
-    width: 62px;
-    height: 62px;
+    width: 64px;
+    height: 64px;
+  }
+
+  .ig-story-button {
+    min-width: 72px;
+  }
+
+  .ig-stories-bar.is-compact .ig-story-ring {
+    width: 40px;
+    height: 40px;
+  }
+
+  .ig-stories-bar.is-compact .ig-story-button {
+    min-width: 50px;
   }
 
   .ig-phone-shell {

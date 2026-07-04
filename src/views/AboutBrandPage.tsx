@@ -28,6 +28,9 @@ export default function AboutBrandPage({ lang = 'vi', cmsPage, siteSettings }: {
   const cardItems: CmsBlockItem[] = cardsBlock?.items?.length
     ? cardsBlock.items
     : c.cards.map((card) => ({ title: card.title, body: card.text }))
+  const cardsHeading = cardsBlock?.heading?.trim().toLowerCase() === 'about cards'
+    ? lang === 'vi' ? 'GG99 xây gì' : 'What GG99 Builds'
+    : cardsBlock?.heading || (lang === 'vi' ? 'GG99 xây gì' : 'What GG99 Builds')
 
   return (
     <BrandLayout lang={lang} siteSettings={siteSettings}>
@@ -87,7 +90,7 @@ export default function AboutBrandPage({ lang = 'vi', cmsPage, siteSettings }: {
           <div className="max-w-6xl mx-auto space-y-10">
             <section>
               <h2 className="text-[28px] md:text-[34px] font-extrabold text-on-surface mb-6">
-                {cardsBlock?.heading || (lang === 'vi' ? 'GG99 xây gì' : 'What GG99 Builds')}
+                {cardsHeading}
               </h2>
               <div className="grid md:grid-cols-3 gap-4">
                 {cardItems.map((card, index) => {

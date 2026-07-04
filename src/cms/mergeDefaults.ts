@@ -18,6 +18,7 @@ function mergeStoryItem(templateItem: CmsBlockItem, currentItem: CmsBlockItem): 
   return {
     ...templateItem,
     ...currentItem,
+    backgroundImages: currentItem.backgroundImages ?? templateItem.backgroundImages,
     services: currentItem.services ?? templateItem.services,
     keyMetrics: currentItem.keyMetrics ?? templateItem.keyMetrics,
     socialLinks: {

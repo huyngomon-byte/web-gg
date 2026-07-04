@@ -15,6 +15,7 @@ import {
   type InsightSlug,
 } from '../brandContent'
 import { BrandLayout } from '../components/BrandLayout'
+import { openBookingModal } from '../components/openBookingModal'
 import { SeoHead } from '../components/SeoHead'
 import type { ServerInsightPost } from '../cms/serverRepository'
 import type { CmsSiteSettings } from '../cms/types'
@@ -101,12 +102,21 @@ export function InsightsIndexPage({ posts = insightPosts, siteSettings }: { post
         <section className="px-5 pb-16 md:pb-24 lg:px-10">
           <div className="mx-auto max-w-6xl rounded-2xl bg-primary px-6 py-9 text-center text-on-primary shadow-xl md:px-10">
             <h2 className="text-2xl font-extrabold md:text-4xl">Explore The One Packages</h2>
-            <a
-              href="/packages"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-3 text-sm font-extrabold text-primary transition-transform hover:-translate-y-0.5"
-            >
-              Explore The One Packages <ArrowRight size={16} />
-            </a>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <a
+                href="/packages"
+                className="inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-3 text-sm font-extrabold text-primary transition-transform hover:-translate-y-0.5"
+              >
+                Explore The One Packages <ArrowRight size={16} />
+              </a>
+              <button
+                type="button"
+                onClick={openBookingModal}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/35 px-5 py-3 text-sm font-extrabold text-white transition-colors hover:bg-white/12"
+              >
+                Call Your Shot <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
         </section>
       </article>
@@ -210,9 +220,9 @@ export function InsightArticlePage({
               {post.sections.map((section) => (
                 <section key={section.heading} className="rounded-2xl border border-outline-variant/40 bg-surface/80 p-6 shadow-sm md:p-8">
                   <h2 className="text-2xl font-extrabold text-on-surface md:text-3xl">{section.heading}</h2>
-                  <div className="mt-4 space-y-4">
+                  <div className="mt-4 max-w-[70ch] space-y-4">
                     {section.paragraphs.map((paragraph) => (
-                      <p key={paragraph} className="text-base leading-relaxed text-on-surface-variant">
+                      <p key={paragraph} className="text-base leading-8 text-on-surface-variant">
                         {paragraph}
                       </p>
                     ))}
@@ -225,18 +235,23 @@ export function InsightArticlePage({
                 <p className="mt-3 text-sm leading-relaxed text-on-primary/85">
                   Continue from this article into The One system to choose the right implementation direction for your business.
                 </p>
-                <a href={post.ctaHref} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-3 text-sm font-extrabold text-primary">
-                  {post.ctaLabel} <ArrowRight size={16} />
-                </a>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <a href={post.ctaHref} className="inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-3 text-sm font-extrabold text-primary">
+                    {post.ctaLabel} <ArrowRight size={16} />
+                  </a>
+                  <button type="button" onClick={openBookingModal} className="inline-flex items-center gap-2 rounded-xl border border-white/35 px-5 py-3 text-sm font-extrabold text-white hover:bg-white/12">
+                    Call Your Shot <ArrowRight size={16} />
+                  </button>
+                </div>
               </section>
             </div>
 
             <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
               <div className="rounded-2xl border border-outline-variant/40 bg-surface/85 p-5 shadow-sm">
-                <h2 className="text-sm font-extrabold uppercase tracking-widest text-primary">Internal links</h2>
-                <div className="mt-4 grid gap-2">
+                <h2 className="text-sm font-extrabold uppercase tracking-widest text-primary">Read more</h2>
+                <div className="mt-4 flex flex-wrap gap-2">
                   {insightInternalLinks.map((item) => (
-                    <a key={item.href} href={item.href} className="rounded-xl border border-outline-variant/35 px-4 py-3 text-sm font-bold text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary">
+                    <a key={item.href} href={item.href} className="rounded-full border border-outline-variant/35 px-3 py-2 text-xs font-extrabold text-on-surface-variant transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary">
                       {item.label}
                     </a>
                   ))}

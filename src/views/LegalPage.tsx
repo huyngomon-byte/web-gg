@@ -1,6 +1,8 @@
 ﻿'use client'
 
+import { useState } from 'react'
 import { BrandFooter } from '../components/BrandFooter'
+import { BookingModal } from '../components/BookingModal'
 import { getLocalizedSiteSettings } from '../cms/siteSettings'
 import type { CmsSiteSettings } from '../cms/types'
 
@@ -16,11 +18,13 @@ interface LegalPageProps {
 }
 
 function LegalPage({ title, sections, siteSettings }: LegalPageProps) {
+  const [bookingOpen, setBookingOpen] = useState(false)
   const { header } = getLocalizedSiteSettings(siteSettings, 'vi')
   const showHeaderCopy = Boolean(header.brandName.trim() || header.tagline.trim())
 
   return (
     <>
+      <BookingModal isOpen={bookingOpen} onClose={() => setBookingOpen(false)} lang="vi" />
       {/* Navbar minimal */}
       <header className="fixed w-full top-0 z-50 bg-surface/92 border-b border-outline-variant/30 shadow-sm">
         <nav className="flex justify-between items-center px-5 lg:px-10 max-w-6xl mx-auto h-14">
@@ -44,13 +48,13 @@ function LegalPage({ title, sections, siteSettings }: LegalPageProps) {
         </nav>
       </header>
 
-      <main className="pt-14 bg-gradient-to-b from-surface to-surface-container-low">
+      <main className="pt-14 bg-gradient-to-b from-[#fff5f7] via-surface to-surface-container-low">
         {/* Hero */}
         <div className="max-w-3xl mx-auto px-5 lg:px-10 pt-12 pb-6">
           <div className="inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 bg-secondary-container/20 text-secondary">
             The One - GG99 · GG99.vn
           </div>
-          <h1 className="text-[26px] md:text-[34px] font-extrabold text-on-surface leading-tight">{title}</h1>
+          <h1 className="bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-[26px] font-extrabold leading-tight text-transparent md:text-[34px]">{title}</h1>
           <p className="text-sm text-on-surface/50 mt-2">
             Cập nhật: tháng 5/2026 · Công ty TNHH MTV Thế Hệ Vàng Việt Nam
           </p>
@@ -96,12 +100,13 @@ function LegalPage({ title, sections, siteSettings }: LegalPageProps) {
             >
               ← Quay lại trang chủ
             </a>
-            <a
-              href="/#contact"
+            <button
+              type="button"
+              onClick={() => setBookingOpen(true)}
               className="px-6 py-2.5 rounded-xl bg-primary text-on-primary gg-btn-primary text-sm font-bold hover:opacity-90 transition-opacity"
             >
               Liên hệ tư vấn →
-            </a>
+            </button>
           </div>
         </div>
       </main>

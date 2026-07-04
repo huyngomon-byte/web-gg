@@ -1,7 +1,16 @@
+'use client'
+
+import { MapPin } from 'lucide-react'
 import { localizedPath, type BrandLang } from '../brandContent'
 import { getLocalizedSiteSettings } from '../cms/siteSettings'
 import type { CmsSiteSettings } from '../cms/types'
 import { ChatIcon } from './ChatIcon'
+import { openBookingModal } from './openBookingModal'
+
+function isContactHref(href: string) {
+  const normalized = href.trim().toLowerCase()
+  return normalized === '#contact' || normalized === '/contact' || normalized.endsWith('/contact')
+}
 
 export function BrandFooter({ lang = 'vi', siteSettings }: { lang?: BrandLang; siteSettings?: CmsSiteSettings | null }) {
   const footer = getLocalizedSiteSettings(siteSettings, lang).footer
@@ -10,9 +19,26 @@ export function BrandFooter({ lang = 'vi', siteSettings }: { lang?: BrandLang; s
   const hasLegalLinks =
     Boolean(footer.privacyLabel.trim() && footer.privacyHref.trim()) ||
     Boolean(footer.termsLabel.trim() && footer.termsHref.trim())
+  const linkClass = 'text-sm text-on-surface/70 hover:text-primary transition-colors'
+
+  function renderFooterLink(item: { href: string; label: string }) {
+    if (isContactHref(item.href)) {
+      return (
+        <button type="button" onClick={openBookingModal} className={`${linkClass} text-left`}>
+          {item.label}
+        </button>
+      )
+    }
+
+    return (
+      <a href={localizedPath(lang, item.href)} className={linkClass}>
+        {item.label}
+      </a>
+    )
+  }
 
   return (
-    <footer className="bg-gradient-to-b from-surface to-surface-container-low border-t border-outline-variant/40">
+    <footer className="relative border-t border-outline-variant/40 bg-gradient-to-b from-surface to-surface-container-low before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-gradient-to-r before:from-primary before:via-tertiary before:to-secondary">
       <div className="max-w-6xl mx-auto px-5 lg:px-10 pt-10 pb-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[2fr_1fr_1fr_1fr]">
           <div>
@@ -59,9 +85,7 @@ export function BrandFooter({ lang = 'vi', siteSettings }: { lang?: BrandLang; s
               <ul className="space-y-2.5">
                 {solutionLinks.map((item) => (
                   <li key={`${item.href}-${item.label}`}>
-                    <a href={localizedPath(lang, item.href)} className="text-sm text-on-surface/70 hover:text-primary transition-colors">
-                      {item.label}
-                    </a>
+                    {renderFooterLink(item)}
                   </li>
                 ))}
               </ul>
@@ -76,9 +100,7 @@ export function BrandFooter({ lang = 'vi', siteSettings }: { lang?: BrandLang; s
               <ul className="space-y-2.5">
                 {navLinks.map((item) => (
                   <li key={`${item.href}-${item.label}`}>
-                    <a href={localizedPath(lang, item.href)} className="text-sm text-on-surface/70 hover:text-primary transition-colors">
-                      {item.label}
-                    </a>
+                    {renderFooterLink(item)}
                   </li>
                 ))}
               </ul>
@@ -108,7 +130,7 @@ export function BrandFooter({ lang = 'vi', siteSettings }: { lang?: BrandLang; s
               )}
               {footer.address && (
                 <li className="text-sm text-on-surface/70 flex items-start gap-1.5">
-                  <span className="mt-0.5" aria-hidden="true">Pin</span> {footer.address}
+                  <MapPin size={16} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" /> {footer.address}
                 </li>
               )}
             </ul>

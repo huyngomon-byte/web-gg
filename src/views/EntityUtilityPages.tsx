@@ -1,6 +1,6 @@
 'use client'
 
-import { BadgeCheck, Mail, Megaphone, Rocket, Workflow } from 'lucide-react'
+import { BadgeCheck, Mail } from 'lucide-react'
 import {
   contactMeta,
   organizationSchema,
@@ -11,13 +11,10 @@ import {
   type BrandLang,
 } from '../brandContent'
 import { BrandLayout } from '../components/BrandLayout'
-import { openBookingModal } from '../components/openBookingModal'
-import { CmsIcon } from '../components/CmsIcon'
+import { PackageCards } from '../components/PackageCards'
 import { SeoHead } from '../components/SeoHead'
 import { getCmsBlock, splitCmsParagraphs } from '../cms/contentBlocks'
 import type { CmsBlockItem, CmsPageContent, CmsSiteSettings } from '../cms/types'
-
-const packageIcons = [Rocket, Workflow, Megaphone]
 
 export function PackagesPage({ lang = 'vi', cmsPage, siteSettings }: { lang?: BrandLang; cmsPage?: CmsPageContent | null; siteSettings?: CmsSiteSettings | null }) {
   const c = theOnePackagesByLang[lang]
@@ -39,8 +36,8 @@ export function PackagesPage({ lang = 'vi', cmsPage, siteSettings }: { lang?: Br
       <SeoHead meta={meta} schema={[organizationSchema, websiteSchema]} lang={lang} />
 
       <article>
-        <section className="relative overflow-hidden px-5 lg:px-10 py-14 md:py-20">
-          <div className="absolute inset-0 tech-grid opacity-80 pointer-events-none" aria-hidden="true" />
+        <section className="relative flex min-h-[30vh] items-center overflow-hidden bg-[linear-gradient(135deg,#fff5f7_0%,#ffe4ec_48%,#fff1c8_100%)] px-5 py-12 lg:px-10">
+          <div className="absolute inset-0 tech-grid opacity-55 pointer-events-none" aria-hidden="true" />
           <div className="noise-overlay" aria-hidden="true" />
           <div className="relative max-w-5xl mx-auto">
             <h1 className="text-[40px] sm:text-[56px] md:text-[72px] font-extrabold text-on-surface leading-[1.06]">
@@ -61,53 +58,14 @@ export function PackagesPage({ lang = 'vi', cmsPage, siteSettings }: { lang?: Br
           </div>
         </section>
 
-        <section className="px-5 lg:px-10 pb-16 md:pb-24">
-          <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-5">
+        <section className="px-5 pb-16 pt-10 md:pb-24 lg:px-10">
+          <div className="max-w-6xl mx-auto">
             {packageBlock?.body && (
-              <div className="md:col-span-3 -mt-4 mb-2 whitespace-pre-line text-sm leading-relaxed text-on-surface-variant">
+              <div className="mb-6 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-on-surface-variant">
                 {packageBlock.body}
               </div>
             )}
-            {packageItems.map((item, index) => {
-              const Icon = packageIcons[index]
-              const lines = String(item.body || '').split(/\n+/).map((line) => line.trim()).filter(Boolean)
-              const subtitle = lines[0] || ''
-              const hasPrice = /^price:/i.test(lines[lines.length - 1] || '')
-              const price = hasPrice ? lines[lines.length - 1].replace(/^price:\s*/i, '') : ''
-              const bullets = lines.slice(1, hasPrice ? -1 : undefined)
-              const id = item.title.toLowerCase().replace(/\s+/g, '-')
-              return (
-                <article id={id} key={`${item.title}-${index}`} className="glass-card card-hover flex flex-col rounded-2xl p-6 scroll-mt-24">
-                  <span className="icon-chip h-12 w-12 mb-5">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.imageAlt || item.title} className="h-7 w-7 object-contain" />
-                    ) : (
-                      <CmsIcon name={item.icon} fallback={Icon} size={22} />
-                    )}
-                  </span>
-                  <h2 className="text-xl font-extrabold text-on-surface">{item.title}</h2>
-                  {subtitle && <p className="mt-4 text-sm font-semibold text-on-surface-variant leading-relaxed">{subtitle}</p>}
-                  {bullets.length > 0 && (
-                    <ul className="mt-4 space-y-2 text-sm leading-relaxed text-on-surface-variant">
-                      {bullets.map((line, lineIndex) => (
-                        <li key={lineIndex} className="flex gap-2">
-                          <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-                          <span>{line}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {price && <p className="mt-5 text-lg font-extrabold text-primary">{price}</p>}
-                  <button
-                    type="button"
-                    onClick={openBookingModal}
-                    className="btn-shine cta-idle mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-on-primary gg-btn-primary glow-orange hover:opacity-90"
-                  >
-                    Choose This Package
-                  </button>
-                </article>
-              )
-            })}
+            <PackageCards items={packageItems} lang={lang} />
           </div>
         </section>
       </article>

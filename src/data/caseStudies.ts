@@ -1,6 +1,7 @@
 export type CaseStudyMetric = {
   value: string
   label: string
+  featured?: boolean
 }
 
 export type CaseStudy = {
@@ -26,6 +27,7 @@ export type CaseStudy = {
   videoUrl?: string
   embedUrl?: string
   backgroundImageUrl?: string
+  backgroundImages?: string[]
   screenBackground?: {
     imageUrl?: string
     gradient?: string
@@ -34,6 +36,7 @@ export type CaseStudy = {
     instagram?: string
     facebook?: string
     tiktok?: string
+    website?: string
   }
   ctaText: string
 }
@@ -66,6 +69,9 @@ export const caseStudies: CaseStudy[] = [
       result:
         'The channel mix shifted from around 70% Shopee to a balanced Web 36%, Shopee 32% and Social/B2B 32% mix, with +84% monthly revenue growth, 2.68 marketing ROI in June 2026 and x3 projected FY2026 revenue.',
     },
+    socialLinks: {
+      website: 'https://phinoi.com',
+    },
     ctaText: 'Read story',
   },
   {
@@ -94,6 +100,9 @@ export const caseStudies: CaseStudy[] = [
         'The One built and operated TikTok Shop, Shopee and D2C website workflows, TikTok/Meta/Shopee Ads, Gen Z content, pricing architecture, P&L tracking, cashflow control and 100+ KOL/KOC bookings.',
       result:
         'In 20 months, cota.cuti reached 4.42B VND cumulative revenue, 20,668 products sold, 37.2K TikTok followers and a stable gross margin of around 70%.',
+    },
+    socialLinks: {
+      website: 'https://cotacuti.com',
     },
     ctaText: 'Read story',
   },
@@ -124,6 +133,9 @@ export const caseStudies: CaseStudy[] = [
       result:
         'The system tracked around 29.8B VND net online revenue, 326K+ orders and 886K+ items sold, while TikTok Shop grew from zero to 6.41B VND annual revenue in 2024.',
     },
+    socialLinks: {
+      website: 'https://inkaholic.vn',
+    },
     ctaText: 'Read story',
   },
   {
@@ -153,6 +165,9 @@ export const caseStudies: CaseStudy[] = [
       result:
         'Across 16 months, TikTok ads generated 25.04B VND GMV, 4.56 blended ROAS, 101,301 orders and 203M impressions, with Live Shopping ROAS holding 5.8-9.3 through 2026.',
     },
+    socialLinks: {
+      website: 'https://qandabooks.vn',
+    },
     ctaText: 'Read story',
   },
   {
@@ -181,6 +196,12 @@ export const caseStudies: CaseStudy[] = [
         'The One built a 5-channel promotion matrix, full-funnel Meta/TikTok/Shopee/CPAS/Google Ads planning, marketplace operation and a dashboard that compared platform data with real orders from nhanh.vn.',
       result:
         'During the 26-day Tet peak campaign, the system recorded 2.48B VND revenue with around 16% ads cost/revenue, Shopee Ads ROAS 19.7 and TikTok Ads ROAS around 3.0.',
+    },
+    socialLinks: {
+      instagram: 'https://www.instagram.com/curnonwatch',
+      facebook: 'https://www.facebook.com/curnonwatch',
+      tiktok: 'https://www.tiktok.com/@curnonwatch',
+      website: 'https://curnonwatch.com',
     },
     ctaText: 'Read story',
   },

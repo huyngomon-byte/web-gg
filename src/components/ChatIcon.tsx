@@ -36,7 +36,7 @@ export function ChatIcon({ app, size = 20 }: { app: ChatApp; size?: number }) {
   // zalo (mặc định)
   return (
     <img
-      src="/Logo Zalo Arc.png"
+      src="/logo-zalo-arc.png"
       alt="Zalo"
       width={size}
       height={size}

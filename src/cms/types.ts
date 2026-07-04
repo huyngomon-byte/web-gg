@@ -18,6 +18,7 @@ export type CmsBlockItem = {
   videoUrl?: string
   embedUrl?: string
   backgroundImageUrl?: string
+  backgroundImages?: string[]
   screenBackground?: {
     imageUrl?: string
     gradient?: string
@@ -26,6 +27,7 @@ export type CmsBlockItem = {
     instagram?: string
     facebook?: string
     tiktok?: string
+    website?: string
   }
   href?: string
   label?: string
@@ -35,6 +37,7 @@ export type CmsBlockItem = {
   keyMetrics?: Array<{
     value: string
     label: string
+    featured?: boolean
   }>
   storyDetail?: {
     challenge?: string
@@ -42,6 +45,9 @@ export type CmsBlockItem = {
     result?: string
   }
   ctaText?: string
+  caseStudyLink?: string
+  showOnHomepage?: boolean
+  homepageOrder?: string
 }
 
 export type CmsBlock = {

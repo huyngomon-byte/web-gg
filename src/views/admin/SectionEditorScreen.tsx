@@ -33,7 +33,7 @@ function textToDraftList(value: string) {
 }
 
 function getMetric(item: CmsBlockItem, index: number) {
-  return item.keyMetrics?.[index] ?? { value: '', label: '' }
+  return item.keyMetrics?.[index] ?? { value: '', label: '', featured: false }
 }
 
 function StoryItemEditor({
@@ -51,14 +51,14 @@ function StoryItemEditor({
   updateBlockItem: UpdateBlockItem
   onUploadError: (message: string) => void
 }) {
-  function updateMetric(metricIndex: number, patch: { value?: string; label?: string }) {
+  function updateMetric(metricIndex: number, patch: { value?: string; label?: string; featured?: boolean }) {
     const nextMetrics = [...(item.keyMetrics ?? [])]
-    while (nextMetrics.length <= metricIndex) nextMetrics.push({ value: '', label: '' })
+    while (nextMetrics.length <= metricIndex) nextMetrics.push({ value: '', label: '', featured: false })
     nextMetrics[metricIndex] = { ...nextMetrics[metricIndex], ...patch }
     updateBlockItem(pageId, blockId, index, { keyMetrics: nextMetrics })
   }
 
-  function updateSocialLink(field: 'instagram' | 'facebook' | 'tiktok', value: string) {
+  function updateSocialLink(field: 'instagram' | 'facebook' | 'tiktok' | 'website', value: string) {
     updateBlockItem(pageId, blockId, index, {
       socialLinks: {
         ...item.socialLinks,
@@ -83,6 +83,12 @@ function StoryItemEditor({
   function handleBackgroundUploaded(url: string) {
     onUploadError('')
     updateBackgroundImageUrl(url)
+  }
+
+  function updateBackgroundImages(value: string) {
+    updateBlockItem(pageId, blockId, index, {
+      backgroundImages: value.split('\n').map((url) => url.trim()).filter(Boolean),
+    })
   }
 
   return (
@@ -200,6 +206,15 @@ function StoryItemEditor({
                   <Field label="Label">
                     <TextInput value={metric.label} onChange={(value) => updateMetric(metricIndex, { label: value })} />
                   </Field>
+                  <label className="inline-flex w-fit items-center gap-2 rounded-lg border border-outline-variant/45 px-3 py-2 text-xs font-extrabold text-on-surface-variant">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(metric.featured)}
+                      onChange={(event) => updateMetric(metricIndex, { featured: event.target.checked })}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Featured metric
+                  </label>
                 </div>
               </div>
             )
@@ -210,10 +225,25 @@ function StoryItemEditor({
       <Field label="CTA text">
         <TextInput value={item.ctaText ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { ctaText: value })} />
       </Field>
+      <Field label="Case study link">
+        <TextInput value={item.caseStudyLink ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { caseStudyLink: value })} placeholder="/the-one#curnon" />
+      </Field>
 
       <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
         <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Homepage / media</p>
         <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Homepage order" hint="Lower numbers appear first on the homepage Explore grid.">
+            <TextInput value={item.homepageOrder ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageOrder: value })} />
+          </Field>
+          <label className="inline-flex h-fit w-fit items-center gap-2 rounded-xl border border-outline-variant/45 bg-surface px-3 py-2 text-xs font-extrabold text-on-surface-variant">
+            <input
+              type="checkbox"
+              checked={item.showOnHomepage !== false}
+              onChange={(event) => updateBlockItem(pageId, blockId, index, { showOnHomepage: event.target.checked })}
+              className="h-4 w-4 accent-primary"
+            />
+            Show on homepage
+          </label>
           <Field label="Preview video URL" hint="MP4/WebM/OGG Cloudinary URL. Homepage hover will autoplay muted and loop. YouTube/Vimeo still works, but may show platform branding.">
             <div className="grid gap-2">
               <TextInput value={item.videoUrl ?? item.embedUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { videoUrl: value })} />
@@ -278,12 +308,19 @@ function StoryItemEditor({
               />
             </div>
           </Field>
+          <Field label="Background carousel images" hint="One image URL per line.">
+            <TextArea
+              value={(item.backgroundImages ?? []).join('\n')}
+              onChange={updateBackgroundImages}
+              minHeight={96}
+            />
+          </Field>
         </div>
       </section>
 
       <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
         <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Social links</p>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Field label="Instagram URL">
             <TextInput value={item.socialLinks?.instagram ?? ''} onChange={(value) => updateSocialLink('instagram', value)} />
           </Field>
@@ -292,6 +329,9 @@ function StoryItemEditor({
           </Field>
           <Field label="TikTok URL">
             <TextInput value={item.socialLinks?.tiktok ?? ''} onChange={(value) => updateSocialLink('tiktok', value)} />
+          </Field>
+          <Field label="Website URL">
+            <TextInput value={item.socialLinks?.website ?? ''} onChange={(value) => updateSocialLink('website', value)} />
           </Field>
         </div>
       </section>
@@ -548,6 +588,9 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                       </Field>
                       <Field label="Href">
                         <TextInput value={item.href ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { href: value })} />
+                      </Field>
+                      <Field label="Case study link">
+                        <TextInput value={item.caseStudyLink ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { caseStudyLink: value })} placeholder="/the-one#curnon" />
                       </Field>
                       <Field label="Label phụ">
                         <TextInput value={item.label ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { label: value })} />

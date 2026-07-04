@@ -2,7 +2,6 @@
 
 import { useState, useEffect, type CSSProperties } from 'react'
 import { BookingModal } from '../components/BookingModal'
-import { ThemeToggle } from '../components/ThemeToggle'
 import { useScrollReveal } from '../hooks/useScrollReveal'
 import { useCardSpotlight } from '../hooks/useCardSpotlight'
 import { useScrollParallax } from '../hooks/useScrollParallax'
@@ -264,7 +263,6 @@ export default function AboutTemplate({ lang, siteSettings }: { lang: AboutLang;
                 <span className="hidden sm:inline">한국어</span>
               </a>
             </div>
-            <ThemeToggle />
             <button
               onClick={() => setBookingOpen(true)}
               className="btn-shine bg-primary text-on-primary gg-btn-primary text-xs px-2.5 py-1.5 sm:text-sm sm:px-4 sm:py-2 rounded-lg font-bold glow-orange hover:opacity-90 whitespace-nowrap"

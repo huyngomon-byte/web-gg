@@ -26,10 +26,16 @@ export function storyFromCmsItem(item: CmsBlockItem) {
       return {
         ...fallback,
         brandName: item.title || fallback.brandName,
+        accountName: item.accountName || fallback.accountName,
+        displayName: item.displayName || fallback.displayName || item.title || fallback.brandName,
+        logoUrl: item.logoUrl || fallback.logoUrl,
+        verified: item.verified ?? fallback.verified,
         category: item.label || fallback.category,
         period: item.period || fallback.period,
         headline: item.body || fallback.headline,
         shortDescription: item.shortDescription || fallback.shortDescription,
+        caption: item.caption || fallback.caption,
+        likesSeed: item.likesSeed || fallback.likesSeed,
         services: services.length ? services : fallback.services,
         keyMetrics,
         storyDetail: {
@@ -40,6 +46,10 @@ export function storyFromCmsItem(item: CmsBlockItem) {
         videoUrl: item.videoUrl || fallback.videoUrl,
         embedUrl: item.embedUrl || fallback.embedUrl,
         backgroundImageUrl: item.backgroundImageUrl || item.imageUrl || fallback.backgroundImageUrl,
+        screenBackground: {
+          imageUrl: item.screenBackground?.imageUrl || fallback.screenBackground?.imageUrl || '',
+          gradient: item.screenBackground?.gradient || fallback.screenBackground?.gradient || '',
+        },
         socialLinks: {
           instagram: item.socialLinks?.instagram || fallback.socialLinks?.instagram || '',
           facebook: item.socialLinks?.facebook || fallback.socialLinks?.facebook || '',

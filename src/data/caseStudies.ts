@@ -6,10 +6,16 @@ export type CaseStudyMetric = {
 export type CaseStudy = {
   id: string
   brandName: string
+  accountName?: string
+  displayName?: string
+  logoUrl?: string
+  verified?: boolean
   category: string
   period: string
   headline: string
   shortDescription: string
+  caption?: string
+  likesSeed?: string
   services: string[]
   keyMetrics: CaseStudyMetric[]
   storyDetail: {
@@ -20,6 +26,10 @@ export type CaseStudy = {
   videoUrl?: string
   embedUrl?: string
   backgroundImageUrl?: string
+  screenBackground?: {
+    imageUrl?: string
+    gradient?: string
+  }
   socialLinks?: {
     instagram?: string
     facebook?: string
@@ -31,12 +41,18 @@ export type CaseStudy = {
 export const caseStudies: CaseStudy[] = [
   {
     id: 'phinoi',
+    accountName: 'phinoi.vn',
+    displayName: 'PHINOI',
+    logoUrl: '/logo-phinoi.png',
+    verified: true,
     brandName: 'PHINƠI',
     category: 'Vietnamese coffee culture / E-commerce growth',
     period: '07/2025 - ongoing',
     headline: 'Turning a niche phin startup into a multi-channel engine',
     shortDescription:
       'PHINƠI needed to educate a premium coffee accessory market while reducing marketplace dependence. The One operated the online P&L across owned web, Shopee, social/B2B, ads, KOLs and livestream.',
+    caption: 'From niche coffee culture to a balanced owned-commerce growth engine.',
+    likesSeed: '2486',
     services: ['E-commerce Management', 'Performance Ads', 'Micro KOLs', 'Livestream Commerce'],
     keyMetrics: [
       { value: 'x3', label: 'projected FY2026 revenue' },
@@ -54,12 +70,18 @@ export const caseStudies: CaseStudy[] = [
   },
   {
     id: 'cota-cuti',
+    accountName: 'cota.cuti',
+    displayName: 'cota.cuti',
+    logoUrl: '/logo-cotacuti.png',
+    verified: true,
     brandName: 'cota.cuti',
     category: 'Gen Z eyewear / Brand & commerce launch',
     period: '09/2024 - ongoing',
     headline: 'Building a Gen Z eyewear brand from zero',
     shortDescription:
       'From launch, The One helped shape cota.cuti around commerce, content, pricing and creator operations. The work turned a young fashion idea into a measured local-brand growth system.',
+    caption: 'A Gen Z eyewear brand built from zero with commerce, content and creator ops working together.',
+    likesSeed: '4420',
     services: ['Go-to-market', 'E-commerce Management', 'Digital Ads', 'KOL/KOC Operations'],
     keyMetrics: [
       { value: '4.42B VND', label: 'cumulative revenue' },
@@ -77,12 +99,18 @@ export const caseStudies: CaseStudy[] = [
   },
   {
     id: 'inkaholic',
+    accountName: 'inkaholic.vn',
+    displayName: 'INKAHOLIC',
+    logoUrl: '/logo-inkaholic.png',
+    verified: true,
     brandName: 'INKAHOLIC',
     category: 'Temporary tattoos / Full-stack e-commerce growth',
     period: '07/2020 - 11/2025',
     headline: "Scaling Vietnam's first temporary tattoo brand end to end",
     shortDescription:
       'The One operated e-commerce, ads, KOL/KOC, content and product strategy for INKAHOLIC across five years of platform shifts. A timely TikTok Shop pivot turned social attention into the main revenue engine.',
+    caption: 'Five years of platform shifts, creator operations and performance discipline.',
+    likesSeed: '29800',
     services: ['E-commerce Operation', 'Performance Ads', 'Influencer Machine', 'Product Strategy'],
     keyMetrics: [
       { value: '~29.8B VND', label: 'net online revenue' },
@@ -100,12 +128,18 @@ export const caseStudies: CaseStudy[] = [
   },
   {
     id: 'qanda-books',
+    accountName: 'qandabooks.vn',
+    displayName: 'QANDA Books',
+    logoUrl: '/logo-qandabook.png',
+    verified: true,
     brandName: 'QANDA Books',
     category: 'Edtech books / TikTok Commerce',
     period: '03/2025 - ongoing',
     headline: 'Making TikTok Commerce work for seasonal edtech',
     shortDescription:
       'QANDA Books had a low-AOV, seasonal exam-commerce challenge where every CPA mistake mattered. The One built the TikTok content, ads, Live Shopping, GMV Max and daily reporting rhythm around exam demand.',
+    caption: 'Seasonal edtech demand turned into a daily TikTok commerce rhythm.',
+    likesSeed: '25040',
     services: ['Content Strategy', 'TikTok Ads', 'Live Shopping', 'Daily Reporting'],
     keyMetrics: [
       { value: '25.04B VND', label: 'GMV from ads' },
@@ -123,12 +157,18 @@ export const caseStudies: CaseStudy[] = [
   },
   {
     id: 'curnon',
+    accountName: 'curnonwatch',
+    displayName: 'CURNON',
+    logoUrl: '/logo-curnon.png',
+    verified: true,
     brandName: 'CURNON',
     category: 'Watches & jewelry / Online-offline growth',
     period: '07/2023 - ongoing',
     headline: 'System-led growth for a premium local watch brand',
     shortDescription:
       'CURNON needed disciplined online-offline growth without eroding brand value. The One connected promotion, pricing, marketplaces, ads and real-order reporting into one operating system.',
+    caption: 'Premium local watch growth with connected promotions, marketplaces and reporting.',
+    likesSeed: '2480',
     services: ['Promotion & Pricing', 'Marketplace Ops', 'Multi-channel Ads', 'Dashboard Reporting'],
     keyMetrics: [
       { value: '2.48B VND', label: 'peak campaign revenue' },

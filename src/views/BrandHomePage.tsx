@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   Play,
   Rocket,
@@ -12,6 +12,7 @@ import { BrandLayout } from '../components/BrandLayout'
 import { openBookingModal } from '../components/openBookingModal'
 import { CmsIcon } from '../components/CmsIcon'
 import { SeoHead } from '../components/SeoHead'
+import { useScrollReveal } from '../hooks/useScrollReveal'
 import { getCmsBlock, splitCmsParagraphs } from '../cms/contentBlocks'
 import type { CmsBlockItem, CmsPageContent, CmsSiteSettings } from '../cms/types'
 import { getOrderedCaseStudies } from '../data/caseStudyStories'
@@ -19,6 +20,7 @@ import type { CaseStudy } from '../data/caseStudies'
 
 const packageIcons = [Rocket, Workflow, TrendingUp]
 const primaryBookingCtaLabel = 'Call Your Shot'
+const defaultHeroGradient = 'linear-gradient(180deg,#FFF5F7 0%,#FFE4EC 55%,#FFD9E4 100%)'
 
 function resolvePrimaryBookingCtaLabel(label?: string) {
   const trimmed = label?.trim() ?? ''
@@ -44,12 +46,91 @@ const mediaBackdrops = [
 function SectionHeader({ title, intro, dark = false }: { title: string; intro?: string; dark?: boolean }) {
   return (
     <div className="max-w-3xl mb-8">
-      <h2 className={`text-[28px] md:text-[36px] font-extrabold leading-tight ${dark ? 'text-white' : 'text-on-surface'}`}>
+      <h2 data-reveal className={`text-[28px] md:text-[36px] font-extrabold leading-tight ${dark ? 'text-white' : 'text-on-surface'}`}>
         {title}
       </h2>
+      <div data-reveal="line" className="home-gradient-underline mt-3" aria-hidden="true" />
       {intro && <p className={`mt-4 text-[15px] md:text-base leading-relaxed ${dark ? 'text-white/65' : 'text-on-surface-variant'}`}>{intro}</p>}
     </div>
   )
+}
+
+function cssUrl(value: string) {
+  return `url("${value.replace(/"/g, '%22')}")`
+}
+
+function heroBackgroundStyle(block: ReturnType<typeof getCmsBlock>): CSSProperties {
+  const gradient = block?.backgroundGradient?.trim() || defaultHeroGradient
+  const imageUrl = block?.backgroundImageUrl?.trim()
+  const overlayValue = Number.parseFloat(block?.backgroundOverlayOpacity ?? '')
+  const overlay = Number.isFinite(overlayValue) ? Math.min(0.85, Math.max(0, overlayValue)) : 0
+
+  if (!imageUrl) {
+    return { backgroundImage: gradient }
+  }
+
+  return {
+    backgroundImage: `linear-gradient(rgba(255,245,247,${overlay}), rgba(255,245,247,${overlay})), ${cssUrl(imageUrl)}, ${gradient}`,
+    backgroundSize: 'cover, cover, cover',
+    backgroundPosition: 'center, center, center',
+  }
+}
+
+function PriceText({ price }: { price: string }) {
+  const ref = useRef<HTMLSpanElement | null>(null)
+  const match = price.match(/^([^0-9]*)([\d,.]+)(.*)$/)
+  const prefix = match?.[1] ?? ''
+  const suffix = match?.[3] ?? ''
+  const target = match ? Number.parseFloat(match[2].replace(/,/g, '')) : Number.NaN
+  const [value, setValue] = useState(match && Number.isFinite(target) ? `${prefix}0${suffix}` : price)
+
+  useEffect(() => {
+    if (!match || !Number.isFinite(target)) {
+      setValue(price)
+      return
+    }
+
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduced || !('IntersectionObserver' in window)) {
+      setValue(`${prefix}${new Intl.NumberFormat('en-US').format(target)}${suffix}`)
+      return
+    }
+
+    const el = ref.current
+    if (!el) return
+    let raf = 0
+    let started = false
+    const formatter = new Intl.NumberFormat('en-US')
+
+    const run = () => {
+      const start = performance.now()
+      const tick = (now: number) => {
+        const progress = Math.min(1, (now - start) / 1050)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        setValue(`${prefix}${formatter.format(Math.round(target * eased))}${suffix}`)
+        if (progress < 1) raf = requestAnimationFrame(tick)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started) {
+          started = true
+          observer.disconnect()
+          run()
+        }
+      },
+      { threshold: 0.35 },
+    )
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(raf)
+    }
+  }, [price])
+
+  return <span ref={ref}>{value}</span>
 }
 
 function extractIframeSrc(value: string) {
@@ -145,6 +226,7 @@ function StoryMediaCard({
   story,
   index,
   lang,
+  featured = false,
 }: {
   stage: {
     label: string
@@ -158,6 +240,7 @@ function StoryMediaCard({
   story?: CaseStudy
   index: number
   lang: BrandLang
+  featured?: boolean
 }) {
   const [active, setActive] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -197,13 +280,15 @@ function StoryMediaCard({
     <a
       href={storyHref}
       aria-label={`${stage.label}${story ? ` - ${story.brandName}` : ''}`}
+      data-reveal={featured ? 'scale' : index % 2 === 0 ? 'right' : 'left'}
+      style={{ '--ri': featured ? 0 : index } as CSSProperties}
       onMouseEnter={activatePreview}
       onMouseLeave={deactivatePreview}
       onFocus={activatePreview}
       onBlur={deactivatePreview}
       className="group block text-left transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
     >
-      <div className={`relative aspect-[4/3] overflow-hidden rounded-xl bg-gradient-to-br ${backdrop} shadow-[0_18px_42px_rgba(0,0,0,0.28)] ring-1 ring-white/10 transition duration-300 group-hover:ring-white/35`}>
+      <div className={`relative overflow-hidden rounded-[24px] bg-gradient-to-br ${backdrop} shadow-[0_18px_42px_rgba(0,0,0,0.28)] ring-1 ring-white/10 transition duration-300 group-hover:ring-white/35 ${featured ? 'aspect-[16/9] md:aspect-[16/7]' : 'aspect-[4/3]'}`}>
         {directVideo ? (
           <>
             <video
@@ -252,7 +337,7 @@ function StoryMediaCard({
         </span>
       </div>
       <div className="px-1 pt-4">
-        <h3 className="text-[20px] font-extrabold leading-tight text-on-surface md:text-[23px]">{stage.label}</h3>
+        <h3 className={`${featured ? 'text-[26px] md:text-[34px]' : 'text-[20px] md:text-[23px]'} font-extrabold leading-tight text-on-surface`}>{stage.label}</h3>
         {stage.detail && <p className="mt-2 max-w-[32rem] text-[13px] font-semibold leading-relaxed text-on-surface-variant md:text-sm">{stage.detail}</p>}
       </div>
     </a>
@@ -302,19 +387,17 @@ function SystemMap({ labels, lang, items, storyTargets }: { labels: string[]; la
     }
   })
 
-  const topStages = stages.slice(0, 2)
-  const bottomStages = stages.slice(2)
+  const featuredStage = stages[0]
+  const remainingStages = stages.slice(1)
 
   return (
-    <div className="space-y-12">
-      <div className="grid gap-8 lg:grid-cols-2">
-        {topStages.map((stage, index) => (
-          <StoryMediaCard key={`${stage.label}-${index}`} stage={stage} story={stage.story} index={index} lang={lang} />
-        ))}
-      </div>
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-        {bottomStages.map((stage, index) => (
-          <StoryMediaCard key={`${stage.label}-${index + 2}`} stage={stage} story={stage.story} index={index + 2} lang={lang} />
+    <div className="space-y-10">
+      {featuredStage && (
+        <StoryMediaCard key={`${featuredStage.label}-featured`} stage={featuredStage} story={featuredStage.story} index={0} lang={lang} featured />
+      )}
+      <div className="grid gap-8 md:grid-cols-2">
+        {remainingStages.map((stage, index) => (
+          <StoryMediaCard key={`${stage.label}-${index + 1}`} stage={stage} story={stage.story} index={index + 1} lang={lang} />
         ))}
       </div>
     </div>
@@ -332,6 +415,8 @@ export default function BrandHomePage({
   theOnePage?: CmsPageContent | null
   siteSettings?: CmsSiteSettings | null
 }) {
+  useScrollReveal()
+
   const c = compactHomeByLang[lang]
   const homeMeta = cmsPage?.meta ?? homeMetaByLang[lang]
   const heroBlock = getCmsBlock(cmsPage, 'hero')
@@ -353,26 +438,34 @@ export default function BrandHomePage({
     }))
 
   return (
-    <BrandLayout lang={lang} siteSettings={siteSettings}>
+    <BrandLayout lang={lang} siteSettings={siteSettings} hideHeaderCta flushTop>
       <SeoHead meta={homeMeta} schema={[organizationSchema, websiteSchema, homeWebPageSchema]} lang={lang} />
 
-      <section className="relative overflow-hidden bg-gradient-to-b from-surface-container-low via-surface to-surface">
-        <div className="absolute inset-0 tech-grid opacity-60 pointer-events-none" aria-hidden="true" />
+      <section className="relative flex min-h-[85vh] items-center overflow-hidden md:min-h-screen" style={heroBackgroundStyle(heroBlock)}>
+        <div className="absolute inset-0 tech-grid opacity-35 pointer-events-none" aria-hidden="true" />
         <div className="noise-overlay" aria-hidden="true" />
-        <div className="absolute -top-32 left-1/2 h-[420px] w-[620px] -translate-x-1/2 rounded-full bg-primary/20 blur-[120px]" aria-hidden="true" />
-        <div className="absolute -right-24 top-8 h-72 w-72 rounded-full bg-tertiary/15 blur-[100px]" aria-hidden="true" />
-        <div className="absolute -left-24 bottom-0 h-72 w-72 rounded-full bg-secondary/20 blur-[100px]" aria-hidden="true" />
-        <div className="relative mx-auto flex min-h-[440px] max-w-4xl flex-col items-center justify-center px-5 py-16 text-center lg:px-10">
-          <h1 className={`gg-hero-title text-[40px] font-extrabold not-italic leading-[1.08] text-on-surface sm:text-[56px] md:text-[68px] ${isDefaultHeroTitle ? 'md:whitespace-nowrap' : ''}`}>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-surface-container" aria-hidden="true" />
+        <div className="relative mx-auto flex w-full max-w-5xl flex-col items-center justify-center px-5 pb-20 pt-28 text-center lg:px-10">
+          <h1
+            data-reveal
+            style={{ '--ri': 0 } as CSSProperties}
+            className={`gg-hero-title text-[clamp(36px,10vw,48px)] font-extrabold not-italic leading-[1.02] text-on-surface md:text-[clamp(56px,7vw,96px)] ${isDefaultHeroTitle ? 'md:whitespace-nowrap' : ''}`}
+          >
             {heroLineOne}
           </h1>
-          <p className="mt-5 max-w-2xl text-base font-medium leading-relaxed text-on-surface-variant sm:text-lg">
+          <p
+            data-reveal
+            style={{ '--ri': 1 } as CSSProperties}
+            className="mt-6 max-w-2xl text-[20px] font-medium leading-relaxed text-on-surface-variant md:text-[24px]"
+          >
             {heroLineTwo}
           </p>
           <button
             type="button"
             onClick={openBookingModal}
-            className="btn-shine cta-idle mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-on-primary gg-btn-primary glow-orange hover:opacity-90"
+            data-reveal
+            style={{ '--ri': 2 } as CSSProperties}
+            className="btn-shine cta-idle mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary px-7 py-3.5 font-bold text-white shadow-[0_16px_36px_rgba(219,39,119,0.28)] hover:opacity-95"
           >
             {resolvePrimaryBookingCtaLabel(heroBlock?.ctaLabel)}
           </button>
@@ -396,15 +489,29 @@ export default function BrandHomePage({
               {packagesBlock.body}
             </div>
           )}
-          <div className="grid md:grid-cols-3 gap-5">
+          <div className="grid gap-5 md:grid-cols-3">
             {packageItems.map((item, index) => {
               const lines = String(item.body || '').split(/\n+/).map((line) => line.trim()).filter(Boolean)
               const subtitle = lines[0] || ''
               const hasPrice = /^price:/i.test(lines[lines.length - 1] || '')
               const price = hasPrice ? lines[lines.length - 1].replace(/^price:\s*/i, '') : ''
               const bullets = lines.slice(1, hasPrice ? -1 : undefined)
+              const featured = index === 1 || /system/i.test(item.title)
               return (
-                <div key={`${item.title}-${index}`} className="glass-card card-hover flex flex-col rounded-2xl p-6">
+                <div
+                  key={`${item.title}-${index}`}
+                  data-reveal="scale"
+                  style={{ '--ri': index } as CSSProperties}
+                  className={[
+                    'home-package-card glass-card card-hover relative flex flex-col overflow-hidden rounded-2xl p-6',
+                    featured ? 'home-package-featured md:-translate-y-2' : '',
+                  ].join(' ')}
+                >
+                  {featured && (
+                    <span className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-white shadow-lg">
+                      {item.label || 'Most Popular'}
+                    </span>
+                  )}
                   <span className="icon-chip h-12 w-12 mb-5">
                     <CmsIcon name={item.icon} fallback={packageIcons[index]} size={22} />
                   </span>
@@ -420,13 +527,17 @@ export default function BrandHomePage({
                       ))}
                     </ul>
                   )}
-                  {price && <p className="mt-5 text-lg font-extrabold text-primary">{price}</p>}
+                  {price && (
+                    <p className="home-price-shimmer mt-5 text-lg font-extrabold text-primary">
+                      <PriceText price={price} />
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={openBookingModal}
-                    className="btn-shine cta-idle mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-on-primary gg-btn-primary glow-orange hover:opacity-90"
+                    className="btn-shine cta-idle mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-on-primary gg-btn-primary glow-orange hover:opacity-90"
                   >
-                    Choose This Package
+                    {item.ctaText || primaryBookingCtaLabel}
                   </button>
                 </div>
               )

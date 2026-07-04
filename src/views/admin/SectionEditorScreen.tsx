@@ -22,7 +22,7 @@ import type { CmsBlockItem } from '../../cms/types'
 
 type UpdateBlockItem = (pageId: string, blockId: string, itemIndex: number, patch: Partial<CmsBlockItem>) => void
 
-const storyMetricSlots = Array.from({ length: 9 }, (_, index) => index + 1)
+const storyMetricSlots = Array.from({ length: 10 }, (_, index) => index)
 
 function listToText(items: string[] | undefined) {
   return (items ?? []).join('\n')
@@ -71,6 +71,15 @@ function StoryItemEditor({
     updateBlockItem(pageId, blockId, index, { backgroundImageUrl: value })
   }
 
+  function updateScreenBackground(patch: { imageUrl?: string; gradient?: string }) {
+    updateBlockItem(pageId, blockId, index, {
+      screenBackground: {
+        ...item.screenBackground,
+        ...patch,
+      },
+    })
+  }
+
   function handleBackgroundUploaded(url: string) {
     onUploadError('')
     updateBackgroundImageUrl(url)
@@ -91,7 +100,50 @@ function StoryItemEditor({
         <Field label="Period">
           <TextInput value={item.period ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { period: value })} />
         </Field>
+        <Field label="Instagram handle">
+          <TextInput value={item.accountName ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { accountName: value })} placeholder="brand.handle" />
+        </Field>
+        <Field label="Story display name">
+          <TextInput value={item.displayName ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { displayName: value })} placeholder="Name under story circle" />
+        </Field>
       </div>
+
+      <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Instagram profile</p>
+        <div className="grid gap-4 md:grid-cols-[1fr_180px]">
+          <div className="grid gap-4">
+            <Field label="Avatar / logo URL">
+              <div className="grid gap-2">
+                <TextInput value={item.logoUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { logoUrl: value })} />
+                <ImageUploadButton
+                  folder={`cms/pages/${pageId}/${blockId}/avatars`}
+                  onUploaded={(url) => updateBlockItem(pageId, blockId, index, { logoUrl: url })}
+                  onError={onUploadError}
+                  label={item.logoUrl ? 'Thay avatar' : 'Upload avatar'}
+                />
+              </div>
+            </Field>
+            <label className="inline-flex w-fit items-center gap-2 rounded-xl border border-outline-variant/45 bg-surface px-3 py-2 text-xs font-extrabold text-on-surface-variant">
+              <input
+                type="checkbox"
+                checked={Boolean(item.verified)}
+                onChange={(event) => updateBlockItem(pageId, blockId, index, { verified: event.target.checked })}
+                className="h-4 w-4 accent-primary"
+              />
+              Verified account
+            </label>
+          </div>
+          <div className="flex items-center justify-center rounded-xl border border-outline-variant/45 bg-surface p-4">
+            {item.logoUrl ? (
+              <img src={item.logoUrl} alt={`${item.title || 'Brand'} avatar preview`} className="h-28 w-28 rounded-full object-contain" />
+            ) : (
+              <div className="flex h-28 w-28 items-center justify-center rounded-full border border-dashed border-outline-variant/60 text-xs font-bold text-on-surface-variant">
+                Avatar
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       <Field label="Headline">
         <TextArea value={item.body ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { body: value })} minHeight={78} />
@@ -105,6 +157,19 @@ function StoryItemEditor({
         />
       </Field>
 
+      <div className="grid gap-4 md:grid-cols-[1fr_180px]">
+        <Field label="Instagram caption">
+          <TextArea
+            value={item.caption ?? ''}
+            onChange={(value) => updateBlockItem(pageId, blockId, index, { caption: value })}
+            minHeight={90}
+          />
+        </Field>
+        <Field label="Likes seed">
+          <TextInput value={item.likesSeed ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { likesSeed: value })} placeholder="2486" />
+        </Field>
+      </div>
+
       <Field label="Services" hint="Mỗi dòng là một service tag trên story zone.">
         <TextArea
           value={listToText(item.services)}
@@ -117,7 +182,7 @@ function StoryItemEditor({
         <div className="mb-4">
           <p className="text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Story metrics</p>
           <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/75">
-            Chinh 9 metric dang o vuong ben phai story. Slot metric ben trai da duoc bo khoi public page.
+            Chinh cac metric hien thi nhu app icon trong man hinh iPhone cua Instagram post.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -191,6 +256,26 @@ function StoryItemEditor({
                   </button>
                 )}
               </div>
+            </div>
+          </Field>
+          <Field label="iPhone screen background" hint="Gradient CSS hoặc ảnh nền riêng cho màn hình iPhone trong post.">
+            <div className="grid gap-2">
+              <TextInput
+                value={item.screenBackground?.gradient ?? ''}
+                onChange={(value) => updateScreenBackground({ gradient: value })}
+                placeholder="linear-gradient(145deg,#ffe4ec,#ff6f91,#ffd166)"
+              />
+              <TextInput
+                value={item.screenBackground?.imageUrl ?? ''}
+                onChange={(value) => updateScreenBackground({ imageUrl: value })}
+                placeholder="https://.../screen-bg.jpg"
+              />
+              <ImageUploadButton
+                folder={`cms/pages/${pageId}/${blockId}/screen-backgrounds`}
+                onUploaded={(url) => updateScreenBackground({ imageUrl: url })}
+                onError={onUploadError}
+                label={item.screenBackground?.imageUrl ? 'Thay iPhone bg' : 'Upload iPhone bg'}
+              />
             </div>
           </Field>
         </div>
@@ -353,6 +438,23 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
               </Field>
               <Field label="Image alt">
                 <TextInput value={block.imageAlt ?? ''} onChange={(value) => updateBlock(pageId, blockId, { imageAlt: value })} />
+              </Field>
+              <Field label="Background image URL">
+                <div className="grid gap-2">
+                  <TextInput value={block.backgroundImageUrl ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundImageUrl: value })} placeholder="Hero background image URL" />
+                  <ImageUploadButton
+                    folder={`cms/pages/${pageId}/${blockId}/background`}
+                    onUploaded={(url) => updateBlock(pageId, blockId, { backgroundImageUrl: url })}
+                    onError={setUploadError}
+                    label={block.backgroundImageUrl ? 'Thay background' : 'Upload background'}
+                  />
+                </div>
+              </Field>
+              <Field label="Background gradient">
+                <TextInput value={block.backgroundGradient ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundGradient: value })} placeholder="linear-gradient(180deg,#FFF5F7 0%,#FFE4EC 55%,#FFD9E4 100%)" />
+              </Field>
+              <Field label="Overlay opacity">
+                <TextInput value={block.backgroundOverlayOpacity ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundOverlayOpacity: value })} placeholder="0.15" />
               </Field>
               <Field label="CTA label">
                 <TextInput value={block.ctaLabel ?? ''} onChange={(value) => updateBlock(pageId, blockId, { ctaLabel: value })} />

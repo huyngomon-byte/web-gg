@@ -1,6 +1,5 @@
 ﻿'use client'
 
-import { ThemeToggle } from '../components/ThemeToggle'
 import { BrandFooter } from '../components/BrandFooter'
 import { getLocalizedSiteSettings } from '../cms/siteSettings'
 import type { CmsSiteSettings } from '../cms/types'
@@ -35,7 +34,6 @@ function LegalPage({ title, sections, siteSettings }: LegalPageProps) {
             )}
           </a>
           <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeToggle />
             <a
               href="/"
               className="text-sm font-semibold text-primary hover:opacity-70 transition-opacity flex items-center gap-1"

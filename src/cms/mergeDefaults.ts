@@ -24,6 +24,10 @@ function mergeStoryItem(templateItem: CmsBlockItem, currentItem: CmsBlockItem): 
       ...templateItem.socialLinks,
       ...currentItem.socialLinks,
     },
+    screenBackground: {
+      ...templateItem.screenBackground,
+      ...currentItem.screenBackground,
+    },
     storyDetail: {
       ...templateItem.storyDetail,
       ...currentItem.storyDetail,

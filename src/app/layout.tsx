@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter, Sora } from 'next/font/google'
+import { Grand_Hotel, Inter, Sora } from 'next/font/google'
 import '../index.css'
 import { homeMetaByLang, logoUrl, siteUrl } from '../brandContent'
 import { AppShell } from './AppShell'
@@ -16,6 +16,13 @@ const sora = Sora({
   weight: ['800'],
   display: 'swap',
   variable: '--font-heading',
+})
+
+const grandHotel = Grand_Hotel({
+  subsets: ['latin'],
+  weight: ['400'],
+  display: 'swap',
+  variable: '--font-script',
 })
 
 export const metadata: Metadata = {
@@ -47,7 +54,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${sora.variable}`}>
+      <body className={`${inter.variable} ${sora.variable} ${grandHotel.variable}`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -4,7 +4,6 @@ import { useState, useEffect, type CSSProperties } from 'react'
 import { i18n, type Lang } from './i18n'
 import { clients } from './content'
 import { BookingModal } from './components/BookingModal'
-import { ThemeToggle } from './components/ThemeToggle'
 import { CountUp } from './components/CountUp'
 import { HeroEcosystem } from './components/HeroEcosystem'
 import { ChatIcon } from './components/ChatIcon'
@@ -159,7 +158,6 @@ export default function PageTemplate({ lang }: { lang: Lang }) {
           {/* Right: lang switcher + CTA */}
           <div className="flex items-center gap-2 sm:gap-3">
             <LangSwitcher lang={lang} />
-            <ThemeToggle />
             <button
               onClick={() => setBookingOpen(true)}
               className="btn-shine bg-primary text-on-primary gg-btn-primary text-xs px-2.5 py-1.5 sm:text-sm sm:px-4 sm:py-2 rounded-lg font-bold glow-orange hover:opacity-90 whitespace-nowrap"

@@ -7,11 +7,21 @@ export type CmsBlockItem = {
   title: string
   body?: string
   icon?: string
+  accountName?: string
+  displayName?: string
+  logoUrl?: string
+  verified?: boolean
+  caption?: string
+  likesSeed?: string
   imageUrl?: string
   imageAlt?: string
   videoUrl?: string
   embedUrl?: string
   backgroundImageUrl?: string
+  screenBackground?: {
+    imageUrl?: string
+    gradient?: string
+  }
   socialLinks?: {
     instagram?: string
     facebook?: string
@@ -41,6 +51,9 @@ export type CmsBlock = {
   icon?: string
   imageUrl?: string
   imageAlt?: string
+  backgroundImageUrl?: string
+  backgroundGradient?: string
+  backgroundOverlayOpacity?: string
   ctaLabel?: string
   ctaHref?: string
   items?: CmsBlockItem[]

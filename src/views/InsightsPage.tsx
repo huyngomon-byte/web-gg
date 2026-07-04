@@ -101,21 +101,21 @@ export function InsightsIndexPage({ posts = insightPosts, siteSettings }: { post
 
         <section className="px-5 pb-16 md:pb-24 lg:px-10">
           <div className="mx-auto max-w-6xl rounded-2xl bg-primary px-6 py-9 text-center text-on-primary shadow-xl md:px-10">
-            <h2 className="text-2xl font-extrabold md:text-4xl">Explore The One Packages</h2>
+            <h2 className="text-2xl font-extrabold md:text-4xl">Ready to turn this into a system?</h2>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <a
-                href="/packages"
-                className="inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-3 text-sm font-extrabold text-primary transition-transform hover:-translate-y-0.5"
-              >
-                Explore The One Packages <ArrowRight size={16} />
-              </a>
               <button
                 type="button"
                 onClick={openBookingModal}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/35 px-5 py-3 text-sm font-extrabold text-white transition-colors hover:bg-white/12"
+                className="inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-3 text-sm font-extrabold text-primary transition-transform hover:-translate-y-0.5"
               >
                 Call Your Shot <ArrowRight size={16} />
               </button>
+              <a
+                href="/packages"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/35 px-5 py-3 text-sm font-extrabold text-white transition-colors hover:bg-white/12"
+              >
+                Explore The One Packages <ArrowRight size={16} />
+              </a>
             </div>
           </div>
         </section>
@@ -236,12 +236,12 @@ export function InsightArticlePage({
                   Continue from this article into The One system to choose the right implementation direction for your business.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
-                  <a href={post.ctaHref} className="inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-3 text-sm font-extrabold text-primary">
-                    {post.ctaLabel} <ArrowRight size={16} />
-                  </a>
-                  <button type="button" onClick={openBookingModal} className="inline-flex items-center gap-2 rounded-xl border border-white/35 px-5 py-3 text-sm font-extrabold text-white hover:bg-white/12">
-                    Call Your Shot <ArrowRight size={16} />
+                  <button type="button" onClick={openBookingModal} className="inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-3 text-sm font-extrabold text-primary">
+                    {post.ctaLabel || 'Call Your Shot'} <ArrowRight size={16} />
                   </button>
+                  <a href={post.ctaHref} className="inline-flex items-center gap-2 rounded-xl border border-white/35 px-5 py-3 text-sm font-extrabold text-white hover:bg-white/12">
+                    Explore packages <ArrowRight size={16} />
+                  </a>
                 </div>
               </section>
             </div>

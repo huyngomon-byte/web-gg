@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Grand+Hotel&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -254,21 +256,46 @@
 /* ---- Scroll reveal 3D — dùng CSS animation (stagger thật qua animation-delay,
        không đụng transition hover của card) ---- */
 [data-reveal] { opacity: 0; }
-[data-reveal].is-visible {
+[data-reveal].is-visible,
+[data-reveal][data-revealed] {
   opacity: 1;
   animation: rv-up 0.85s cubic-bezier(0.34, 1.4, 0.5, 1) backwards;
   animation-delay: calc(var(--ri, 0) * 95ms);
 }
-[data-reveal='left'].is-visible   { animation-name: rv-left; }
-[data-reveal='right'].is-visible  { animation-name: rv-right; }
-[data-reveal='scale'].is-visible  { animation-name: rv-scale; }
-[data-reveal='flip'].is-visible   { animation-name: rv-flip; }
-[data-reveal='flip-y'].is-visible { animation-name: rv-flipy; }
-[data-reveal='spin'].is-visible   { animation-name: rv-spin; }
-[data-reveal='zoom'].is-visible   { animation-name: rv-zoom; }
-[data-reveal='fly-left'].is-visible  { animation-name: rv-fly-left; }
-[data-reveal='fly-right'].is-visible { animation-name: rv-fly-right; }
-[data-reveal='vortex'].is-visible {
+[data-reveal='left'].is-visible,
+[data-reveal='left'][data-revealed]   { animation-name: rv-left; }
+[data-reveal='right'].is-visible,
+[data-reveal='right'][data-revealed]  { animation-name: rv-right; }
+[data-reveal='scale'].is-visible,
+[data-reveal='scale'][data-revealed]  { animation-name: rv-scale; }
+[data-reveal='flip'].is-visible,
+[data-reveal='flip'][data-revealed]   { animation-name: rv-flip; }
+[data-reveal='flip-y'].is-visible,
+[data-reveal='flip-y'][data-revealed] { animation-name: rv-flipy; }
+[data-reveal='spin'].is-visible,
+[data-reveal='spin'][data-revealed]   { animation-name: rv-spin; }
+[data-reveal='zoom'].is-visible,
+[data-reveal='zoom'][data-revealed]   { animation-name: rv-zoom; }
+[data-reveal='fly-left'].is-visible,
+[data-reveal='fly-left'][data-revealed]  { animation-name: rv-fly-left; }
+[data-reveal='fly-right'].is-visible,
+[data-reveal='fly-right'][data-revealed] { animation-name: rv-fly-right; }
+[data-reveal='tile-in'].is-visible,
+[data-reveal='tile-in'][data-revealed] {
+  animation: rv-tile-in 0.52s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(200ms + (var(--ri, 0) * 120ms));
+}
+[data-reveal='tile-in'][data-tile-direction='right'].is-visible,
+[data-reveal='tile-in'][data-tile-direction='right'][data-revealed] { animation-name: rv-tile-right; }
+[data-reveal='tile-in'][data-tile-direction='bottom'].is-visible,
+[data-reveal='tile-in'][data-tile-direction='bottom'][data-revealed] { animation-name: rv-tile-bottom; }
+[data-reveal='photo-drop'].is-visible,
+[data-reveal='photo-drop'][data-revealed] {
+  animation: rv-photo-drop 0.72s cubic-bezier(0.18, 1.2, 0.34, 1) backwards;
+  animation-delay: calc(var(--ri, 0) * 120ms);
+}
+[data-reveal='vortex'].is-visible,
+[data-reveal='vortex'][data-revealed] {
   animation: rv-vortex 1.05s cubic-bezier(0.2, 1.28, 0.4, 1) backwards;
   animation-delay: calc(var(--ri, 0) * 110ms);
 }
@@ -279,6 +306,23 @@
 @keyframes rv-up {
   from { opacity: 0; transform: perspective(1200px) translate3d(0, 42px, -70px) rotateX(14deg) }
   to   { opacity: 1; transform: none }
+}
+@keyframes rv-tile-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rv-tile-right {
+  from { opacity: 0; transform: translateX(34px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rv-tile-bottom {
+  from { opacity: 0; transform: translateY(34px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rv-photo-drop {
+  0% { opacity: 0; transform: translateY(-40px) rotate(0deg) scale(0.96); }
+  72% { opacity: 1; transform: translateY(4px) rotate(calc(var(--photo-rotation, 0deg) * 1.05)) scale(1.012); }
+  100% { opacity: 1; transform: translateY(0) rotate(var(--photo-rotation, 0deg)) scale(1); }
 }
 @keyframes rv-left {
   from { opacity: 0; transform: perspective(1200px) translate3d(-56px, 0, -60px) rotateY(-16deg) }
@@ -764,7 +808,8 @@
   transform: scaleX(0);
   opacity: 0;
 }
-[data-reveal='line'].is-visible {
+[data-reveal='line'].is-visible,
+[data-reveal='line'][data-revealed] {
   animation: glowLine 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s forwards;
 }
 @keyframes glowLine {
@@ -801,7 +846,8 @@
   to   { opacity: 1; transform: none; }
 }
 @media (max-width: 640px) {
-  [data-reveal].is-visible {
+  [data-reveal].is-visible,
+  [data-reveal][data-revealed] {
     animation: rv-up-m 0.6s cubic-bezier(0.16, 0.84, 0.44, 1) backwards !important;
     animation-delay: calc(var(--ri, 0) * 45ms) !important;
   }
@@ -819,7 +865,8 @@
 /* ---- Reduced motion: tắt mọi chuyển động bổ sung ---- */
 @media (prefers-reduced-motion: reduce) {
   [data-reveal],
-  [data-reveal].is-visible {
+  [data-reveal].is-visible,
+  [data-reveal][data-revealed] {
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
@@ -854,6 +901,26 @@
 }
 
 /* ---- Homepage UIUX update: pink hero, package focus, Instagram story system ---- */
+.home-hero-title-serif {
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-variation-settings: 'SOFT' 20, 'WONK' 0;
+  letter-spacing: 0;
+}
+
+.home-hero-item {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 600ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--hero-delay, 0ms);
+}
+
+.home-hero.is-ready .home-hero-item {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .home-gradient-underline {
   width: min(220px, 70vw);
   height: 3px;
@@ -884,22 +951,93 @@
 }
 
 .home-explore-grid {
-  min-height: min(70vh, 720px);
+  min-height: min(74vh, 760px);
+  gap: 8px;
+  padding: 8px;
 }
 
 .home-explore-tile {
-  aspect-ratio: 1;
+  border-radius: 16px;
   min-height: 0;
+  box-shadow: 0 10px 28px rgba(80, 20, 50, 0.08);
 }
 
 @media (min-width: 768px) {
   .home-explore-grid {
-    min-height: min(58vh, 620px);
+    min-height: min(64vh, 680px);
   }
 
   .home-explore-tile {
     aspect-ratio: auto;
   }
+}
+
+.home-explore-media {
+  aspect-ratio: 1 / 1;
+}
+
+@media (min-width: 768px) {
+  .home-explore-tile.md\:col-span-2 .home-explore-media,
+  .home-explore-grid > .md\:col-span-2 .home-explore-media {
+    aspect-ratio: auto;
+  }
+}
+
+.people-signature {
+  font-family: 'Grand Hotel', cursive;
+  letter-spacing: 0;
+}
+
+.people-polaroid {
+  border-radius: 5px;
+  transform: rotate(var(--photo-rotation, 0deg));
+  transform-origin: 50% 58%;
+}
+
+.people-polaroid:hover {
+  transform: translateY(-6px) rotate(0deg) scale(1.03);
+}
+
+.people-polaroid-scroll {
+  scrollbar-width: none;
+}
+
+.people-polaroid-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.home-people-closing-one,
+.home-people-closing-two {
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  letter-spacing: 0;
+}
+
+.closing-banner {
+  background-size: cover;
+  background-position: center;
+}
+
+.closing-banner-bg {
+  background: linear-gradient(180deg, rgba(255,255,255,0.18), transparent 52%);
+  transform: scale(1.06);
+  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.closing-banner:hover .closing-banner-bg {
+  transform: scale(1);
+}
+
+.closing-logo-marquee {
+  animation: closingLogoMarquee 30s linear infinite;
+}
+
+.closing-logo-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes closingLogoMarquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 .home-package-featured {
@@ -984,13 +1122,37 @@
 
 .ig-stories-bar {
   min-height: 64px;
+  padding-top: 16px;
+  padding-bottom: 16px;
   transition: padding 0.22s ease, min-height 0.22s ease;
+}
+
+.ig-stories-title {
+  max-height: 68px;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: max-height 0.22s ease, opacity 0.22s ease, transform 0.22s ease;
+}
+
+.ig-stories-row {
+  margin-top: 16px;
+  transition: margin-top 0.22s ease;
 }
 
 .ig-stories-bar.is-compact {
   min-height: 56px;
   padding-top: 4px !important;
   padding-bottom: 4px !important;
+}
+
+.ig-stories-bar.is-compact .ig-stories-title {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.94);
+}
+
+.ig-stories-bar.is-compact .ig-stories-row {
+  margin-top: 0;
 }
 
 .ig-stories-bar.is-compact .overflow-x-auto {
@@ -1014,6 +1176,16 @@
 
 .ig-stories-bar.is-compact .ig-story-ring-inner {
   border-width: 2px;
+}
+
+.ig-stories-bar.is-mobile {
+  min-height: 56px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.ig-stories-bar.is-mobile .ig-stories-row {
+  margin-top: 0;
 }
 
 .story-media-frame {
@@ -1194,11 +1366,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .home-price-shimmer::after,
+  .home-hero-item,
   .ig-phone-shell.is-visible .ig-app-icon-wrap,
   .story-chevron {
     animation: none !important;
+    transition: none !important;
   }
 
+  .home-hero-item,
   .ig-app-icon-wrap {
     opacity: 1 !important;
     transform: none !important;

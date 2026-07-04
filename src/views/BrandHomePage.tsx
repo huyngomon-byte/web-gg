@@ -1,9 +1,9 @@
 'use client'
 
-import { useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
 import {
+  ArrowDown,
   Play,
-  Rocket,
 } from 'lucide-react'
 import { compactHomeByLang, homeMetaByLang, homeWebPageSchema, localizedPath, organizationSchema, websiteSchema, type BrandLang } from '../brandContent'
 import { BrandLayout } from '../components/BrandLayout'
@@ -11,13 +11,14 @@ import { openBookingModal } from '../components/openBookingModal'
 import { PackageCards } from '../components/PackageCards'
 import { SeoHead } from '../components/SeoHead'
 import { useScrollReveal } from '../hooks/useScrollReveal'
+import { whenIntroGone } from '../hooks/useIntroGate'
 import { getCmsBlock, splitCmsParagraphs } from '../cms/contentBlocks'
 import type { CmsBlockItem, CmsPageContent, CmsSiteSettings } from '../cms/types'
 import { getOrderedCaseStudies } from '../data/caseStudyStories'
 import type { CaseStudy } from '../data/caseStudies'
 
 const primaryBookingCtaLabel = 'Call Your Shot'
-const defaultHeroGradient = 'linear-gradient(180deg,#FFF5F7 0%,#FFE4EC 55%,#FFD9E4 100%)'
+const defaultHeroGradient = 'linear-gradient(180deg,#FF7AA8 0%,#FF4D7D 45%,#FFB199 100%)'
 
 function resolvePrimaryBookingCtaLabel(label?: string) {
   const trimmed = label?.trim() ?? ''
@@ -30,6 +31,10 @@ const storyLogoById: Record<string, string> = {
   inkaholic: '/logo-inkaholic.png',
   'qanda-books': '/logo-qandabook.png',
   curnon: '/logo-curnon.png',
+}
+
+function getStoryLogoForHome(story: Pick<CaseStudy, 'id' | 'logoUrl'>) {
+  return story.logoUrl || storyLogoById[story.id] || '/logo-gg.png'
 }
 
 const mediaBackdrops = [
@@ -63,11 +68,11 @@ function heroBackgroundStyle(block: ReturnType<typeof getCmsBlock>): CSSProperti
   const overlay = Number.isFinite(overlayValue) ? Math.min(0.85, Math.max(0, overlayValue)) : 0
 
   if (!imageUrl) {
-    return { backgroundImage: gradient }
+    return { backgroundImage: gradient, backgroundSize: 'cover', backgroundPosition: 'center' }
   }
 
   return {
-    backgroundImage: `linear-gradient(rgba(255,245,247,${overlay}), rgba(255,245,247,${overlay})), ${cssUrl(imageUrl)}, ${gradient}`,
+    backgroundImage: `linear-gradient(rgba(185,20,76,${overlay}), rgba(185,20,76,${overlay})), ${cssUrl(imageUrl)}, ${gradient}`,
     backgroundSize: 'cover, cover, cover',
     backgroundPosition: 'center, center, center',
   }
@@ -95,61 +100,6 @@ function isEmbeddableUrl(value: string) {
   return /youtube\.com|youtu\.be|vimeo\.com|player\.vimeo\.com|tiktok\.com|iframe/i.test(url)
 }
 
-function parseYouTubeId(url: URL) {
-  if (url.hostname.includes('youtu.be')) return url.pathname.split('/').filter(Boolean)[0]
-  if (url.pathname.startsWith('/watch')) return url.searchParams.get('v')
-  if (url.pathname.startsWith('/shorts/')) return url.pathname.split('/').filter(Boolean)[1]
-  if (url.pathname.startsWith('/embed/')) return url.pathname.split('/').filter(Boolean)[1]
-  return url.searchParams.get('v')
-}
-
-function withAutoplayParams(rawValue: string, active: boolean) {
-  const value = extractIframeSrc(rawValue).trim()
-  if (!value) return ''
-
-  try {
-    const url = new URL(value)
-    const hostname = url.hostname.replace(/^www\./, '')
-
-    if (hostname === 'youtu.be' || hostname.endsWith('youtube.com')) {
-      const videoId = parseYouTubeId(url)
-      if (videoId) {
-        const embed = new URL(`https://www.youtube.com/embed/${videoId}`)
-        embed.searchParams.set('autoplay', active ? '1' : '0')
-        embed.searchParams.set('mute', '1')
-        embed.searchParams.set('playsinline', '1')
-        embed.searchParams.set('rel', '0')
-        embed.searchParams.set('controls', '0')
-        embed.searchParams.set('loop', '1')
-        embed.searchParams.set('playlist', videoId)
-        return embed.toString()
-      }
-    }
-
-    if (hostname === 'vimeo.com' || hostname.endsWith('vimeo.com')) {
-      const segments = url.pathname.split('/').filter(Boolean)
-      const videoId = hostname === 'player.vimeo.com' && segments[0] === 'video' ? segments[1] : segments[0]
-      if (videoId) {
-        const embed = new URL(`https://player.vimeo.com/video/${videoId}`)
-        embed.searchParams.set('autoplay', active ? '1' : '0')
-        embed.searchParams.set('muted', '1')
-        embed.searchParams.set('loop', '1')
-        embed.searchParams.set('title', '0')
-        embed.searchParams.set('byline', '0')
-        embed.searchParams.set('portrait', '0')
-        return embed.toString()
-      }
-    }
-
-    url.searchParams.set('autoplay', active ? '1' : '0')
-    url.searchParams.set('mute', '1')
-    url.searchParams.set('muted', '1')
-    return url.toString()
-  } catch {
-    return value
-  }
-}
-
 function resolveStoryHref(lang: BrandLang, href: string, storyId?: string) {
   const candidate = href.trim()
   if (/^https?:\/\//i.test(candidate) || candidate.startsWith('/')) return candidate
@@ -173,8 +123,10 @@ function ExploreTile({
     detail: string
     href: string
     imageUrl?: string
+    thumbnailUrl?: string
     imageAlt: string
     videoUrl?: string
+    videoPoster?: string
     embedUrl?: string
   }
   story?: CaseStudy
@@ -184,27 +136,60 @@ function ExploreTile({
 }) {
   const [active, setActive] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const hoverTimerRef = useRef<number | null>(null)
+  const tileTokenRef = useRef(`explore-${index}-${stage.href}-${stage.label}`)
   const rawVideoUrl = stage.videoUrl?.trim() || stage.embedUrl?.trim() || ''
   const imageLooksLikeVideo = stage.imageUrl ? isEmbeddableUrl(stage.imageUrl) || isDirectVideoUrl(stage.imageUrl) : false
   const mediaUrl = rawVideoUrl || (imageLooksLikeVideo ? stage.imageUrl || '' : '')
-  const posterUrl = imageLooksLikeVideo ? '' : stage.imageUrl || (story?.id ? storyLogoById[story.id] : '') || '/logo-gg.png'
+  const posterUrl = stage.videoPoster || stage.thumbnailUrl || (imageLooksLikeVideo ? '' : stage.imageUrl) || (story?.id ? storyLogoById[story.id] : '') || '/logo-gg.png'
   const directVideo = Boolean(mediaUrl && isDirectVideoUrl(mediaUrl))
-  const embedSrc = mediaUrl && !directVideo ? withAutoplayParams(mediaUrl, active) : ''
+  const videoSrc = directVideo ? extractIframeSrc(mediaUrl) : ''
   const storyHref = resolveStoryHref(lang, stage.href, story?.id)
   const backdrop = mediaBackdrops[index % mediaBackdrops.length]
   const posterIsLogo = /(^|\/)logo[-_]/i.test(posterUrl)
 
+  useEffect(() => {
+    const onStop = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      if (detail !== tileTokenRef.current) deactivatePreview()
+    }
+
+    window.addEventListener('gg99:stop-explore-preview', onStop)
+    return () => window.removeEventListener('gg99:stop-explore-preview', onStop)
+  }, [])
+
   function activatePreview() {
+    if (!videoSrc) return
+    window.dispatchEvent(new CustomEvent('gg99:stop-explore-preview', { detail: tileTokenRef.current }))
     setActive(true)
     const video = videoRef.current
     if (!video) return
+    if (!video.src) {
+      video.src = videoSrc
+      video.load()
+    }
     video.muted = true
+    try {
+      video.currentTime = 0
+    } catch {
+      // Keep current time if the browser has not loaded metadata yet.
+    }
     void video.play().catch(() => {
       setActive(false)
     })
   }
 
+  function schedulePreview() {
+    if (!videoSrc) return
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current)
+    hoverTimerRef.current = window.setTimeout(activatePreview, 150)
+  }
+
   function deactivatePreview() {
+    if (hoverTimerRef.current) {
+      window.clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
+    }
     setActive(false)
     const video = videoRef.current
     if (!video) return
@@ -216,74 +201,61 @@ function ExploreTile({
     }
   }
 
+  function handleTileClick(event: ReactMouseEvent<HTMLAnchorElement>) {
+    if (!videoSrc || !window.matchMedia('(hover: none)').matches) return
+    if (!active) {
+      event.preventDefault()
+      activatePreview()
+    }
+  }
+
   return (
     <a
       href={storyHref}
       aria-label={`${stage.label}${story ? ` - ${story.brandName}` : ''}`}
-      data-reveal={featured ? 'scale' : index % 2 === 0 ? 'right' : 'left'}
-      style={{ '--ri': featured ? 0 : index } as CSSProperties}
-      onMouseEnter={activatePreview}
+      onClick={handleTileClick}
+      onMouseEnter={schedulePreview}
       onMouseLeave={deactivatePreview}
-      onFocus={activatePreview}
+      onFocus={schedulePreview}
       onBlur={deactivatePreview}
       className={[
-        'home-explore-tile group relative block overflow-hidden bg-surface text-left transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
+        'home-explore-tile group flex h-full min-h-0 flex-col overflow-hidden bg-white text-left transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
         featured ? 'md:col-span-2 md:row-span-2' : '',
       ].join(' ')}
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${backdrop}`} aria-hidden="true" />
-      {directVideo ? (
-        <>
-          <video
-            ref={videoRef}
-            src={mediaUrl}
-            poster={posterUrl || undefined}
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            aria-hidden="true"
-            className="relative h-full w-full object-cover transition duration-500 group-hover:scale-105"
-          />
-          {posterUrl && (
-            <img
-              src={posterUrl}
-              alt=""
-              className={`pointer-events-none absolute inset-0 h-full w-full transition duration-500 ${
-                active ? 'scale-105 opacity-0' : 'opacity-100'
-              } ${posterIsLogo ? 'object-contain p-8' : 'object-cover'}`}
+      <div className="home-explore-media relative min-h-0 flex-1 overflow-hidden">
+        <div className={`absolute inset-0 bg-gradient-to-br ${backdrop}`} aria-hidden="true" />
+        {directVideo && (
+            <video
+              ref={videoRef}
+              muted
+              playsInline
+              preload="none"
+              aria-hidden="true"
+              onEnded={deactivatePreview}
+              className={`relative h-full w-full object-cover transition duration-500 ${active ? 'opacity-100' : 'opacity-0'} group-hover:scale-105`}
             />
-          )}
-        </>
-      ) : embedSrc ? (
-        <iframe
-          key={embedSrc}
-          src={embedSrc}
-          title={stage.imageAlt}
-          loading="lazy"
-          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-          allowFullScreen
-          className="pointer-events-none relative h-full w-full border-0 transition duration-500 group-hover:scale-105"
+        )}
+        <img
+          src={posterUrl}
+          alt=""
+          className={`pointer-events-none absolute inset-0 h-full w-full transition duration-200 ${
+            active ? 'opacity-0' : 'opacity-100'
+          } ${posterIsLogo ? 'object-contain p-8' : 'object-cover'}`}
         />
-      ) : (
-        <div className="relative flex h-full w-full items-center justify-center p-6">
-          <img
-            src={posterUrl}
-            alt=""
-            className="max-h-20 max-w-[66%] object-contain opacity-95 drop-shadow-[0_14px_24px_rgba(0,0,0,0.34)] transition duration-500 group-hover:scale-110"
-          />
-        </div>
-      )}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/82 via-black/10 to-black/20" aria-hidden="true" />
-      <span className="absolute right-3 top-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-black/55 px-2 text-white shadow-lg backdrop-blur-md ring-1 ring-white/10">
-        <Play size={15} fill="currentColor" strokeWidth={2.2} aria-hidden="true" />
-      </span>
-      <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-        <h3 className={`${featured ? 'text-[26px] md:text-[34px]' : 'text-[16px] md:text-[18px]'} font-extrabold leading-tight text-white drop-shadow`}>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/10" aria-hidden="true" />
+        {videoSrc && (
+          <span className="absolute right-3 top-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-black/55 px-2 text-white shadow-lg backdrop-blur-md ring-1 ring-white/10">
+            <Play size={15} fill="currentColor" strokeWidth={2.2} aria-hidden="true" />
+          </span>
+        )}
+      </div>
+      <div className={`${featured ? 'p-4 md:p-5' : 'p-3 md:p-3.5'} bg-white text-on-surface`}>
+        <h3 className={`${featured ? 'text-[20px] md:text-[24px]' : 'text-[15px] md:text-[16px]'} line-clamp-2 font-extrabold leading-tight text-on-surface`}>
           {stage.label}
         </h3>
         {stage.detail && (
-          <p className="mt-2 line-clamp-3 translate-y-2 text-[12px] font-semibold leading-relaxed text-white/78 opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100 md:text-sm">
+          <p className="mt-1.5 line-clamp-2 text-[12px] font-semibold leading-relaxed text-on-surface-variant md:text-[13px]">
             {stage.detail}
           </p>
         )}
@@ -331,9 +303,11 @@ function SystemMap({ labels, lang, items, storyTargets }: { labels: string[]; la
       label: item.title,
       detail: item.body ?? '',
       href: item.href ?? story?.id ?? '',
-      imageUrl: story?.backgroundImageUrl || item.imageUrl,
+      imageUrl: item.thumbnailUrl || story?.backgroundImageUrl || item.imageUrl,
+      thumbnailUrl: item.thumbnailUrl || item.imageUrl,
       imageAlt: item.imageAlt || item.title,
       videoUrl: item.videoUrl || story?.videoUrl,
+      videoPoster: item.videoPoster,
       embedUrl: item.embedUrl || story?.embedUrl,
       story,
       order: Number.parseFloat(item.homepageOrder ?? ''),
@@ -351,14 +325,21 @@ function SystemMap({ labels, lang, items, storyTargets }: { labels: string[]; la
     <div className="space-y-5">
       <div className="home-explore-grid grid auto-rows-[minmax(120px,1fr)] grid-cols-2 gap-1 overflow-hidden rounded-[24px] bg-white p-1 shadow-[0_24px_70px_rgba(219,39,119,0.12)] md:grid-cols-3 md:auto-rows-[minmax(170px,1fr)]">
         {visibleStages.map((stage, index) => (
-          <ExploreTile
+          <div
             key={`${stage.label}-${index}`}
-            stage={stage}
-            story={stage.story}
-            index={index}
-            lang={lang}
-            featured={index === 0}
-          />
+            data-reveal="tile-in"
+            data-tile-direction={index === 0 ? 'center' : index === 1 || index === 2 ? 'right' : 'bottom'}
+            style={{ '--ri': index } as CSSProperties}
+            className={`h-full ${index === 0 ? 'md:col-span-2 md:row-span-2' : ''}`}
+          >
+            <ExploreTile
+              stage={stage}
+              story={stage.story}
+              index={index}
+              lang={lang}
+              featured={index === 0}
+            />
+          </div>
         ))}
       </div>
       {canToggle && (
@@ -374,6 +355,100 @@ function SystemMap({ labels, lang, items, storyTargets }: { labels: string[]; la
   )
 }
 
+function memberRotation(index: number) {
+  return [-2.4, 1.7, -1.2, 2.5, -1.8, 1.1][index % 6]
+}
+
+function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
+  const members = (block?.items ?? []).filter((item) => item.published !== false).slice(0, 6)
+  if (!block || !members.length) return null
+  const closingLine1 = block.closingLine1 || 'We quit our 9-5 and started our own business.'
+  const closingLine2 = block.closingLine2 || "Isn't it your turn now?"
+  const revealOrder = [0, 2, 4, 1, 3, 5]
+
+  return (
+    <section className="px-5 py-12 md:py-16 lg:px-10">
+      <div className="mx-auto max-w-6xl">
+        <SectionHeader title={block.heading || 'The One People'} intro={block.body} />
+        <div className="people-polaroid-scroll -mx-5 flex snap-x gap-5 overflow-x-auto px-5 pb-5 md:mx-0 md:grid md:grid-cols-3 md:gap-7 md:overflow-visible md:px-0 md:pb-0">
+          {members.map((member, index) => {
+            const rotation = memberRotation(index)
+            const orderIndex = revealOrder.indexOf(index)
+            return (
+              <article
+                key={`${member.title}-${index}`}
+                data-reveal="photo-drop"
+                style={{ '--ri': orderIndex < 0 ? index : orderIndex, '--photo-rotation': `${rotation}deg` } as CSSProperties}
+                className="people-polaroid group min-w-[72%] snap-center bg-white p-3 shadow-[0_22px_48px_rgba(80,20,50,0.18)] transition duration-300 hover:-translate-y-1.5 hover:rotate-0 hover:scale-[1.03] md:min-w-0"
+              >
+                <div className="relative aspect-square overflow-hidden bg-surface-container-low">
+                  <img src={member.imageUrl || member.photoUrl || '/logo-gg.png'} alt={member.imageAlt || member.title} className="h-full w-full object-cover transition duration-300 group-hover:opacity-0" />
+                  <img src={member.funPhotoUrl || member.backgroundImageUrl || member.imageUrl || '/logo-gg.png'} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-0 transition duration-300 group-hover:opacity-100" />
+                </div>
+                <div className="px-1 pb-2 pt-4 text-center">
+                  <h3 className="people-signature text-[24px] leading-none text-on-surface">{member.title}</h3>
+                  {member.label && <p className="mt-2 text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">{member.label}</p>}
+                  {member.body && <p className="mt-2 line-clamp-2 text-[13px] font-semibold leading-relaxed text-on-surface-variant">{member.body}</p>}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+        <div className="mx-auto mt-16 max-w-3xl text-center">
+          <p className="home-people-closing-one text-[24px] italic leading-tight text-on-surface/85 md:text-[28px]">{closingLine1}</p>
+          <p className="home-people-closing-two mt-3 bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-[28px] font-semibold leading-tight text-transparent md:text-[44px]">
+            {closingLine2}
+          </p>
+          <ArrowDown className="mx-auto mt-5 animate-bounce text-primary" size={22} aria-hidden="true" />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ClosingBanner({ block, stories }: { block?: ReturnType<typeof getCmsBlock>; stories: CaseStudy[] }) {
+  if (!block) return null
+  const overlayValue = Number.parseFloat(block.backgroundOverlayOpacity ?? '0.62')
+  const overlay = Number.isFinite(overlayValue) ? Math.min(0.85, Math.max(0.2, overlayValue)) : 0.62
+  const gradient = block.backgroundGradient || 'linear-gradient(135deg,#db2777 0%,#ef4444 48%,#f59e0b 100%)'
+  const style: CSSProperties = block.backgroundImageUrl
+    ? {
+      backgroundImage: `linear-gradient(rgba(185,20,76,${overlay}), rgba(185,20,76,${overlay})), ${cssUrl(block.backgroundImageUrl)}, ${gradient}`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }
+    : { backgroundImage: gradient }
+  const logos = stories.map(getStoryLogoForHome).filter(Boolean)
+
+  return (
+    <section className="px-0 py-10 md:py-14">
+      <div className="closing-banner relative flex min-h-[360px] items-center overflow-hidden px-5 py-16 text-center md:min-h-[460px] lg:px-10" style={style}>
+        <div className="absolute inset-0 closing-banner-bg" aria-hidden="true" />
+        {logos.length > 0 && (
+          <div className="absolute inset-x-0 top-8 overflow-hidden opacity-60">
+            <div className="closing-logo-marquee flex w-max items-center gap-12">
+              {[...logos, ...logos].map((logo, index) => (
+                <img key={`${logo}-${index}`} src={logo} alt="" aria-hidden="true" className="h-10 w-auto max-w-[120px] object-contain brightness-0 invert opacity-60" />
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="relative mx-auto max-w-4xl" data-reveal="scale">
+          <h2 className="home-hero-title-serif text-[34px] font-semibold leading-tight text-white md:text-[44px]">{block.heading || 'So, ready to be our plus one?'}</h2>
+          {block.subtitle && <p className="mx-auto mt-4 max-w-2xl text-base font-semibold leading-relaxed text-white/82 md:text-lg">{block.subtitle}</p>}
+          <button
+            type="button"
+            onClick={openBookingModal}
+            className="mt-8 inline-flex items-center justify-center rounded-full bg-white px-10 py-4 text-base font-extrabold text-primary shadow-[0_20px_50px_rgba(0,0,0,0.18)] transition hover:scale-105 hover:shadow-[0_24px_70px_rgba(0,0,0,0.25)]"
+          >
+            {resolvePrimaryBookingCtaLabel(block.ctaLabel)}
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function BrandHomePage({
   lang = 'vi',
   cmsPage,
@@ -386,18 +461,23 @@ export default function BrandHomePage({
   siteSettings?: CmsSiteSettings | null
 }) {
   useScrollReveal()
+  const [heroReady, setHeroReady] = useState(false)
 
   const c = compactHomeByLang[lang]
   const homeMeta = cmsPage?.meta ?? homeMetaByLang[lang]
   const heroBlock = getCmsBlock(cmsPage, 'hero')
   const whatIsBlock = getCmsBlock(cmsPage, 'what-is')
   const packagesBlock = getCmsBlock(cmsPage, 'packages')
+  const peopleBlock = getCmsBlock(cmsPage, 'people')
+  const closingBlock = getCmsBlock(cmsPage, 'closing')
   const storiesBlock = getCmsBlock(theOnePage, 'stories')
   const storyTargets = getOrderedCaseStudies(storiesBlock)
   const heroLines = splitCmsParagraphs(heroBlock?.body)
   const heroLineOne = heroBlock?.heading?.trim() || 'The One by gg99'
-  const heroLineTwo = heroLines[0] || 'The only one digital agency you needed'
+  const heroLineTwo = heroBlock?.subtitle?.trim() || heroLines[0] || 'The only one digital agency you needed'
   const isDefaultHeroTitle = heroLineOne.toLowerCase() === 'the one by gg99'
+  const heroTextMode = heroBlock?.textColor ?? 'light'
+  const showHeroDivider = heroBlock?.dividerShow !== false
   const packageItems: CmsBlockItem[] = packagesBlock?.items?.length
     ? packagesBlock.items
     : c.packages.map((item, index) => ({
@@ -407,34 +487,49 @@ export default function BrandHomePage({
       href: item.href,
     }))
 
+  useEffect(() => {
+    whenIntroGone(() => setHeroReady(true))
+  }, [])
+
   return (
     <BrandLayout lang={lang} siteSettings={siteSettings} hideHeaderCta flushTop>
       <SeoHead meta={homeMeta} schema={[organizationSchema, websiteSchema, homeWebPageSchema]} lang={lang} />
 
-      <section className="relative flex min-h-[52vh] items-center overflow-hidden md:min-h-[58vh]" style={heroBackgroundStyle(heroBlock)}>
+      <section className={`home-hero relative flex min-h-[52vh] items-center overflow-hidden md:min-h-[58vh] ${heroReady ? 'is-ready' : ''}`} style={heroBackgroundStyle(heroBlock)}>
         <div className="absolute inset-0 tech-grid opacity-35 pointer-events-none" aria-hidden="true" />
         <div className="noise-overlay" aria-hidden="true" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-b from-transparent to-surface-container" aria-hidden="true" />
         <div className="relative mx-auto flex w-full max-w-5xl flex-col items-center justify-center px-5 pb-10 pt-28 text-center lg:px-10">
           <h1
-            data-reveal
-            style={{ '--ri': 0 } as CSSProperties}
-            className={`gg-hero-title text-[clamp(36px,10vw,48px)] font-extrabold not-italic leading-[1.02] text-on-surface md:text-[clamp(48px,6vw,80px)] ${isDefaultHeroTitle ? 'md:whitespace-nowrap' : ''}`}
+            style={{ '--hero-delay': '0ms' } as CSSProperties}
+            className={[
+              'home-hero-item home-hero-title-serif gg-hero-title text-[clamp(36px,10vw,48px)] font-semibold not-italic leading-[1.08] md:text-[clamp(48px,6vw,80px)]',
+              heroTextMode === 'gradient' ? 'gg-grad-text' : heroTextMode === 'dark' ? 'text-on-surface' : 'text-white',
+              isDefaultHeroTitle ? 'md:whitespace-nowrap' : '',
+            ].join(' ')}
           >
             {heroLineOne}
           </h1>
+          {showHeroDivider && (
+            <div
+              className="home-hero-item mt-5 h-px w-36 bg-white/45"
+              style={{ '--hero-delay': '140ms' } as CSSProperties}
+              aria-hidden="true"
+            />
+          )}
           <p
-            data-reveal
-            style={{ '--ri': 1 } as CSSProperties}
-            className="mt-6 max-w-2xl text-[20px] font-medium leading-relaxed text-on-surface-variant md:text-[24px]"
+            style={{ '--hero-delay': showHeroDivider ? '280ms' : '140ms' } as CSSProperties}
+            className={[
+              'home-hero-item mt-6 max-w-2xl text-[15px] font-medium leading-relaxed md:text-[20px]',
+              heroTextMode === 'dark' ? 'text-on-surface-variant' : 'text-white/90',
+            ].join(' ')}
           >
             {heroLineTwo}
           </p>
           <button
             type="button"
             onClick={openBookingModal}
-            data-reveal
-            style={{ '--ri': 2 } as CSSProperties}
+            style={{ '--hero-delay': showHeroDivider ? '420ms' : '280ms' } as CSSProperties}
             className="btn-shine cta-idle mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary px-7 py-3.5 font-bold text-white shadow-[0_16px_36px_rgba(219,39,119,0.28)] hover:opacity-95"
           >
             {resolvePrimaryBookingCtaLabel(heroBlock?.ctaLabel)}
@@ -463,19 +558,8 @@ export default function BrandHomePage({
         </div>
       </section>
 
-      <section className="py-10 md:py-12 px-5 lg:px-10">
-        <div className="max-w-6xl mx-auto bg-primary rounded-2xl p-8 md:p-10 text-center">
-          <Rocket size={30} className="mx-auto mb-4 text-white" />
-          <h2 className="text-[26px] md:text-[34px] font-extrabold text-white">So, ready to be our plus one?</h2>
-          <button
-            type="button"
-            onClick={openBookingModal}
-            className="mt-6 inline-flex px-6 py-3 rounded-xl bg-white text-primary font-bold hover:bg-surface-container-low transition-colors"
-          >
-            {primaryBookingCtaLabel}
-          </button>
-        </div>
-      </section>
+      <PeopleSection block={peopleBlock} />
+      <ClosingBanner block={closingBlock} stories={storyTargets} />
     </BrandLayout>
   )
 }

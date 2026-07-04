@@ -78,11 +78,11 @@ export async function PackageDetailView({
 }
 
 export async function AboutView({ lang, pageId }: { lang: BrandLang; pageId: string }) {
-  const [page, siteSettings] = await Promise.all([getServerCmsPage(pageId), getServerCmsSiteSettings()])
+  const [page, homePage, siteSettings] = await Promise.all([getServerCmsPage(pageId), getServerCmsPage('homepage'), getServerCmsSiteSettings()])
   return (
     <>
       <JsonLd items={[organizationSchema, websiteSchema]} />
-      <AboutBrandPage lang={lang} cmsPage={page} siteSettings={siteSettings} />
+      <AboutBrandPage lang={lang} cmsPage={page} homePage={homePage} siteSettings={siteSettings} />
     </>
   )
 }

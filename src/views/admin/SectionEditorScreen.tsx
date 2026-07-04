@@ -51,6 +51,13 @@ function StoryItemEditor({
   updateBlockItem: UpdateBlockItem
   onUploadError: (message: string) => void
 }) {
+  const filledMetricCount = storyMetricSlots.filter((metricIndex) => {
+    const metric = getMetric(item, metricIndex)
+    return metric.value.trim() || metric.label.trim()
+  }).length
+  const featuredMetricCount = storyMetricSlots.filter((metricIndex) => Boolean(getMetric(item, metricIndex).featured)).length
+  const metricWarning = filledMetricCount !== 10 || featuredMetricCount !== 2
+
   function updateMetric(metricIndex: number, patch: { value?: string; label?: string; featured?: boolean }) {
     const nextMetrics = [...(item.keyMetrics ?? [])]
     while (nextMetrics.length <= metricIndex) nextMetrics.push({ value: '', label: '', featured: false })
@@ -190,6 +197,11 @@ function StoryItemEditor({
           <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/75">
             Chinh cac metric hien thi nhu app icon trong man hinh iPhone cua Instagram post.
           </p>
+          {metricWarning && (
+            <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold leading-relaxed text-red-700">
+              Can dung 10 metric co noi dung va dung 2 metric Featured. Hien tai: {filledMetricCount}/10 metric, {featuredMetricCount}/2 Featured.
+            </p>
+          )}
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {storyMetricSlots.map((metricIndex, displayIndex) => {
@@ -244,7 +256,7 @@ function StoryItemEditor({
             />
             Show on homepage
           </label>
-          <Field label="Preview video URL" hint="MP4/WebM/OGG Cloudinary URL. Homepage hover will autoplay muted and loop. YouTube/Vimeo still works, but may show platform branding.">
+          <Field label="Preview video URL" hint="MP4/WebM/OGG Cloudinary URL. Homepage hover/tap will autoplay muted once.">
             <div className="grid gap-2">
               <TextInput value={item.videoUrl ?? item.embedUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { videoUrl: value })} />
               <VideoUploadButton
@@ -253,6 +265,12 @@ function StoryItemEditor({
                 onError={onUploadError}
               />
             </div>
+          </Field>
+          <Field label="Preview poster URL" hint="Static poster shown before the homepage preview video starts.">
+            <TextInput value={item.videoPoster ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { videoPoster: value })} />
+          </Field>
+          <Field label="Homepage thumbnail URL" hint="Optional thumbnail override for the homepage Explore grid.">
+            <TextInput value={item.thumbnailUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { thumbnailUrl: value })} />
           </Field>
           <Field label="Background image URL" hint="Dùng làm ảnh nền phía sau brand story card.">
             <div className="grid gap-2">
@@ -375,7 +393,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
   const prevBlock = blockIndex > 0 ? page.blocks[blockIndex - 1] : undefined
   const nextBlock = blockIndex < page.blocks.length - 1 ? page.blocks[blockIndex + 1] : undefined
   const isStoryBlock = pageId === 'the-one' && block.id === 'stories'
-  const canEditBlockMedia = !isStoryBlock && Boolean(block.icon || block.imageUrl || block.imageAlt || ['hero', 'intro'].includes(block.id))
+  const canEditBlockMedia = !isStoryBlock && Boolean(block.icon || block.imageUrl || block.imageAlt || ['hero', 'intro', 'closing', 'people'].includes(block.id))
   const canEditItemMedia = !isStoryBlock && Boolean((block.items ?? []).some((item) => item.icon || item.imageUrl || item.imageAlt))
 
   function commitId() {
@@ -496,6 +514,35 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
               <Field label="Overlay opacity">
                 <TextInput value={block.backgroundOverlayOpacity ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundOverlayOpacity: value })} placeholder="0.15" />
               </Field>
+              <Field label="Subtitle">
+                <TextInput value={block.subtitle ?? ''} onChange={(value) => updateBlock(pageId, blockId, { subtitle: value })} />
+              </Field>
+              {block.id === 'hero' && (
+                <div className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+                  <Field label="Text color mode">
+                    <TextInput value={block.textColor ?? ''} onChange={(value) => updateBlock(pageId, blockId, { textColor: value as 'light' | 'dark' | 'gradient' })} placeholder="light / dark / gradient" />
+                  </Field>
+                  <label className="inline-flex w-fit items-center gap-2 rounded-lg border border-outline-variant/45 bg-surface px-3 py-2 text-xs font-extrabold text-on-surface-variant">
+                    <input
+                      type="checkbox"
+                      checked={block.dividerShow !== false}
+                      onChange={(event) => updateBlock(pageId, blockId, { dividerShow: event.target.checked })}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Show hero divider
+                  </label>
+                </div>
+              )}
+              {block.id === 'people' && (
+                <div className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+                  <Field label="Closing line 1">
+                    <TextInput value={block.closingLine1 ?? ''} onChange={(value) => updateBlock(pageId, blockId, { closingLine1: value })} />
+                  </Field>
+                  <Field label="Closing line 2">
+                    <TextInput value={block.closingLine2 ?? ''} onChange={(value) => updateBlock(pageId, blockId, { closingLine2: value })} />
+                  </Field>
+                </div>
+              )}
               <Field label="CTA label">
                 <TextInput value={block.ctaLabel ?? ''} onChange={(value) => updateBlock(pageId, blockId, { ctaLabel: value })} />
               </Field>
@@ -608,7 +655,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                         </Field>
                         {canEditItemMedia && (
                           <>
-                            <Field label="Video embed URL" hint="YouTube/Vimeo/embed link. Khi public hover card sẽ autoplay muted.">
+                            <Field label="Video preview URL" hint="MP4/WebM/OGG Cloudinary URL. Homepage hover/tap preview plays muted once.">
                               <div className="grid gap-2">
                                 <TextInput value={item.videoUrl ?? item.embedUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { videoUrl: value })} />
                                 <VideoUploadButton
@@ -617,6 +664,9 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                                   onError={setUploadError}
                                 />
                               </div>
+                            </Field>
+                            <Field label="Preview poster URL">
+                              <TextInput value={item.videoPoster ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { videoPoster: value })} />
                             </Field>
                             <Field label="Image URL">
                               <div className="grid gap-2">
@@ -630,6 +680,12 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                             </Field>
                             <Field label="Image alt">
                               <TextInput value={item.imageAlt ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { imageAlt: value })} />
+                            </Field>
+                            <Field label="Thumbnail URL">
+                              <TextInput value={item.thumbnailUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { thumbnailUrl: value })} />
+                            </Field>
+                            <Field label="Fun photo URL" hint="Optional hover photo for The One People polaroid cards.">
+                              <TextInput value={item.funPhotoUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { funPhotoUrl: value })} />
                             </Field>
                           </>
                         )}

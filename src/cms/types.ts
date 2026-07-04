@@ -15,10 +15,15 @@ export type CmsBlockItem = {
   likesSeed?: string
   imageUrl?: string
   imageAlt?: string
+  thumbnailUrl?: string
   videoUrl?: string
+  videoPoster?: string
   embedUrl?: string
   backgroundImageUrl?: string
   backgroundImages?: string[]
+  funPhotoUrl?: string
+  photoUrl?: string
+  published?: boolean
   screenBackground?: {
     imageUrl?: string
     gradient?: string
@@ -60,6 +65,11 @@ export type CmsBlock = {
   backgroundImageUrl?: string
   backgroundGradient?: string
   backgroundOverlayOpacity?: string
+  subtitle?: string
+  textColor?: 'light' | 'dark' | 'gradient'
+  dividerShow?: boolean
+  closingLine1?: string
+  closingLine2?: string
   ctaLabel?: string
   ctaHref?: string
   items?: CmsBlockItem[]

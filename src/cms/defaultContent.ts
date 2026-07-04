@@ -63,6 +63,15 @@ const theOnePackageItems: CmsBlockItem[] = [
   },
 ]
 
+const theOnePeopleItems: CmsBlockItem[] = [
+  { title: 'Smooth', label: 'Founder / Growth Architect', body: 'Connects brand, commerce, CRM and performance into one operating system.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
+  { title: 'Creative One', label: 'Content Lead', body: 'Turns strategy into reels, scripts, visuals and daily content rhythm.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
+  { title: 'Performance One', label: 'Media Lead', body: 'Keeps paid media, reporting and experiments moving toward revenue.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
+  { title: 'System One', label: 'Website / CRM', body: 'Builds landing pages, funnels and customer journeys that teams can run.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
+  { title: 'Commerce One', label: 'Marketplace Ops', body: 'Operates marketplaces, launches, bundles and campaign mechanics.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
+  { title: 'Data One', label: 'Dashboard / Insight', body: 'Turns messy signals into decisions the whole team can understand.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
+]
+
 const theOneStoryItems: CmsBlockItem[] = caseStudies.map((story) => ({
   id: story.id,
   title: story.brandName,
@@ -105,11 +114,14 @@ export const defaultCmsPages: CmsPageContent[] = [
         id: 'hero',
         heading: 'The One by gg99',
         body: 'The only one digital agency you needed',
+        subtitle: 'The only one digital agency you needed',
         imageUrl: '',
         imageAlt: 'The One - GG99',
         backgroundImageUrl: '',
-        backgroundGradient: 'linear-gradient(180deg,#FFF5F7 0%,#FFE4EC 55%,#FFD9E4 100%)',
+        backgroundGradient: 'linear-gradient(180deg,#FF7AA8 0%,#FF4D7D 45%,#FFB199 100%)',
         backgroundOverlayOpacity: '0',
+        textColor: 'light',
+        dividerShow: true,
         ctaLabel: '',
         ctaHref: '',
         items: [],
@@ -131,6 +143,25 @@ export const defaultCmsPages: CmsPageContent[] = [
         heading: 'The One Packages',
         body: '',
         items: theOnePackageItems,
+      },
+      {
+        id: 'people',
+        heading: 'The One People',
+        body: 'The people behind the system: strategy, creative, media, commerce, CRM and data moving in one direction.',
+        closingLine1: 'We quit our 9-5 and started our own business.',
+        closingLine2: "Isn't it your turn now?",
+        items: theOnePeopleItems,
+      },
+      {
+        id: 'closing',
+        heading: 'So, ready to be our plus one?',
+        subtitle: 'Build the next story with The One - GG99.',
+        body: '',
+        backgroundImageUrl: '',
+        backgroundGradient: 'linear-gradient(135deg,#db2777 0%,#ef4444 48%,#f59e0b 100%)',
+        backgroundOverlayOpacity: '0.62',
+        ctaLabel: 'Call Your Shot',
+        items: [],
       },
     ],
   },

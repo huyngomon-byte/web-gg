@@ -16,10 +16,15 @@ export function useScrollReveal() {
       window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+    const revealElement = (el: Element) => {
+      el.classList.add('is-visible')
+      ;(el as HTMLElement).dataset.revealed = 'true'
+    }
+
     const revealAll = () =>
       document
         .querySelectorAll('[data-reveal]')
-        .forEach((el) => el.classList.add('is-visible'))
+        .forEach(revealElement)
 
     if (reduced || !('IntersectionObserver' in window)) {
       revealAll()
@@ -28,6 +33,14 @@ export function useScrollReveal() {
 
     let cancelled = false
     let io: IntersectionObserver | null = null
+    let mutationObserver: MutationObserver | null = null
+
+    const observePending = () => {
+      if (!io) return
+      document
+        .querySelectorAll('[data-reveal]:not([data-revealed])')
+        .forEach((el) => io!.observe(el))
+    }
 
     whenIntroGone(() => {
       if (cancelled) return
@@ -35,21 +48,22 @@ export function useScrollReveal() {
         (entries) => {
           entries.forEach((entry) => {
             if (entry.isIntersecting) {
-              entry.target.classList.add('is-visible')
+              revealElement(entry.target)
               io?.unobserve(entry.target)
             }
           })
         },
         { threshold: 0.1, rootMargin: '0px 0px -6% 0px' },
       )
-      document
-        .querySelectorAll('[data-reveal]:not(.is-visible)')
-        .forEach((el) => io!.observe(el))
+      observePending()
+      mutationObserver = new MutationObserver(observePending)
+      mutationObserver.observe(document.body, { childList: true, subtree: true })
     })
 
     return () => {
       cancelled = true
       io?.disconnect()
+      mutationObserver?.disconnect()
     }
   }, [])
 }

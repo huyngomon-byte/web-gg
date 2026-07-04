@@ -12,6 +12,7 @@ type BrandLayoutProps = {
   siteSettings?: CmsSiteSettings | null
   hideHeaderCta?: boolean
   flushTop?: boolean
+  mobileHeaderTitle?: string
 }
 
 function resolveHeaderCtaLabel(label: string) {
@@ -22,7 +23,7 @@ function resolveHeaderCtaLabel(label: string) {
     : trimmed
 }
 
-export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta = false, flushTop = false }: BrandLayoutProps) {
+export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta = false, flushTop = false, mobileHeaderTitle }: BrandLayoutProps) {
   const [bookingOpen, setBookingOpen] = useState(false)
   const [showTop, setShowTop] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -75,6 +76,11 @@ export function BrandLayout({ children, lang = 'en', siteSettings, hideHeaderCta
         <nav className="mx-auto flex h-16 max-w-[1200px] items-center gap-6 rounded-full border border-white/70 bg-white/[0.82] px-4 shadow-[0_18px_48px_rgba(219,39,119,0.12)] backdrop-blur-xl sm:px-6 lg:px-8">
           <a href={homeHref} className="flex min-w-0 items-center gap-2.5">
             {header.logoSrc && <img src={header.logoSrc} alt={header.logoAlt || header.brandName} className="h-12 w-auto shrink-0" />}
+            {mobileHeaderTitle && (
+              <div className="min-w-0 sm:hidden">
+                <div className="ig-script-title truncate text-[24px] leading-none text-primary">{mobileHeaderTitle}</div>
+              </div>
+            )}
             {showHeaderCopy && (
               <div className="hidden min-w-0 sm:block">
                 {header.brandName && <div className="truncate text-base font-extrabold leading-tight text-primary">{header.brandName}</div>}

@@ -15,8 +15,11 @@ import { PackageCards } from '../components/PackageCards'
 import { SeoHead } from '../components/SeoHead'
 import { getCmsBlock, splitCmsParagraphs } from '../cms/contentBlocks'
 import type { CmsBlockItem, CmsPageContent, CmsSiteSettings } from '../cms/types'
+import { useScrollReveal } from '../hooks/useScrollReveal'
 
 export function PackagesPage({ lang = 'vi', cmsPage, siteSettings }: { lang?: BrandLang; cmsPage?: CmsPageContent | null; siteSettings?: CmsSiteSettings | null }) {
+  useScrollReveal()
+
   const c = theOnePackagesByLang[lang]
   const meta = cmsPage?.meta ?? packagesMetaByLang[lang]
   const introBlock = getCmsBlock(cmsPage, 'intro')

@@ -155,14 +155,16 @@ export function PackageCards({
         const caseStudyLink = item.caseStudyLink?.trim() || fallbackCaseStudyLinks[id] || ''
 
         return (
+          <div
+            key={`${item.title}-${index}`}
+            data-reveal="scale"
+            style={{ '--ri': index } as CSSProperties}
+          >
           <article
             id={id}
-            key={`${item.title}-${index}`}
             tabIndex={0}
             role="button"
             aria-pressed={selected}
-            data-reveal="scale"
-            style={{ '--ri': index } as CSSProperties}
             onClick={(event) => handleCardClick(event, index)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={[
@@ -220,6 +222,7 @@ export function PackageCards({
               )}
             </div>
           </article>
+          </div>
         )
       })}
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
-import { Building2, HelpCircle, Network, Orbit, Sparkles } from 'lucide-react'
+import type { CSSProperties } from 'react'
+import { ArrowDown, Building2, HelpCircle, Network, Orbit, Sparkles } from 'lucide-react'
 import {
   aboutMetaByLang,
   compactAboutByLang,
@@ -18,12 +19,61 @@ import type { CmsBlockItem, CmsPageContent, CmsSiteSettings } from '../cms/types
 
 const cardIcons = [Building2, Orbit, Network]
 
-export default function AboutBrandPage({ lang = 'vi', cmsPage, siteSettings }: { lang?: BrandLang; cmsPage?: CmsPageContent | null; siteSettings?: CmsSiteSettings | null }) {
+function memberRotation(index: number) {
+  const rotations = ['-4deg', '3deg', '-2deg', '4deg', '-3deg', '2deg']
+  return rotations[index % rotations.length]
+}
+
+function AboutPeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
+  const members = block?.items?.filter((item) => item.title?.trim()).slice(0, 6) ?? []
+  if (!block || members.length === 0) return null
+
+  return (
+    <section className="py-8">
+      <div className="mb-8 max-w-2xl">
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary">The One People</p>
+        <h2 className="mt-3 text-[28px] font-extrabold leading-tight text-on-surface md:text-[38px]">{block.heading || 'The One People'}</h2>
+        {block.body && <p className="mt-3 text-sm leading-relaxed text-on-surface-variant md:text-base">{block.body}</p>}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {members.map((member, index) => (
+          <article
+            key={`${member.title}-${index}`}
+            className="people-polaroid group bg-white p-3 shadow-[0_20px_48px_rgba(80,20,50,0.13)] transition duration-300"
+            style={{ '--photo-rotation': memberRotation(index) } as CSSProperties}
+          >
+            <div className="relative aspect-square overflow-hidden bg-surface-container-low">
+              <img src={member.imageUrl || member.photoUrl || '/logo-gg.png'} alt={member.imageAlt || member.title} className="h-full w-full object-cover transition duration-300 group-hover:opacity-0" />
+              <img src={member.funPhotoUrl || member.backgroundImageUrl || member.imageUrl || '/logo-gg.png'} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-0 transition duration-300 group-hover:opacity-100" />
+            </div>
+            <div className="px-1 pb-2 pt-4 text-center">
+              <h3 className="people-signature text-[24px] leading-none text-on-surface">{member.title}</h3>
+              {member.label && <p className="mt-2 text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">{member.label}</p>}
+              {member.body && <p className="mt-2 line-clamp-2 text-[13px] font-semibold leading-relaxed text-on-surface-variant">{member.body}</p>}
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="mx-auto mt-12 max-w-3xl text-center">
+        {block.closingLine1 && <p className="home-people-closing-one text-[22px] italic leading-tight text-on-surface/85 md:text-[26px]">{block.closingLine1}</p>}
+        {block.closingLine2 && (
+          <p className="home-people-closing-two mt-3 bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-[26px] font-semibold leading-tight text-transparent md:text-[40px]">
+            {block.closingLine2}
+          </p>
+        )}
+        <ArrowDown className="mx-auto mt-5 animate-bounce text-primary" size={22} aria-hidden="true" />
+      </div>
+    </section>
+  )
+}
+
+export default function AboutBrandPage({ lang = 'vi', cmsPage, homePage, siteSettings }: { lang?: BrandLang; cmsPage?: CmsPageContent | null; homePage?: CmsPageContent | null; siteSettings?: CmsSiteSettings | null }) {
   const c = compactAboutByLang[lang]
   const meta = cmsPage?.meta ?? aboutMetaByLang[lang]
   const packages = theOnePackagesByLang[lang].packages
   const heroBlock = getCmsBlock(cmsPage, 'hero')
   const cardsBlock = getCmsBlock(cmsPage, 'cards')
+  const peopleBlock = getCmsBlock(homePage, 'people')
   const heroParagraphs = splitCmsParagraphs(heroBlock?.body)
   const cardItems: CmsBlockItem[] = cardsBlock?.items?.length
     ? cardsBlock.items
@@ -126,6 +176,8 @@ export default function AboutBrandPage({ lang = 'vi', cmsPage, siteSettings }: {
                 ))}
               </div>
             </section>
+
+            <AboutPeopleSection block={peopleBlock} />
 
             <section>
               <h2 className="text-[28px] md:text-[34px] font-extrabold text-on-surface mb-6">

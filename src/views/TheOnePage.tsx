@@ -40,15 +40,31 @@ const storyLogoById: Record<string, string> = {
   curnon: '/logo-curnon.png',
 }
 
-const tilePatterns: string[][] = [
-  [],
-  ['col-span-4 row-span-3'],
-  ['col-span-2 row-span-3', 'col-span-2 row-span-3'],
-  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-2 row-span-2'],
-  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1'],
-  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-2 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1'],
-  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-2 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1', 'col-span-2 row-span-1'],
-  ['col-span-2 row-span-2', 'col-span-2 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1', 'col-span-1 row-span-1', 'col-span-2 row-span-1'],
+const metricLayouts: string[][] = [
+  [
+    'col-start-1 row-start-1 col-span-2 row-span-2',
+    'col-start-3 row-start-2 col-span-2 row-span-2',
+    'col-start-3 row-start-1',
+    'col-start-4 row-start-1',
+    'col-start-1 row-start-3',
+    'col-start-2 row-start-3',
+    'col-start-1 row-start-4',
+    'col-start-2 row-start-4',
+    'col-start-3 row-start-4',
+    'col-start-4 row-start-4',
+  ],
+  [
+    'col-start-3 row-start-1 col-span-2 row-span-2',
+    'col-start-1 row-start-3 col-span-2 row-span-2',
+    'col-start-1 row-start-1',
+    'col-start-2 row-start-1',
+    'col-start-1 row-start-2',
+    'col-start-2 row-start-2',
+    'col-start-3 row-start-3',
+    'col-start-4 row-start-3',
+    'col-start-3 row-start-4',
+    'col-start-4 row-start-4',
+  ],
 ]
 
 function getStoryLogo(story: CaseStudy) {
@@ -81,17 +97,40 @@ function storyStorageKey(id: string) {
   return `gg99:viewed-story:${id}`
 }
 
-function buildMetricTiles(story: CaseStudy) {
+function metricKey(metric: CaseStudyMetric) {
+  return `${metric.value.trim().toLowerCase()}::${metric.label.trim().toLowerCase()}`
+}
+
+function buildMetricTiles(story: CaseStudy, storyIndex: number) {
   const metricItems = story.keyMetrics.filter((metric) => metric.value.trim() || metric.label.trim())
   const serviceItems: CaseStudyMetric[] = story.services.map((service) => ({ value: initials(service), label: service }))
-  const featured = metricItems.find((metric) => metric.featured)
-  const list = [featured, ...metricItems.filter((metric) => metric !== featured), ...serviceItems].filter(Boolean) as CaseStudyMetric[]
-  const visible = list.slice(0, 7)
-  const pattern = tilePatterns[visible.length] ?? tilePatterns[7]
-  return visible.map((metric, index) => ({
+  const fallbackItems: CaseStudyMetric[] = [
+    { value: initials(story.category), label: story.category },
+    { value: initials(story.period), label: story.period || 'Project period' },
+    { value: initials(story.headline), label: story.headline || 'Growth story' },
+  ]
+  const source = [...metricItems, ...serviceItems, ...fallbackItems]
+  const uniqueMetrics: CaseStudyMetric[] = []
+  source.forEach((metric) => {
+    const value = metric.value.trim()
+    const label = metric.label.trim()
+    if (!value && !label) return
+    const normalized = { ...metric, value: value || initials(label), label: label || value }
+    if (!uniqueMetrics.some((item) => metricKey(item) === metricKey(normalized))) uniqueMetrics.push(normalized)
+  })
+  while (uniqueMetrics.length < 10) {
+    const fallback = story.services[uniqueMetrics.length % Math.max(story.services.length, 1)] || story.category || 'Growth system'
+    uniqueMetrics.push({ value: initials(fallback), label: fallback })
+  }
+
+  const featuredMetrics = uniqueMetrics.filter((metric) => metric.featured).slice(0, 2)
+  const ordered = [...featuredMetrics, ...uniqueMetrics.filter((metric) => !featuredMetrics.includes(metric))].slice(0, 10)
+  const layout = metricLayouts[storyIndex % metricLayouts.length]
+
+  return ordered.map((metric, index) => ({
     ...metric,
-    className: pattern[index] ?? 'col-span-1 row-span-1',
-    featured: metric.featured || index === 0,
+    className: layout[index] ?? '',
+    featured: index < 2,
   }))
 }
 
@@ -157,21 +196,23 @@ function YourStoryRing({ compact }: { compact: boolean }) {
 function StoriesBar({
   heading,
   compact,
+  mobile,
   stories,
   viewedStories,
   onStoryClick,
 }: {
   heading: string
   compact: boolean
+  mobile: boolean
   stories: CaseStudy[]
   viewedStories: Set<string>
   onStoryClick: (story: CaseStudy) => void
 }) {
   return (
-    <section className={`ig-stories-bar sticky top-[88px] z-30 border-y border-white/65 bg-white/[0.72] px-4 shadow-[0_14px_40px_rgba(219,39,119,0.08)] backdrop-blur-xl ${compact ? 'is-compact py-2' : 'py-4'}`}>
+    <section className={`ig-stories-bar sticky top-[88px] z-30 border-y border-white/65 bg-white/[0.72] px-4 shadow-[0_14px_40px_rgba(219,39,119,0.08)] backdrop-blur-xl ${compact ? 'is-compact' : ''} ${mobile ? 'is-mobile' : ''}`}>
       <div className="mx-auto max-w-[900px]">
-        {!compact && <h1 className="ig-script-title text-center text-[46px] leading-none text-on-surface md:text-[58px]">{heading}</h1>}
-        <div className={`${compact ? 'mt-0' : 'mt-4'} flex gap-4 overflow-x-auto pb-1`}>
+        {!mobile && <h1 className="ig-stories-title ig-script-title text-center text-[46px] leading-none text-on-surface md:text-[58px]">{heading}</h1>}
+        <div className="ig-stories-row flex gap-4 overflow-x-auto pb-1">
           <YourStoryRing compact={compact} />
           {stories.map((story) => (
             <StoryRing key={story.id} story={story} viewed={viewedStories.has(story.id)} compact={compact} onClick={onStoryClick} />
@@ -203,7 +244,7 @@ function StoryMediaFrame({ story, index }: { story: CaseStudy; index: number }) 
   const frameRef = useRef<HTMLDivElement | null>(null)
   const touchStartX = useRef(0)
   const images = useMemo(() => carouselImagesForStory(story), [story])
-  const metricTiles = useMemo(() => buildMetricTiles(story), [story])
+  const metricTiles = useMemo(() => buildMetricTiles(story, index), [index, story])
   const [activeImage, setActiveImage] = useState(0)
   const [inView, setInView] = useState(true)
   const [reducedMotion, setReducedMotion] = useState(false)
@@ -253,13 +294,13 @@ function StoryMediaFrame({ story, index }: { story: CaseStudy; index: number }) 
   }
 
   return (
+    <div data-reveal="scale">
     <div
       ref={frameRef}
       className="story-media-frame relative aspect-[4/5] overflow-hidden bg-cover bg-center"
       style={images.length ? undefined : fallbackStyle}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      data-reveal="scale"
     >
       {images.map((image, imageIndex) => (
         <img
@@ -298,8 +339,8 @@ function StoryMediaFrame({ story, index }: { story: CaseStudy; index: number }) 
         </>
       )}
 
-      <div className="relative z-10 grid h-full grid-cols-4 grid-rows-5 gap-2 p-3 sm:p-4">
-        <div className="story-bento-grid col-span-4 row-span-3 grid grid-cols-4 grid-rows-3 gap-2">
+      <div className="relative z-10 grid h-full grid-cols-4 grid-rows-6 gap-2 p-3 sm:p-4">
+        <div className="story-bento-grid col-span-4 row-span-4 grid grid-cols-4 grid-rows-4 gap-2">
           {metricTiles.map((metric, metricIndex) => (
             <div
               key={`${story.id}-metric-${metricIndex}`}
@@ -326,31 +367,45 @@ function StoryMediaFrame({ story, index }: { story: CaseStudy; index: number }) 
         </button>
       </div>
     </div>
+    </div>
   )
 }
 
 function PostSocialLinks({ story }: { story: CaseStudy }) {
-  const links = socialPlatforms
-    .map((platform) => ({ ...platform, href: story.socialLinks?.[platform.key]?.trim() || '' }))
-    .filter((platform) => platform.href)
-
-  if (!links.length) return null
+  const links = socialPlatforms.map((platform) => ({ ...platform, href: story.socialLinks?.[platform.key]?.trim() || '' }))
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {links.map(({ key, label, href, Icon }) => (
-        <a
-          key={key}
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          aria-label={label}
-          title={label}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/55 text-on-surface transition-colors hover:border-primary/45 hover:bg-primary/10 hover:text-primary"
-        >
-          <Icon size={18} />
-        </a>
-      ))}
+      {links.map(({ key, label, href, Icon }) => {
+        const className = 'inline-flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/55 text-on-surface transition-colors hover:border-primary/45 hover:bg-primary/10 hover:text-primary'
+        if (href) {
+          return (
+            <a
+              key={key}
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={label}
+              title={label}
+              className={className}
+            >
+              <Icon size={18} />
+            </a>
+          )
+        }
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={openBookingModal}
+            aria-label={`${label} link pending - open booking`}
+            title={`${label} link pending`}
+            className={className}
+          >
+            <Icon size={18} />
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -369,10 +424,9 @@ function InstagramPost({
   const seedLikes = parseLikes(story.likesSeed, 980 + index * 397)
 
   return (
+    <div data-reveal="scale" style={{ '--ri': index } as CSSProperties}>
     <article
       id={story.id}
-      data-reveal="scale"
-      style={{ '--ri': index } as CSSProperties}
       className={`story-post scroll-mt-40 overflow-hidden rounded-[28px] border bg-white shadow-[0_24px_70px_rgba(219,39,119,0.12)] transition duration-500 ${highlighted ? 'is-highlighted' : ''}`}
     >
       <header className="flex items-center gap-3 border-b border-outline-variant/35 px-4 py-3">
@@ -401,6 +455,7 @@ function InstagramPost({
         <p className="mt-2 text-xs font-bold uppercase tracking-[0.08em] text-on-surface-variant">{story.category}</p>
       </footer>
     </article>
+    </div>
   )
 }
 
@@ -460,10 +515,10 @@ function StickyStoryRail({
 
 function FinalStoryCta({ label }: { label: string }) {
   return (
+    <div data-reveal="scale">
     <button
       type="button"
       onClick={openBookingModal}
-      data-reveal="scale"
       className="story-post group w-full overflow-hidden rounded-[28px] border border-white/75 bg-white/[0.82] p-6 text-left shadow-[0_24px_70px_rgba(219,39,119,0.12)] backdrop-blur transition hover:-translate-y-1 hover:border-primary/45 md:p-8"
     >
       <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-primary">The One - GG99</span>
@@ -476,6 +531,7 @@ function FinalStoryCta({ label }: { label: string }) {
         </span>
       </span>
     </button>
+    </div>
   )
 }
 
@@ -488,6 +544,7 @@ export default function TheOnePage({ lang = 'vi', cmsPage, siteSettings }: { lan
   const [highlightedId, setHighlightedId] = useState('')
   const [toast, setToast] = useState('')
   const [compactStories, setCompactStories] = useState(false)
+  const [isMobileStories, setIsMobileStories] = useState(false)
   const storyHeading = heroBlock?.heading?.trim() || 'The One Stories'
   const finalCtaLabel = heroBlock?.ctaLabel?.trim() || 'How about our stories?'
 
@@ -502,10 +559,32 @@ export default function TheOnePage({ lang = 'vi', cmsPage, siteSettings }: { lan
   }, [orderedCaseStudies])
 
   useEffect(() => {
-    const onScroll = () => setCompactStories(window.scrollY > 170)
+    let frame = 0
+    const onScroll = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(() => {
+        frame = 0
+        setCompactStories((current) => {
+          if (!current && window.scrollY > 200) return true
+          if (current && window.scrollY < 80) return false
+          return current
+        })
+      })
+    }
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)')
+    const sync = () => setIsMobileStories(media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
   }, [])
 
   useEffect(() => {
@@ -544,13 +623,14 @@ export default function TheOnePage({ lang = 'vi', cmsPage, siteSettings }: { lan
   }
 
   return (
-    <BrandLayout lang={lang} siteSettings={siteSettings} flushTop>
+    <BrandLayout lang={lang} siteSettings={siteSettings} flushTop mobileHeaderTitle={isMobileStories ? storyHeading : undefined}>
       <SeoHead meta={cmsPage?.meta ?? c.meta} schema={[organizationSchema, websiteSchema]} lang={lang} />
 
       <article className="min-h-screen bg-[linear-gradient(180deg,#fff5f7_0%,#ffe4ec_35%,#fff1c8_100%)] pb-16 pt-24">
         <StoriesBar
           heading={storyHeading}
           compact={compactStories}
+          mobile={isMobileStories}
           stories={orderedCaseStudies}
           viewedStories={viewedStories}
           onStoryClick={handleStoryClick}

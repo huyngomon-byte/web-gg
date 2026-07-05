@@ -20,6 +20,7 @@ import type { CaseStudy } from '../data/caseStudies'
 
 const primaryBookingCtaLabel = 'Call Your Shot'
 const defaultHeroGradient = 'linear-gradient(180deg,#FF7AA8 0%,#FF4D7D 45%,#FFB199 100%)'
+const heroFirstWordDelayMs = 240
 const heroWordStepMs = 90
 const heroWordDurationMs = 430
 
@@ -73,7 +74,7 @@ function countStaggerWords(text: string) {
 }
 
 function getHeroAnimationDelays(wordCount: number, showDivider: boolean) {
-  const lastWordDone = Math.max(0, wordCount - 1) * heroWordStepMs + heroWordDurationMs
+  const lastWordDone = heroFirstWordDelayMs + Math.max(0, wordCount - 1) * heroWordStepMs + heroWordDurationMs
   const dividerDelay = lastWordDone + 90
   return {
     divider: dividerDelay,
@@ -135,7 +136,7 @@ function HeroWordTitle({
       <span className="sr-only">{text}</span>
       <span aria-hidden="true" className={nowrap ? 'inline-block whitespace-nowrap' : 'inline'}>
         {words.map((word, index) => (
-          <span key={`${word}-${index}`} className="stagger-word hero-stagger-word" style={{ '--hero-word-delay': `${index * heroWordStepMs}ms` } as CSSProperties}>
+          <span key={`${word}-${index}`} className="stagger-word hero-stagger-word" style={{ '--hero-word-delay': `${heroFirstWordDelayMs + index * heroWordStepMs}ms` } as CSSProperties}>
             {word}
             {index < words.length - 1 ? <span className="stagger-space" aria-hidden="true">&nbsp;</span> : null}
           </span>

@@ -323,6 +323,12 @@ function StoryItemEditor({
     })
   }
 
+  function updateHomepageGalleryImages(urls: string[]) {
+    updateBlockItem(pageId, blockId, index, {
+      homepageGalleryImages: urls.map((url) => url.trim()).filter(Boolean).slice(0, 3),
+    })
+  }
+
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 md:grid-cols-2">
@@ -470,9 +476,9 @@ function StoryItemEditor({
       </Field>
 
       <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
-        <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Homepage / media</p>
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Homepage showcase / media</p>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Homepage order" hint="Lower numbers appear first on the homepage Explore grid.">
+          <Field label="Homepage order" hint="Lower numbers appear first in the homepage case-study showcase.">
             <TextInput value={item.homepageOrder ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageOrder: value })} />
           </Field>
           <label className="inline-flex h-fit w-fit items-center gap-2 rounded-xl border border-outline-variant/45 bg-surface px-3 py-2 text-xs font-extrabold text-on-surface-variant">
@@ -502,9 +508,32 @@ function StoryItemEditor({
           <Field label="Preview poster URL" hint="Static poster shown before the homepage preview video starts.">
             <TextInput value={item.videoPoster ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { videoPoster: value })} />
           </Field>
-          <Field label="Homepage thumbnail URL" hint="Optional thumbnail override for the homepage Explore grid.">
-            <TextInput value={item.thumbnailUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { thumbnailUrl: value })} />
+          <Field label="Homepage thumbnail URL" hint="Main 16:9 thumbnail for the homepage top banner and case rail.">
+            <div className="grid gap-2">
+              <TextInput value={item.thumbnailUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { thumbnailUrl: value })} />
+              <ImageUploadButton
+                folder={`cms/pages/${pageId}/${blockId}/homepage-thumbnails`}
+                onUploaded={(url) => updateBlockItem(pageId, blockId, index, { thumbnailUrl: url })}
+                onError={onUploadError}
+                label={item.thumbnailUrl ? 'Thay thumbnail' : 'Upload thumbnail'}
+              />
+            </div>
           </Field>
+          <div className="md:col-span-2">
+            <Field label="Homepage gallery images" hint="Upload 3 rectangular images for the homepage hover popup. The thumbnail above is used as image 1.">
+              <BackgroundCarouselUploader
+                urls={item.homepageGalleryImages ?? []}
+                onChange={updateHomepageGalleryImages}
+                folder={`cms/pages/${pageId}/${blockId}/homepage-gallery`}
+                onUploadError={onUploadError}
+                max={3}
+                uploadLabel="Upload gallery"
+                emptyLabel="Chua co anh gallery"
+                hint="Keo thumbnail de doi thu tu. Toi da 3 anh bo sung; thumbnail chinh nam o field Homepage thumbnail URL."
+                aspectClassName="aspect-[16/9]"
+              />
+            </Field>
+          </div>
           <Field label="Background image URL" hint="Dùng làm ảnh nền phía sau brand story card.">
             <div className="grid gap-2">
               <TextInput value={item.backgroundImageUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { backgroundImageUrl: value })} />

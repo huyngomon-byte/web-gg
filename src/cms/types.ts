@@ -17,6 +17,7 @@ export type CmsBlockItem = {
   imageAlt?: string
   avatarImages?: string[]
   thumbnailUrl?: string
+  homepageGalleryImages?: string[]
   videoUrl?: string
   videoPoster?: string
   embedUrl?: string

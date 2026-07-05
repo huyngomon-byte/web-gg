@@ -26,12 +26,16 @@ export type CaseStudy = {
   }
   videoUrl?: string
   embedUrl?: string
+  thumbnailUrl?: string
+  homepageGalleryImages?: string[]
   backgroundImageUrl?: string
   backgroundImages?: string[]
   screenBackground?: {
     imageUrl?: string
     gradient?: string
   }
+  showOnHomepage?: boolean
+  homepageOrder?: string
   socialLinks?: {
     instagram?: string
     facebook?: string

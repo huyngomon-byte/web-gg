@@ -1065,6 +1065,15 @@
   aspect-ratio: 1 / 1;
 }
 
+.case-study-rail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.case-study-rail::-webkit-scrollbar {
+  display: none;
+}
+
 @media (min-width: 768px) {
   .home-explore-tile.md\:col-span-2 .home-explore-media,
   .home-explore-grid > .md\:col-span-2 .home-explore-media {

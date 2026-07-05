@@ -91,6 +91,8 @@ const theOneStoryItems: CmsBlockItem[] = caseStudies.map((story) => ({
   storyDetail: story.storyDetail,
   videoUrl: '',
   embedUrl: '',
+  thumbnailUrl: story.thumbnailUrl,
+  homepageGalleryImages: story.homepageGalleryImages,
   backgroundImageUrl: '',
   backgroundImages: story.backgroundImages,
   screenBackground: story.screenBackground,
@@ -100,6 +102,8 @@ const theOneStoryItems: CmsBlockItem[] = caseStudies.map((story) => ({
     tiktok: story.socialLinks?.tiktok ?? '',
     website: story.socialLinks?.website ?? '',
   },
+  showOnHomepage: story.showOnHomepage ?? true,
+  homepageOrder: story.homepageOrder ?? '',
   ctaText: story.ctaText,
 }))
 

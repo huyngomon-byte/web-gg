@@ -51,6 +51,7 @@ const emptyItem: CmsBlockItem = {
   imageUrl: '',
   imageAlt: '',
   avatarImages: [],
+  homepageGalleryImages: [],
   href: '',
   label: '',
 }
@@ -161,6 +162,19 @@ function validateBackgroundCarouselImages(page: CmsPageContent) {
 
   return invalidStories.length
     ? `Khong the luu background carousel qua 5 anh: ${invalidStories.join('; ')}.`
+    : ''
+}
+
+function validateHomepageGalleryImages(page: CmsPageContent) {
+  if (page.id !== 'the-one') return ''
+  const storiesBlock = page.blocks.find((block) => block.id === 'stories')
+  const invalidStories = (storiesBlock?.items ?? []).flatMap((item) => {
+    const count = item.homepageGalleryImages?.filter((url) => url.trim()).length ?? 0
+    return count > 3 ? `${item.title || item.id || 'Story'} (${count}/3 images)` : []
+  })
+
+  return invalidStories.length
+    ? `Khong the luu homepage gallery qua 3 anh: ${invalidStories.join('; ')}.`
     : ''
 }
 
@@ -437,6 +451,8 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       if (videoValidationError) throw new Error(videoValidationError)
       const carouselValidationError = validateBackgroundCarouselImages(page)
       if (carouselValidationError) throw new Error(carouselValidationError)
+      const homepageGalleryValidationError = validateHomepageGalleryImages(page)
+      if (homepageGalleryValidationError) throw new Error(homepageGalleryValidationError)
       const peopleAvatarValidationError = validatePeopleAvatarImages(page)
       if (peopleAvatarValidationError) throw new Error(peopleAvatarValidationError)
       await saveCmsPage(page)

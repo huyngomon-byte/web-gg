@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   ArrowDown,
-  Play,
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { compactHomeByLang, homeMetaByLang, homeWebPageSchema, localizedPath, organizationSchema, websiteSchema, type BrandLang } from '../brandContent'
 import { BrandLayout } from '../components/BrandLayout'
@@ -40,14 +42,6 @@ const storyLogoById: Record<string, string> = {
 function getStoryLogoForHome(story: Pick<CaseStudy, 'id' | 'logoUrl'>) {
   return story.logoUrl || storyLogoById[story.id] || '/logo-gg.png'
 }
-
-const mediaBackdrops = [
-  'from-[#120c08] via-[#9a3412] to-[#f08a35]',
-  'from-[#16080c] via-[#b91c1c] to-[#db4458]',
-  'from-[#120d06] via-[#78350f] to-[#d97706]',
-  'from-[#1a0b05] via-[#9a3412] to-[#ea580c]',
-  'from-[#160804] via-[#7c2d12] to-[#b45309]',
-]
 
 function SectionHeader({ title, intro, dark = false }: { title: string; intro?: string; dark?: boolean }) {
   return (
@@ -167,28 +161,6 @@ function heroBackgroundStyle(block: ReturnType<typeof getCmsBlock>): CSSProperti
   }
 }
 
-function extractIframeSrc(value: string) {
-  const match = value.match(/\ssrc=["']([^"']+)["']/i)
-  return match?.[1] ?? value
-}
-
-function isDirectVideoUrl(value: string) {
-  const url = extractIframeSrc(value).trim()
-  if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) return true
-
-  try {
-    const parsedUrl = new URL(url)
-    return parsedUrl.hostname.endsWith('cloudinary.com') && parsedUrl.pathname.includes('/video/upload/')
-  } catch {
-    return false
-  }
-}
-
-function isEmbeddableUrl(value: string) {
-  const url = value.trim()
-  return /youtube\.com|youtu\.be|vimeo\.com|player\.vimeo\.com|tiktok\.com|iframe/i.test(url)
-}
-
 function resolveStoryHref(lang: BrandLang, href: string, storyId?: string) {
   const candidate = href.trim()
   if (/^https?:\/\//i.test(candidate) || candidate.startsWith('/')) return candidate
@@ -196,252 +168,252 @@ function resolveStoryHref(lang: BrandLang, href: string, storyId?: string) {
   return `${localizedPath(lang, '/the-one')}${targetId ? `#${encodeURIComponent(targetId)}` : ''}`
 }
 
-function normalizeStoryKey(value: unknown) {
-  return String(value || '').trim().replace(/^#/, '').toLowerCase()
+function getCaseStudyThumbnail(story: CaseStudy) {
+  const [thumbnail] = uniqueImageUrls([
+    story.thumbnailUrl,
+    story.backgroundImageUrl,
+    story.backgroundImages?.[0],
+    story.screenBackground?.imageUrl,
+    story.logoUrl,
+    storyLogoById[story.id],
+    '/logo-gg.png',
+  ])
+  return thumbnail || '/logo-gg.png'
 }
 
-function ExploreTile({
-  stage,
-  story,
-  index,
-  lang,
-  featured = false,
-}: {
-  stage: {
-    label: string
-    detail: string
-    href: string
-    imageUrl?: string
-    thumbnailUrl?: string
-    imageAlt: string
-    videoUrl?: string
-    videoPoster?: string
-    embedUrl?: string
-  }
-  story?: CaseStudy
-  index: number
-  lang: BrandLang
-  featured?: boolean
-}) {
-  const [active, setActive] = useState(false)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const hoverTimerRef = useRef<number | null>(null)
-  const tileTokenRef = useRef(`explore-${index}-${stage.href}-${stage.label}`)
-  const rawVideoUrl = stage.videoUrl?.trim() || stage.embedUrl?.trim() || ''
-  const imageLooksLikeVideo = stage.imageUrl ? isEmbeddableUrl(stage.imageUrl) || isDirectVideoUrl(stage.imageUrl) : false
-  const mediaUrl = rawVideoUrl || (imageLooksLikeVideo ? stage.imageUrl || '' : '')
-  const posterUrl = stage.videoPoster || stage.thumbnailUrl || (imageLooksLikeVideo ? '' : stage.imageUrl) || (story?.id ? storyLogoById[story.id] : '') || '/logo-gg.png'
-  const directVideo = Boolean(mediaUrl && isDirectVideoUrl(mediaUrl))
-  const videoSrc = directVideo ? extractIframeSrc(mediaUrl) : ''
-  const storyHref = resolveStoryHref(lang, stage.href, story?.id)
-  const backdrop = mediaBackdrops[index % mediaBackdrops.length]
-  const posterIsLogo = /(^|\/)logo[-_]/i.test(posterUrl)
+function getCaseStudyGallery(story: CaseStudy) {
+  return uniqueImageUrls([
+    getCaseStudyThumbnail(story),
+    ...(story.homepageGalleryImages ?? []),
+    ...(story.backgroundImages ?? []),
+    story.backgroundImageUrl,
+    story.screenBackground?.imageUrl,
+    story.logoUrl,
+    storyLogoById[story.id],
+    '/logo-gg.png',
+  ]).slice(0, 4)
+}
+
+function isLogoLikeImage(url: string) {
+  return /(^|\/)logo[-_]/i.test(url) || /logo[-_]/i.test(url)
+}
+
+function getHomepageCaseStudies(stories: CaseStudy[]) {
+  return stories
+    .map((story, index) => ({ story, index, order: Number.parseFloat(story.homepageOrder ?? '') }))
+    .filter(({ story }) => story.showOnHomepage !== false)
+    .sort((left, right) => {
+      const leftOrder = Number.isFinite(left.order) ? left.order : left.index
+      const rightOrder = Number.isFinite(right.order) ? right.order : right.index
+      return leftOrder - rightOrder || left.index - right.index
+    })
+    .map(({ story }) => story)
+}
+
+function CaseStudyPreviewPopover({ story, lang }: { story: CaseStudy; lang: BrandLang }) {
+  const images = getCaseStudyGallery(story)
+  const [activeImage, setActiveImage] = useState(0)
+  const href = resolveStoryHref(lang, story.id, story.id)
 
   useEffect(() => {
-    const onStop = (event: Event) => {
-      const detail = (event as CustomEvent<string>).detail
-      if (detail !== tileTokenRef.current) deactivatePreview()
-    }
-
-    window.addEventListener('gg99:stop-explore-preview', onStop)
-    return () => window.removeEventListener('gg99:stop-explore-preview', onStop)
-  }, [])
-
-  function activatePreview() {
-    if (!videoSrc) return
-    window.dispatchEvent(new CustomEvent('gg99:stop-explore-preview', { detail: tileTokenRef.current }))
-    setActive(true)
-    const video = videoRef.current
-    if (!video) return
-    if (!video.src) {
-      video.src = videoSrc
-      video.load()
-    }
-    video.muted = true
-    try {
-      video.currentTime = 0
-    } catch {
-      // Keep current time if the browser has not loaded metadata yet.
-    }
-    void video.play().catch(() => {
-      setActive(false)
-    })
-  }
-
-  function schedulePreview() {
-    if (!videoSrc) return
-    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current)
-    hoverTimerRef.current = window.setTimeout(activatePreview, 150)
-  }
-
-  function deactivatePreview() {
-    if (hoverTimerRef.current) {
-      window.clearTimeout(hoverTimerRef.current)
-      hoverTimerRef.current = null
-    }
-    setActive(false)
-    const video = videoRef.current
-    if (!video) return
-    video.pause()
-    try {
-      video.currentTime = 0
-    } catch {
-      // Some remote streams do not allow seeking before metadata is ready.
-    }
-  }
-
-  function handleTileClick(event: ReactMouseEvent<HTMLAnchorElement>) {
-    if (!videoSrc || !window.matchMedia('(hover: none)').matches) return
-    if (!active) {
-      event.preventDefault()
-      activatePreview()
-    }
-  }
+    setActiveImage(0)
+    if (images.length < 2) return
+    const interval = window.setInterval(() => {
+      setActiveImage((index) => (index + 1) % images.length)
+    }, 2200)
+    return () => window.clearInterval(interval)
+  }, [story.id, images.length])
 
   return (
-    <a
-      href={storyHref}
-      aria-label={`${stage.label}${story ? ` - ${story.brandName}` : ''}`}
-      onClick={handleTileClick}
-      onMouseEnter={schedulePreview}
-      onMouseLeave={deactivatePreview}
-      onFocus={schedulePreview}
-      onBlur={deactivatePreview}
-      className={[
-        'home-explore-tile group flex h-full min-h-0 flex-col overflow-hidden bg-white text-left transition duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
-        featured ? 'md:col-span-2 md:row-span-2' : '',
-      ].join(' ')}
-    >
-      <div className="home-explore-media relative min-h-0 flex-1 overflow-hidden">
-        <div className={`absolute inset-0 bg-gradient-to-br ${backdrop}`} aria-hidden="true" />
-        {directVideo && (
-          <video
-            ref={videoRef}
-            muted
-            playsInline
-            preload="none"
-            aria-hidden="true"
-            onEnded={deactivatePreview}
-            className={`relative h-full w-full object-cover transition duration-500 ${active ? 'opacity-100' : 'opacity-0'} group-hover:scale-[1.04]`}
+    <article className="pointer-events-auto overflow-hidden rounded-[20px] bg-[#141414] text-white shadow-[0_28px_90px_rgba(0,0,0,0.42)] ring-1 ring-white/18">
+      <div className="relative aspect-video overflow-hidden bg-black">
+        {images.map((imageUrl, index) => (
+          <img
+            key={`${story.id}-preview-${imageUrl}-${index}`}
+            src={imageUrl}
+            alt={index === 0 ? `${story.brandName} case study preview` : ''}
+            aria-hidden={index === 0 ? undefined : true}
+            className={`absolute inset-0 h-full w-full transition duration-700 ${
+              isLogoLikeImage(imageUrl) ? 'bg-[linear-gradient(135deg,#fff7fb,#ffe3ef)] object-contain p-10' : 'object-cover'
+            } ${activeImage === index ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]'}`}
           />
-        )}
-        <img
-          src={posterUrl}
-          alt=""
-          className={`pointer-events-none absolute inset-0 h-full w-full transition duration-500 group-hover:scale-[1.04] ${
-            active ? 'opacity-0' : 'opacity-100'
-          } ${posterIsLogo ? 'object-contain p-8' : 'object-cover'}`}
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/10" aria-hidden="true" />
-        {videoSrc && (
-          <span className="absolute right-3 top-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-black/55 px-2 text-white shadow-lg backdrop-blur-md ring-1 ring-white/10">
-            <Play size={15} fill="currentColor" strokeWidth={2.2} aria-hidden="true" />
-          </span>
+        ))}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/42 via-transparent to-transparent" aria-hidden="true" />
+        {images.length > 1 && (
+          <div className="absolute bottom-3 left-4 flex gap-1.5" aria-hidden="true">
+            {images.map((imageUrl, index) => (
+              <span key={`${story.id}-dot-${imageUrl}-${index}`} className={`h-1.5 rounded-full transition-all ${activeImage === index ? 'w-5 bg-white' : 'w-1.5 bg-white/45'}`} />
+            ))}
+          </div>
         )}
       </div>
-      <div className={`${featured ? 'p-4 md:p-5' : 'p-3 md:p-3.5'} bg-white text-on-surface`}>
-        <h3 className={`${featured ? 'text-[20px] md:text-[24px]' : 'text-[15px] md:text-[16px]'} line-clamp-2 font-extrabold leading-tight text-on-surface transition-colors group-hover:text-primary`}>
-          {stage.label}
-        </h3>
-        {stage.detail && (
-          <p className="mt-1.5 line-clamp-2 text-[12px] font-semibold leading-relaxed text-on-surface-variant md:text-[13px]">
-            {stage.detail}
-          </p>
-        )}
+      <div className="p-4 md:p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/55">{story.category}</p>
+            <h3 className="mt-2 line-clamp-2 text-[22px] font-extrabold leading-tight text-white">{story.brandName}</h3>
+          </div>
+          <img src={getStoryLogoForHome(story)} alt="" aria-hidden="true" className="h-10 w-10 shrink-0 rounded-full bg-white/92 object-contain p-1.5" />
+        </div>
+        <p className="mt-3 line-clamp-2 text-sm font-semibold leading-relaxed text-white/70">{story.shortDescription}</p>
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-bold text-white/62">
+          <span>{story.period}</span>
+          {story.services.slice(0, 2).map((service) => (
+            <span key={`${story.id}-${service}`} className="rounded-full bg-white/10 px-2.5 py-1">
+              {service}
+            </span>
+          ))}
+        </div>
+        <a
+          href={href}
+          className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-extrabold text-[#141414] transition hover:bg-primary hover:text-white"
+        >
+          About this one
+          <ArrowUpRight size={15} strokeWidth={2.5} aria-hidden="true" />
+        </a>
       </div>
-    </a>
+    </article>
   )
 }
 
-function SystemMap({ labels, lang, items, storyTargets }: { labels: string[]; lang: BrandLang; items?: CmsBlockItem[]; storyTargets: CaseStudy[] }) {
-  const [expanded, setExpanded] = useState(false)
-  const detailText = [
-    'Brand identity and messaging.',
-    'Launch-ready websites and landing pages.',
-    'CRM systems and customer journeys.',
-    'Automation workflows that reduce manual work.',
-    'Performance marketing and growth operations.',
-  ]
+function CaseStudyShowcase({ stories, lang }: { stories: CaseStudy[]; lang: BrandLang }) {
+  const railRef = useRef<HTMLDivElement | null>(null)
+  const showcaseStories = getHomepageCaseStudies(stories)
+  const [bannerIndex, setBannerIndex] = useState(0)
+  const [previewStory, setPreviewStory] = useState<CaseStudy | null>(null)
 
-  const fallbackItems: CmsBlockItem[] = labels.map((label, index) => ({
-    title: label,
-    body: detailText[index],
-    href: '',
-    imageUrl: '',
-    imageAlt: '',
-  }))
-  const sourceItems = items?.length ? items : fallbackItems
-  const itemsByStoryId = new Map<string, CmsBlockItem>()
+  useEffect(() => {
+    if (showcaseStories.length < 2) return
+    const interval = window.setInterval(() => {
+      setBannerIndex((index) => (index + 1) % showcaseStories.length)
+    }, 3600)
+    return () => window.clearInterval(interval)
+  }, [showcaseStories.length])
 
-  sourceItems.forEach((item) => {
-    ;[item.href, item.id].map(normalizeStoryKey).filter(Boolean).forEach((key) => {
-      if (!itemsByStoryId.has(key)) itemsByStoryId.set(key, item)
-    })
-  })
+  if (!showcaseStories.length) return null
 
-  const orderedItems = storyTargets.length
-    ? storyTargets.map((story, index) => itemsByStoryId.get(normalizeStoryKey(story.id)) ?? sourceItems[index] ?? fallbackItems[index])
-    : sourceItems
+  const activeBannerIndex = bannerIndex % showcaseStories.length
+  const activeStory = showcaseStories[activeBannerIndex] ?? showcaseStories[0]
 
-  const storiesById = new Map(storyTargets.map((story) => [normalizeStoryKey(story.id), story]))
-  const stages = orderedItems
-    .filter((item) => item.showOnHomepage !== false)
-    .map((item, index) => {
-    const story = storiesById.get(normalizeStoryKey(item.href)) ?? storyTargets[index]
-    return {
-      label: item.title,
-      detail: item.body ?? '',
-      href: item.href ?? story?.id ?? '',
-      imageUrl: item.thumbnailUrl || story?.backgroundImageUrl || item.imageUrl,
-      thumbnailUrl: item.thumbnailUrl || item.imageUrl,
-      imageAlt: item.imageAlt || item.title,
-      videoUrl: item.videoUrl || story?.videoUrl,
-      videoPoster: item.videoPoster,
-      embedUrl: item.embedUrl || story?.embedUrl,
-      story,
-      order: Number.parseFloat(item.homepageOrder ?? ''),
-    }
-  }).sort((left, right) => {
-    const leftOrder = Number.isFinite(left.order) ? left.order : left.label.toLowerCase().includes('failure') ? -1 : 999
-    const rightOrder = Number.isFinite(right.order) ? right.order : right.label.toLowerCase().includes('failure') ? -1 : 999
-    return leftOrder - rightOrder
-  })
-
-  const visibleStages = expanded ? stages : stages.slice(0, 6)
-  const canToggle = stages.length > 5
-  const revealOrderByIndex = [0, 1, 2, 4, 3, 5]
+  function moveRail(direction: -1 | 1) {
+    const rail = railRef.current
+    if (!rail) return
+    rail.scrollBy({ left: direction * Math.max(280, rail.clientWidth * 0.82), behavior: 'smooth' })
+  }
 
   return (
-    <div className="space-y-5">
-      <div data-reveal="explore-frame" className="home-explore-grid grid auto-rows-[minmax(120px,1fr)] grid-cols-2 gap-1 overflow-hidden rounded-[24px] bg-white p-1 shadow-[0_24px_70px_rgba(219,39,119,0.12)] md:grid-cols-3 md:auto-rows-[minmax(170px,1fr)]">
-        {visibleStages.map((stage, index) => (
-          <div
-            key={`${stage.label}-${index}`}
-            data-reveal="explore-tile"
-            data-tile-direction={index === 0 ? 'center' : index === 1 || index === 2 ? 'right' : 'bottom'}
-            style={{ '--ri': revealOrderByIndex[index] ?? index } as CSSProperties}
-            className={`h-full ${index === 0 ? 'md:col-span-2 md:row-span-2' : ''}`}
-          >
-            <ExploreTile
-              stage={stage}
-              story={stage.story}
-              index={index}
-              lang={lang}
-              featured={index === 0}
-            />
-          </div>
-        ))}
-      </div>
-      {canToggle && (
+    <section className="relative overflow-visible bg-surface-container px-5 py-8 md:py-12 lg:px-10" onMouseLeave={() => setPreviewStory(null)}>
+      <div className="mx-auto max-w-6xl">
+        <SectionHeader
+          title="The One Stories"
+          intro={lang === 'vi' ? 'Nhung case study dang chay trong he thong The One.' : 'Case studies moving through The One system.'}
+        />
+
         <button
           type="button"
-          onClick={() => setExpanded((value) => !value)}
-          className="inline-flex rounded-full border border-primary/20 px-4 py-2 text-sm font-extrabold text-primary transition-colors hover:bg-primary/10"
+          data-reveal="scale"
+          onMouseEnter={() => setPreviewStory(activeStory)}
+          onFocus={() => setPreviewStory(activeStory)}
+          onClick={() => setPreviewStory(activeStory)}
+          className="group relative block aspect-[16/8] w-full overflow-hidden rounded-[24px] bg-[#190b12] text-left shadow-[0_24px_70px_rgba(80,20,50,0.18)] outline-none ring-1 ring-white/65 transition duration-500 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:aspect-[16/6]"
+          aria-label={`Preview ${activeStory.brandName}`}
         >
-          {expanded ? 'Show less' : 'See more stories...'}
+          {showcaseStories.map((story, index) => (
+            (() => {
+              const thumbnail = getCaseStudyThumbnail(story)
+              return (
+                <img
+                  key={`${story.id}-banner-${index}`}
+                  src={thumbnail}
+                  alt={index === activeBannerIndex ? `${story.brandName} case study thumbnail` : ''}
+                  aria-hidden={index === activeBannerIndex ? undefined : true}
+                  className={`absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.025] ${
+                    isLogoLikeImage(thumbnail) ? 'bg-[linear-gradient(135deg,#fff7fb,#ffd8e8)] object-contain p-12 md:p-20' : 'object-cover'
+                  } ${index === activeBannerIndex ? 'opacity-100' : 'opacity-0'}`}
+                />
+              )
+            })()
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/18 to-transparent" aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 p-5 text-white md:p-8">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/68">Featured case</p>
+            <h2 className="mt-2 max-w-2xl text-[30px] font-extrabold leading-tight md:text-[48px]">{activeStory.brandName}</h2>
+            <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-white/76 md:text-base">{activeStory.caption || activeStory.shortDescription}</p>
+          </div>
         </button>
+
+        <div className="relative mt-3">
+          {showcaseStories.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => moveRail(-1)}
+                className="absolute left-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                aria-label="Previous case studies"
+              >
+                <ChevronLeft size={20} strokeWidth={2.6} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveRail(1)}
+                className="absolute right-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                aria-label="Next case studies"
+              >
+                <ChevronRight size={20} strokeWidth={2.6} aria-hidden="true" />
+              </button>
+            </>
+          )}
+          <div ref={railRef} className="case-study-rail flex snap-x gap-2 overflow-x-auto scroll-smooth pb-2">
+            {showcaseStories.map((story, index) => (
+              <button
+                key={`${story.id}-rail`}
+                type="button"
+                data-reveal="tile-in"
+                data-tile-direction={index % 2 ? 'right' : 'bottom'}
+                style={{ '--ri': index } as CSSProperties}
+                onMouseEnter={() => setPreviewStory(story)}
+                onFocus={() => setPreviewStory(story)}
+                onClick={() => setPreviewStory(story)}
+                className="group relative aspect-[16/10] shrink-0 basis-[82%] snap-start overflow-hidden rounded-[16px] bg-[#180b11] text-left shadow-[0_14px_40px_rgba(80,20,50,0.13)] outline-none ring-1 ring-white/70 transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:basis-[calc((100%_-_8px)/2)] md:basis-[calc((100%_-_16px)/3)] lg:basis-[calc((100%_-_24px)/4)]"
+                aria-label={`Preview ${story.brandName}`}
+              >
+                {(() => {
+                  const thumbnail = getCaseStudyThumbnail(story)
+                  return (
+                    <img
+                      src={thumbnail}
+                      alt=""
+                      aria-hidden="true"
+                      className={`absolute inset-0 h-full w-full transition duration-500 group-hover:scale-[1.06] ${
+                        isLogoLikeImage(thumbnail) ? 'bg-[linear-gradient(135deg,#fff7fb,#ffd8e8)] object-contain p-7' : 'object-cover'
+                      }`}
+                    />
+                  )
+                })()}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/76 via-black/12 to-transparent" aria-hidden="true" />
+                <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                  <h3 className="line-clamp-1 text-[17px] font-extrabold leading-tight">{story.brandName}</h3>
+                  <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-white/70">{story.headline}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {previewStory && (
+        <>
+          <div className="pointer-events-none fixed left-1/2 top-1/2 z-[80] hidden w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 md:block">
+            <CaseStudyPreviewPopover story={previewStory} lang={lang} />
+          </div>
+          <div className="fixed inset-0 z-[80] flex items-end bg-black/42 p-4 backdrop-blur-sm md:hidden" onClick={() => setPreviewStory(null)}>
+            <div className="mx-auto w-full max-w-[420px]" onClick={(event) => event.stopPropagation()}>
+              <CaseStudyPreviewPopover story={previewStory} lang={lang} />
+            </div>
+          </div>
+        </>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -628,7 +600,6 @@ export default function BrandHomePage({
   const c = compactHomeByLang[lang]
   const homeMeta = cmsPage?.meta ?? homeMetaByLang[lang]
   const heroBlock = getCmsBlock(cmsPage, 'hero')
-  const whatIsBlock = getCmsBlock(cmsPage, 'what-is')
   const packagesBlock = getCmsBlock(cmsPage, 'packages')
   const peopleBlock = getCmsBlock(cmsPage, 'people')
   const closingBlock = getCmsBlock(cmsPage, 'closing')
@@ -706,11 +677,7 @@ export default function BrandHomePage({
         </div>
       </section>
 
-      <section className="bg-surface-container px-5 py-8 md:py-12 lg:px-10">
-        <div className="mx-auto max-w-6xl">
-          <SystemMap labels={c.whatIs.labels} lang={lang} items={whatIsBlock?.items} storyTargets={storyTargets} />
-        </div>
-      </section>
+      <CaseStudyShowcase stories={storyTargets} lang={lang} />
 
       <section id="packages" className="py-10 md:py-14 px-5 lg:px-10">
         <div className="max-w-6xl mx-auto">

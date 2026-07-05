@@ -46,6 +46,8 @@ export function storyFromCmsItem(item: CmsBlockItem) {
         },
         videoUrl: item.videoUrl || fallback.videoUrl,
         embedUrl: item.embedUrl || fallback.embedUrl,
+        thumbnailUrl: item.thumbnailUrl || fallback.thumbnailUrl,
+        homepageGalleryImages: (item.homepageGalleryImages?.length ? item.homepageGalleryImages : fallback.homepageGalleryImages) ?? [],
         backgroundImageUrl: item.backgroundImageUrl || item.imageUrl || fallback.backgroundImageUrl,
         backgroundImages: (item.backgroundImages?.length ? item.backgroundImages : fallback.backgroundImages) ?? [],
         screenBackground: {
@@ -58,6 +60,8 @@ export function storyFromCmsItem(item: CmsBlockItem) {
           tiktok: item.socialLinks?.tiktok || fallback.socialLinks?.tiktok || '',
           website: item.socialLinks?.website || fallback.socialLinks?.website || '',
         },
+        showOnHomepage: item.showOnHomepage ?? fallback.showOnHomepage,
+        homepageOrder: item.homepageOrder || fallback.homepageOrder,
         ctaText: item.ctaText || fallback.ctaText,
       }
     }

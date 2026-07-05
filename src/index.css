@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Grand+Hotel&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Grand+Hotel&family=Instrument+Serif:ital@0;1&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -903,9 +903,15 @@
 
 /* ---- Homepage UIUX update: pink hero, package focus, Instagram story system ---- */
 .home-hero-title-serif {
-  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
-  font-variation-settings: 'SOFT' 20, 'WONK' 0;
+  font-family: 'Instrument Serif', 'Fraunces', Georgia, 'Times New Roman', serif !important;
+  font-variation-settings: normal;
+  font-weight: 400 !important;
   letter-spacing: 0;
+}
+
+.home-hero-title-serif * {
+  font-family: inherit !important;
+  font-weight: inherit !important;
 }
 
 .home-hero-item {

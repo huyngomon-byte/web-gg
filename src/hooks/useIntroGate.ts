@@ -1,14 +1,18 @@
 /**
- * Phối hợp với intro loader mà KHÔNG chỉnh sửa nó.
- * `whenIntroGone(cb)` gọi cb ngay khi overlay `.intro-loader` biến mất khỏi DOM
- * (hoặc ngay lập tức nếu intro đã xong / không có / user bật reduced-motion).
+ * Coordinates page animations with the intro loader.
  *
- * Nhờ vậy các animation của hero (đang nằm dưới intro) chỉ chạy khi user thực sự
- * nhìn thấy trang — không bị "phí" trong lúc intro che.
+ * IntroLoader renders from a layout effect, so callers may run before
+ * `.intro-loader` exists in the DOM. This hook gives the loader a short mount
+ * window before deciding there is no intro; otherwise hero animations can run
+ * behind the logo overlay and appear already finished when the homepage is
+ * revealed.
  */
 let resolved = false
 const queue: Array<() => void> = []
 let watching = false
+
+const introMountGraceMs = 320
+const introFallbackMs = 9000
 
 function flush() {
   resolved = true
@@ -30,7 +34,7 @@ export function whenIntroGone(cb: () => void) {
 
   const reduced =
     window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (reduced || !document.querySelector('.intro-loader')) {
+  if (reduced) {
     flush()
     return
   }
@@ -38,19 +42,32 @@ export function whenIntroGone(cb: () => void) {
   if (watching) return
   watching = true
 
+  let hasSeenIntro = Boolean(document.querySelector('.intro-loader'))
+
   const mo = new MutationObserver(() => {
-    if (!document.querySelector('.intro-loader')) {
+    const intro = document.querySelector('.intro-loader')
+    if (intro) {
+      hasSeenIntro = true
+      return
+    }
+    if (hasSeenIntro) {
       mo.disconnect()
       flush()
     }
   })
   mo.observe(document.body, { childList: true, subtree: true })
 
-  // Fallback an toàn: nếu vì lý do gì intro không biến mất, vẫn reveal sau 9s.
+  window.setTimeout(() => {
+    if (!resolved && !hasSeenIntro && !document.querySelector('.intro-loader')) {
+      mo.disconnect()
+      flush()
+    }
+  }, introMountGraceMs)
+
   window.setTimeout(() => {
     if (!resolved) {
       mo.disconnect()
       flush()
     }
-  }, 9000)
+  }, introFallbackMs)
 }

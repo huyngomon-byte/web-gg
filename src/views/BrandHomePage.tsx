@@ -20,7 +20,7 @@ import type { CaseStudy } from '../data/caseStudies'
 
 const primaryBookingCtaLabel = 'Call Your Shot'
 const defaultHeroGradient = 'linear-gradient(180deg,#FF7AA8 0%,#FF4D7D 45%,#FFB199 100%)'
-const heroFirstWordDelayMs = 240
+const heroFirstWordDelayMs = 420
 const heroWordStepMs = 90
 const heroWordDurationMs = 430
 
@@ -646,7 +646,7 @@ export default function BrandHomePage({
         <div className="relative mx-auto flex w-full max-w-5xl flex-col items-center justify-center px-5 pb-10 pt-28 text-center lg:px-10">
           <h1
             className={[
-              'hero-word-title home-hero-title-serif gg-hero-title text-[clamp(36px,10vw,48px)] font-semibold not-italic leading-[1.08] md:text-[clamp(48px,6vw,80px)]',
+              'hero-word-title home-hero-title-serif text-[clamp(38px,10vw,52px)] font-normal not-italic leading-[0.98] md:text-[clamp(54px,6vw,86px)]',
               heroTextMode === 'gradient' ? 'gg-grad-text' : heroTextMode === 'dark' ? 'text-on-surface' : 'text-white',
             ].join(' ')}
           >

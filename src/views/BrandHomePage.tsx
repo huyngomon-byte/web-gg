@@ -20,8 +20,8 @@ import type { CaseStudy } from '../data/caseStudies'
 
 const primaryBookingCtaLabel = 'Call Your Shot'
 const defaultHeroGradient = 'linear-gradient(180deg,#FF7AA8 0%,#FF4D7D 45%,#FFB199 100%)'
-const heroWordStepMs = 300
-const heroWordDurationMs = 640
+const heroWordStepMs = 90
+const heroWordDurationMs = 430
 
 function resolvePrimaryBookingCtaLabel(label?: string) {
   const trimmed = label?.trim() ?? ''
@@ -74,11 +74,11 @@ function countStaggerWords(text: string) {
 
 function getHeroAnimationDelays(wordCount: number, showDivider: boolean) {
   const lastWordDone = Math.max(0, wordCount - 1) * heroWordStepMs + heroWordDurationMs
-  const dividerDelay = lastWordDone + 150
+  const dividerDelay = lastWordDone + 90
   return {
     divider: dividerDelay,
-    subline: showDivider ? dividerDelay + 260 : lastWordDone + 150,
-    cta: showDivider ? dividerDelay + 430 : lastWordDone + 320,
+    subline: showDivider ? dividerDelay + 170 : lastWordDone + 120,
+    cta: showDivider ? dividerDelay + 260 : lastWordDone + 210,
   }
 }
 
@@ -512,7 +512,7 @@ function ClosingBanner({
   const logos = stories.map(getStoryLogoForHome).filter(Boolean)
   const closingTitle = block.heading || 'So, ready to be our plus one?'
   const closingCharacterCount = countStaggerCharacters(closingTitle)
-  const closingFollowDelay = Math.max(520, closingCharacterCount * 28 + 320)
+  const closingFollowDelay = Math.max(360, closingCharacterCount * 18 + 220)
 
   return (
     <section className="closing-section px-0 py-0">
@@ -555,7 +555,7 @@ function ClosingBanner({
                   <div
                     key={`${item.question}-${index}`}
                     className="closing-faq-item overflow-hidden rounded-2xl border border-white/22 bg-white/14 text-white shadow-[0_18px_46px_rgba(0,0,0,0.12)] backdrop-blur-xl"
-                    style={{ '--ri': index, '--closing-delay': `${closingFollowDelay + 260 + index * 120}ms` } as CSSProperties}
+                    style={{ '--ri': index, '--closing-delay': `${closingFollowDelay + 180 + index * 80}ms` } as CSSProperties}
                   >
                     <button
                       type="button"

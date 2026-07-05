@@ -109,7 +109,7 @@ export function Card({
   className?: string
 }) {
   return (
-    <section className={`rounded-2xl border border-outline-variant/45 bg-surface/90 p-5 shadow-sm ${className}`}>
+    <section className={`min-w-0 overflow-hidden rounded-2xl border border-outline-variant/45 bg-surface/90 p-5 shadow-sm ${className}`}>
       {(title || action) && (
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>

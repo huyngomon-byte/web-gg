@@ -15,6 +15,7 @@ export type CmsBlockItem = {
   likesSeed?: string
   imageUrl?: string
   imageAlt?: string
+  avatarImages?: string[]
   thumbnailUrl?: string
   videoUrl?: string
   videoPoster?: string

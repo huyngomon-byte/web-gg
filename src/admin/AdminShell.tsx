@@ -299,10 +299,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-surface text-on-surface lg:flex">
       <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <Header onOpenNav={() => setNavOpen(true)} />
-        <main className="flex-1 px-5 py-6 lg:px-8">
-          <div className="mx-auto max-w-5xl">
+        <main className="min-w-0 flex-1 overflow-x-hidden px-5 py-6 lg:px-8">
+          <div className="mx-auto w-full min-w-0 max-w-5xl">
             {contentLoading && (
               <div className="mb-4 rounded-xl bg-surface-container-low p-3 text-xs font-bold text-on-surface-variant">Đang tải nội dung CMS...</div>
             )}

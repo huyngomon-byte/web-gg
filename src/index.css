@@ -1100,6 +1100,35 @@
   animation: none !important;
 }
 
+.people-avatar-slide {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.04);
+  animation: peopleAvatarCarousel var(--avatar-duration, 8800ms) ease-in-out infinite;
+  animation-delay: var(--avatar-delay, 0ms);
+}
+
+@keyframes peopleAvatarCarousel {
+  0% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  7%,
+  34% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  42%,
+  100% {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+}
+
 .home-people-closing-one,
 .home-people-closing-two {
   font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
@@ -1543,6 +1572,7 @@
   .home-hero-item,
   .hero-stagger-word,
   .stagger-char,
+  .people-avatar-slide,
   .ig-phone-shell.is-visible .ig-app-icon-wrap,
   .story-chevron {
     animation: none !important;
@@ -1554,6 +1584,7 @@
   .stagger-char,
   .closing-follow,
   .closing-faq-item,
+  .people-avatar-slide:first-child,
   .ig-app-icon-wrap {
     opacity: 1 !important;
     transform: none !important;

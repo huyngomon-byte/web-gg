@@ -445,6 +445,17 @@ function SystemMap({ labels, lang, items, storyTargets }: { labels: string[]; la
   )
 }
 
+function uniqueImageUrls(urls: Array<string | undefined>) {
+  return Array.from(new Set(urls.map((url) => url?.trim()).filter(Boolean) as string[]))
+}
+
+function getPeopleAvatarImages(member: CmsBlockItem) {
+  const carouselImages = uniqueImageUrls(member.avatarImages ?? [])
+  if (carouselImages.length) return carouselImages.slice(0, 4)
+  const legacyImages = uniqueImageUrls([member.imageUrl, member.funPhotoUrl, member.photoUrl, member.backgroundImageUrl])
+  return (legacyImages.length ? legacyImages : ['/logo-gg.png']).slice(0, 4)
+}
+
 function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
   const members = (block?.items ?? []).filter((item) => item.published !== false).slice(0, 6)
   if (!block || !members.length) return null
@@ -457,6 +468,8 @@ function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
         <SectionHeader title={block.heading || 'The One People'} intro={block.body} />
         <div className="people-card-grid grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-7">
           {members.map((member, index) => {
+            const avatarImages = getPeopleAvatarImages(member)
+            const carouselDuration = `${Math.max(avatarImages.length, 1) * 2200}ms`
             return (
               <article
                 key={`${member.title}-${index}`}
@@ -465,8 +478,23 @@ function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
                 className="people-card group min-w-0 overflow-hidden rounded-[20px] border border-white/70 bg-white/85 shadow-[0_18px_42px_rgba(80,20,50,0.12)] backdrop-blur-md transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_70px_rgba(219,39,119,0.18)] md:rounded-[28px]"
               >
                 <div className="relative aspect-square overflow-hidden bg-surface-container-low">
-                  <img src={member.imageUrl || member.photoUrl || '/logo-gg.png'} alt={member.imageAlt || member.title} className="h-full w-full object-cover transition duration-300 group-hover:opacity-0" />
-                  <img src={member.funPhotoUrl || member.backgroundImageUrl || member.imageUrl || '/logo-gg.png'} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-0 transition duration-300 group-hover:opacity-100" />
+                  {avatarImages.length === 1 ? (
+                    <img src={avatarImages[0]} alt={member.imageAlt || member.title} className="h-full w-full object-cover" />
+                  ) : (
+                    avatarImages.map((imageUrl, avatarIndex) => (
+                      <img
+                        key={`${member.title}-${imageUrl}-${avatarIndex}`}
+                        src={imageUrl}
+                        alt={avatarIndex === 0 ? member.imageAlt || member.title : ''}
+                        aria-hidden={avatarIndex === 0 ? undefined : true}
+                        className="people-avatar-slide"
+                        style={{
+                          '--avatar-delay': `${avatarIndex * 2200}ms`,
+                          '--avatar-duration': carouselDuration,
+                        } as CSSProperties}
+                      />
+                    ))
+                  )}
                 </div>
                 <div className="p-3 text-left md:p-5">
                   <h3 className="text-[14px] font-extrabold leading-tight text-on-surface sm:text-[16px] md:text-[18px]">{member.title}</h3>

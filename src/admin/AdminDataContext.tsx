@@ -50,6 +50,7 @@ const emptyItem: CmsBlockItem = {
   likesSeed: '',
   imageUrl: '',
   imageAlt: '',
+  avatarImages: [],
   href: '',
   label: '',
 }
@@ -160,6 +161,19 @@ function validateBackgroundCarouselImages(page: CmsPageContent) {
 
   return invalidStories.length
     ? `Khong the luu background carousel qua 5 anh: ${invalidStories.join('; ')}.`
+    : ''
+}
+
+function validatePeopleAvatarImages(page: CmsPageContent) {
+  if (page.id !== 'homepage') return ''
+  const peopleBlock = page.blocks.find((block) => block.id === 'people')
+  const invalidPeople = (peopleBlock?.items ?? []).flatMap((item) => {
+    const count = item.avatarImages?.filter((url) => url.trim()).length ?? 0
+    return count > 4 ? `${item.title || 'Person'} (${count}/4 images)` : []
+  })
+
+  return invalidPeople.length
+    ? `Khong the luu avatar carousel qua 4 anh: ${invalidPeople.join('; ')}.`
     : ''
 }
 
@@ -423,6 +437,8 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       if (videoValidationError) throw new Error(videoValidationError)
       const carouselValidationError = validateBackgroundCarouselImages(page)
       if (carouselValidationError) throw new Error(carouselValidationError)
+      const peopleAvatarValidationError = validatePeopleAvatarImages(page)
+      if (peopleAvatarValidationError) throw new Error(peopleAvatarValidationError)
       await saveCmsPage(page)
       await triggerRevalidate(getPageRevalidatePaths(id))
       setMessage(`Đã lưu trang "${page.title}" và cập nhật trên web.`)

@@ -64,12 +64,12 @@ const theOnePackageItems: CmsBlockItem[] = [
 ]
 
 const theOnePeopleItems: CmsBlockItem[] = [
-  { title: 'Smooth', label: 'Founder / Growth Architect', body: 'Connects brand, commerce, CRM and performance into one operating system.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
-  { title: 'Creative One', label: 'Content Lead', body: 'Turns strategy into reels, scripts, visuals and daily content rhythm.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
-  { title: 'Performance One', label: 'Media Lead', body: 'Keeps paid media, reporting and experiments moving toward revenue.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
-  { title: 'System One', label: 'Website / CRM', body: 'Builds landing pages, funnels and customer journeys that teams can run.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
-  { title: 'Commerce One', label: 'Marketplace Ops', body: 'Operates marketplaces, launches, bundles and campaign mechanics.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
-  { title: 'Data One', label: 'Dashboard / Insight', body: 'Turns messy signals into decisions the whole team can understand.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png' },
+  { title: 'Smooth', label: 'Founder / Growth Architect', body: 'Connects brand, commerce, CRM and performance into one operating system.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png', avatarImages: ['/logo-gg.png', '/logo-gg.png', '/logo-gg.png', '/logo-gg.png'] },
+  { title: 'Creative One', label: 'Content Lead', body: 'Turns strategy into reels, scripts, visuals and daily content rhythm.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png', avatarImages: ['/logo-gg.png', '/logo-gg.png', '/logo-gg.png', '/logo-gg.png'] },
+  { title: 'Performance One', label: 'Media Lead', body: 'Keeps paid media, reporting and experiments moving toward revenue.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png', avatarImages: ['/logo-gg.png', '/logo-gg.png', '/logo-gg.png', '/logo-gg.png'] },
+  { title: 'System One', label: 'Website / CRM', body: 'Builds landing pages, funnels and customer journeys that teams can run.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png', avatarImages: ['/logo-gg.png', '/logo-gg.png', '/logo-gg.png', '/logo-gg.png'] },
+  { title: 'Commerce One', label: 'Marketplace Ops', body: 'Operates marketplaces, launches, bundles and campaign mechanics.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png', avatarImages: ['/logo-gg.png', '/logo-gg.png', '/logo-gg.png', '/logo-gg.png'] },
+  { title: 'Data One', label: 'Dashboard / Insight', body: 'Turns messy signals into decisions the whole team can understand.', imageUrl: '/logo-gg.png', funPhotoUrl: '/logo-gg.png', avatarImages: ['/logo-gg.png', '/logo-gg.png', '/logo-gg.png', '/logo-gg.png'] },
 ]
 
 const theOneStoryItems: CmsBlockItem[] = caseStudies.map((story) => ({

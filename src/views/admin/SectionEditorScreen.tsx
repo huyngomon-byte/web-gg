@@ -35,6 +35,20 @@ function textToDraftList(value: string) {
   return value.split('\n')
 }
 
+function uniqueUrls(urls: Array<string | undefined>) {
+  return Array.from(new Set(urls.map((url) => url?.trim()).filter(Boolean) as string[]))
+}
+
+function getPeopleAvatarUrls(item: CmsBlockItem) {
+  const carouselUrls = uniqueUrls(item.avatarImages ?? [])
+  if (carouselUrls.length) return carouselUrls.slice(0, 4)
+  return uniqueUrls([item.imageUrl, item.funPhotoUrl, item.photoUrl, item.backgroundImageUrl]).slice(0, 4)
+}
+
+function getItemPreviewImage(item: CmsBlockItem, isPeopleBlock: boolean) {
+  return isPeopleBlock ? getPeopleAvatarUrls(item)[0] : item.imageUrl
+}
+
 function getMetric(item: CmsBlockItem, index: number) {
   return item.keyMetrics?.[index] ?? { value: '', label: '', featured: false }
 }
@@ -53,12 +67,20 @@ function BackgroundCarouselUploader({
   folder,
   onUploadError,
   max = 5,
+  uploadLabel = 'Upload images',
+  emptyLabel = 'No carousel images yet',
+  hint,
+  aspectClassName = 'aspect-[4/5]',
 }: {
   urls: string[]
   onChange: (urls: string[]) => void
   folder: string
   onUploadError: (message: string) => void
   max?: number
+  uploadLabel?: string
+  emptyLabel?: string
+  hint?: string
+  aspectClassName?: string
 }) {
   const [uploading, setUploading] = useState(false)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -68,7 +90,7 @@ function BackgroundCarouselUploader({
     const selected = Array.from(files ?? []).filter((file) => file.type.startsWith('image/'))
     if (!selected.length) return
     if (!remainingSlots) {
-      onUploadError(`Background carousel chi toi da ${max} anh.`)
+      onUploadError(`Carousel chi toi da ${max} anh.`)
       return
     }
 
@@ -110,7 +132,7 @@ function BackgroundCarouselUploader({
             onDragEnd={() => setDragIndex(null)}
             className="group overflow-hidden rounded-xl border border-outline-variant/45 bg-surface shadow-sm"
           >
-            <div className="aspect-[4/5] bg-surface-container-low">
+            <div className={`${aspectClassName} bg-surface-container-low`}>
               <img src={url} alt={`Carousel image ${imageIndex + 1}`} className="h-full w-full object-cover" />
             </div>
             <div className="grid gap-2 p-2">
@@ -147,8 +169,8 @@ function BackgroundCarouselUploader({
           </div>
         ))}
         {urls.length === 0 && (
-          <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-outline-variant/60 bg-surface text-center text-xs font-bold text-on-surface-variant">
-            No carousel images yet
+          <div className={`flex ${aspectClassName} items-center justify-center rounded-xl border border-dashed border-outline-variant/60 bg-surface text-center text-xs font-bold text-on-surface-variant`}>
+            {emptyLabel}
           </div>
         )}
       </div>
@@ -156,7 +178,7 @@ function BackgroundCarouselUploader({
       <div className="flex flex-wrap items-center gap-2">
         <label className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-outline-variant px-3 text-xs font-extrabold text-primary transition-colors hover:bg-primary/10 ${remainingSlots ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
           <UploadCloud size={15} />
-          {uploading ? 'Uploading...' : `Upload images (${urls.length}/${max})`}
+          {uploading ? 'Uploading...' : `${uploadLabel} (${urls.length}/${max})`}
           <input
             type="file"
             accept="image/*"
@@ -169,8 +191,72 @@ function BackgroundCarouselUploader({
             }}
           />
         </label>
-        <p className="text-xs font-semibold text-on-surface-variant">Drag thumbnails to reorder. Recommended 1080x1350, max {max} images.</p>
+        <p className="text-xs font-semibold text-on-surface-variant">{hint || `Drag thumbnails to reorder. Recommended 1080x1350, max ${max} images.`}</p>
       </div>
+    </div>
+  )
+}
+
+function PeopleItemEditor({
+  pageId,
+  blockId,
+  index,
+  item,
+  updateBlockItem,
+  onUploadError,
+}: {
+  pageId: string
+  blockId: string
+  index: number
+  item: CmsBlockItem
+  updateBlockItem: UpdateBlockItem
+  onUploadError: (message: string) => void
+}) {
+  const avatarUrls = getPeopleAvatarUrls(item)
+
+  function updateAvatarImages(urls: string[]) {
+    const nextUrls = uniqueUrls(urls).slice(0, 4)
+    updateBlockItem(pageId, blockId, index, {
+      avatarImages: nextUrls,
+      imageUrl: nextUrls[0] ?? '',
+      funPhotoUrl: nextUrls[1] ?? '',
+    })
+  }
+
+  return (
+    <div className="grid gap-4">
+      <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+        <div className="mb-3">
+          <p className="text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Avatar carousel</p>
+          <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/75">
+            Upload toi da 4 anh cho moi nguoi. Trang chu se tu dong chay carousel trong avatar card.
+          </p>
+        </div>
+        <BackgroundCarouselUploader
+          urls={avatarUrls}
+          onChange={updateAvatarImages}
+          folder={`cms/pages/${pageId}/${blockId}/people/${index + 1}/avatars`}
+          onUploadError={onUploadError}
+          max={4}
+          uploadLabel="Upload avatar"
+          emptyLabel="Chua co avatar"
+          hint="Keo thumbnail de doi thu tu. Anh 1 la fallback/preview chinh, toi da 4 anh."
+          aspectClassName="aspect-square"
+        />
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field label="Ten">
+          <TextInput value={item.title} onChange={(value) => updateBlockItem(pageId, blockId, index, { title: value })} />
+        </Field>
+        <Field label="Title / Vai tro">
+          <TextInput value={item.label ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { label: value })} />
+        </Field>
+      </div>
+
+      <Field label="Description / Quote">
+        <TextArea value={item.body ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { body: value })} minHeight={96} />
+      </Field>
     </div>
   )
 }
@@ -542,6 +628,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
   const nextBlock = blockIndex < page.blocks.length - 1 ? page.blocks[blockIndex + 1] : undefined
   const adminSectionLabel = getAdminSectionLabel(pageId, block, blockIndex)
   const isStoryBlock = pageId === 'the-one' && block.id === 'stories'
+  const isPeopleBlock = pageId === 'homepage' && block.id === 'people'
   const canEditBlockMedia = !isStoryBlock && Boolean(block.icon || block.imageUrl || block.imageAlt || ['hero', 'intro', 'closing', 'people'].includes(block.id))
   const canEditItemMedia = !isStoryBlock && Boolean((block.items ?? []).some((item) => item.icon || item.imageUrl || item.imageAlt))
 
@@ -728,7 +815,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
           </div>
           )}
 
-          <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+          <section className="min-w-0 overflow-hidden rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-extrabold text-on-surface">Items / cards</h3>
@@ -744,13 +831,13 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
 
             <div className="space-y-3">
               {(block.items ?? []).map((item, index) => (
-                <details key={`${blockId}-item-${index}`} className="group rounded-xl border border-outline-variant/45 bg-surface">
+                <details key={`${blockId}-item-${index}`} className="group min-w-0 overflow-hidden rounded-xl border border-outline-variant/45 bg-surface">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
-                    <span className="flex min-w-0 items-center gap-3">
-                      {!isStoryBlock && (item.imageUrl || item.icon) && (
+                    <span className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+                      {!isStoryBlock && (getItemPreviewImage(item, isPeopleBlock) || item.icon) && (
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                          {item.imageUrl ? (
-                            <img src={item.imageUrl} alt={item.imageAlt || item.title} className="h-6 w-6 object-contain" />
+                          {getItemPreviewImage(item, isPeopleBlock) ? (
+                            <img src={getItemPreviewImage(item, isPeopleBlock) || ''} alt={item.imageAlt || item.title} className="h-6 w-6 object-contain" />
                           ) : (
                             <CmsIcon name={item.icon} size={18} />
                           )}
@@ -792,6 +879,8 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                     </div>
                     {isStoryBlock ? (
                       <StoryItemEditor pageId={pageId} blockId={blockId} index={index} item={item} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
+                    ) : isPeopleBlock ? (
+                      <PeopleItemEditor pageId={pageId} blockId={blockId} index={index} item={item} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
                     ) : (
                     <>
                     <div className="grid gap-4 md:grid-cols-2">

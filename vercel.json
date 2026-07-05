@@ -7,57 +7,7 @@
     },
     {
       "source": "/en/campaign/the-one",
-      "destination": "https://www.gg99.vn/",
-      "permanent": true
-    },
-    {
-      "source": "/en",
-      "destination": "https://www.gg99.vn/",
-      "permanent": true
-    },
-    {
-      "source": "/en/the-one",
-      "destination": "https://www.gg99.vn/the-one",
-      "permanent": true
-    },
-    {
-      "source": "/en/packages",
-      "destination": "https://www.gg99.vn/packages",
-      "permanent": true
-    },
-    {
-      "source": "/en/about",
-      "destination": "https://www.gg99.vn/about",
-      "permanent": true
-    },
-    {
-      "source": "/en/the-one-start",
-      "destination": "https://www.gg99.vn/the-one-start",
-      "permanent": true
-    },
-    {
-      "source": "/en/the-one-system",
-      "destination": "https://www.gg99.vn/the-one-system",
-      "permanent": true
-    },
-    {
-      "source": "/en/the-one-scale",
-      "destination": "https://www.gg99.vn/the-one-scale",
-      "permanent": true
-    },
-    {
-      "source": "/en/the-one-consultant",
-      "destination": "https://www.gg99.vn/the-one-start",
-      "permanent": true
-    },
-    {
-      "source": "/en/the-one-agency",
-      "destination": "https://www.gg99.vn/the-one-system",
-      "permanent": true
-    },
-    {
-      "source": "/en/the-one-partner",
-      "destination": "https://www.gg99.vn/the-one-scale",
+      "destination": "https://www.gg99.vn/en",
       "permanent": true
     },
     {

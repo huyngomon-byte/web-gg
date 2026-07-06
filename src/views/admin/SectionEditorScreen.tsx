@@ -20,13 +20,20 @@ import {
 import { CmsIcon } from '../../components/CmsIcon'
 import { getAdminSectionLabel } from '../../cms/adminSectionLabels'
 import { uploadCmsAsset } from '../../cms/mediaRepository'
-import type { CmsBlockItem, CmsStatChip } from '../../cms/types'
+import type { BrandLang } from '../../brandContent'
+import type { CmsBlock, CmsBlockItem, CmsLocalizedBlockFields, CmsLocalizedBlockItemFields, CmsStatChip } from '../../cms/types'
 import { getUnsupportedPreviewVideoMessage } from '../../cms/videoValidation'
 
 type UpdateBlockItem = (pageId: string, blockId: string, itemIndex: number, patch: Partial<CmsBlockItem>) => void
+type BlockTextKey = Exclude<keyof CmsLocalizedBlockFields, 'statChips'>
+type ItemTextKey = Exclude<keyof CmsLocalizedBlockItemFields, 'services' | 'keyMetrics' | 'featuredStats' | 'storyDetail'>
 
 const storyMetricSlots = Array.from({ length: 10 }, (_, index) => index)
 const packageDetailPageIds = new Set(['the-one-start', 'the-one-system', 'the-one-scale'])
+const languages: Array<{ label: string; value: BrandLang; caption: string }> = [
+  { label: 'VI', value: 'vi', caption: 'Vietnamese copy' },
+  { label: 'EN', value: 'en', caption: 'English copy' },
+]
 
 function listToText(items: string[] | undefined) {
   return (items ?? []).join('\n')
@@ -62,8 +69,8 @@ function getItemPreviewImage(item: CmsBlockItem, isPeopleBlock: boolean) {
   return isPeopleBlock ? getPeopleAvatarUrls(item)[0] : item.imageUrl
 }
 
-function getMetric(item: CmsBlockItem, index: number) {
-  return item.keyMetrics?.[index] ?? { value: '', label: '', featured: false }
+function getMetricFrom(items: CmsLocalizedBlockItemFields['keyMetrics'] | undefined, index: number) {
+  return items?.[index] ?? { value: '', label: '', featured: false }
 }
 
 function getStatChip(items: CmsStatChip[] | undefined, index: number): CmsStatChip {
@@ -83,6 +90,62 @@ function moveUrl(items: string[], fromIndex: number, toIndex: number) {
   const [item] = next.splice(fromIndex, 1)
   next.splice(toIndex, 0, item)
   return next
+}
+
+function getBlockTextValue(block: CmsBlock, lang: BrandLang, key: BlockTextKey) {
+  const value = lang === 'vi' ? block[key as keyof CmsBlock] : block.locales?.[lang]?.[key]
+  return typeof value === 'string' ? value : ''
+}
+
+function getBlockStatChips(block: CmsBlock, lang: BrandLang) {
+  return lang === 'vi' ? block.statChips : block.locales?.[lang]?.statChips
+}
+
+function patchBlockText(block: CmsBlock, lang: BrandLang, patch: CmsLocalizedBlockFields): Partial<CmsBlock> {
+  if (lang === 'vi') return patch as Partial<CmsBlock>
+  return {
+    locales: {
+      ...(block.locales ?? {}),
+      [lang]: {
+        ...(block.locales?.[lang] ?? {}),
+        ...patch,
+      },
+    },
+  }
+}
+
+function getItemTextValue(item: CmsBlockItem, lang: BrandLang, key: ItemTextKey) {
+  const value = lang === 'vi' ? item[key as keyof CmsBlockItem] : item.locales?.[lang]?.[key]
+  return typeof value === 'string' ? value : ''
+}
+
+function getItemServices(item: CmsBlockItem, lang: BrandLang) {
+  return lang === 'vi' ? item.services : item.locales?.[lang]?.services
+}
+
+function getItemKeyMetrics(item: CmsBlockItem, lang: BrandLang) {
+  return lang === 'vi' ? item.keyMetrics : item.locales?.[lang]?.keyMetrics
+}
+
+function getItemFeaturedStats(item: CmsBlockItem, lang: BrandLang) {
+  return lang === 'vi' ? item.featuredStats : item.locales?.[lang]?.featuredStats
+}
+
+function getItemStoryDetail(item: CmsBlockItem, lang: BrandLang) {
+  return lang === 'vi' ? item.storyDetail : item.locales?.[lang]?.storyDetail
+}
+
+function patchItemText(item: CmsBlockItem, lang: BrandLang, patch: CmsLocalizedBlockItemFields): Partial<CmsBlockItem> {
+  if (lang === 'vi') return patch as Partial<CmsBlockItem>
+  return {
+    locales: {
+      ...(item.locales ?? {}),
+      [lang]: {
+        ...(item.locales?.[lang] ?? {}),
+        ...patch,
+      },
+    },
+  }
 }
 
 function BackgroundCarouselUploader({
@@ -226,6 +289,7 @@ function PeopleItemEditor({
   blockId,
   index,
   item,
+  activeLang,
   updateBlockItem,
   onUploadError,
 }: {
@@ -233,10 +297,19 @@ function PeopleItemEditor({
   blockId: string
   index: number
   item: CmsBlockItem
+  activeLang: BrandLang
   updateBlockItem: UpdateBlockItem
   onUploadError: (message: string) => void
 }) {
   const avatarUrls = getPeopleAvatarUrls(item)
+  const name = getItemTextValue(item, activeLang, 'title')
+  const role = getItemTextValue(item, activeLang, 'label')
+  const quote = getItemTextValue(item, activeLang, 'body')
+  const proofPoint = getItemTextValue(item, activeLang, 'proofPoint')
+
+  function updateText(patch: CmsLocalizedBlockItemFields) {
+    updateBlockItem(pageId, blockId, index, patchItemText(item, activeLang, patch))
+  }
 
   function updateAvatarImages(urls: string[]) {
     const nextUrls = uniqueUrls(urls).slice(0, 4)
@@ -281,18 +354,18 @@ function PeopleItemEditor({
 
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Ten">
-          <TextInput value={item.title} onChange={(value) => updateBlockItem(pageId, blockId, index, { title: value })} />
+          <TextInput value={name} onChange={(value) => updateText({ title: value })} />
         </Field>
         <Field label="Title / Vai tro">
-          <TextInput value={item.label ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { label: value })} />
+          <TextInput value={role} onChange={(value) => updateText({ label: value })} />
         </Field>
       </div>
 
       <Field label="Description / Quote">
-        <TextArea value={item.body ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { body: value })} minHeight={96} />
+        <TextArea value={quote} onChange={(value) => updateText({ body: value })} minHeight={96} />
       </Field>
       <Field label="Proof point" hint="Mot bang chung so ngan, vi du: 5 nam cung INKAHOLIC, 0->326K don.">
-        <TextInput value={item.proofPoint ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { proofPoint: value })} />
+        <TextInput value={proofPoint} onChange={(value) => updateText({ proofPoint: value })} />
       </Field>
     </div>
   )
@@ -303,6 +376,7 @@ function PackageItemEditor({
   blockId,
   index,
   item,
+  activeLang,
   updateBlockItem,
   onUploadError,
 }: {
@@ -310,9 +384,20 @@ function PackageItemEditor({
   blockId: string
   index: number
   item: CmsBlockItem
+  activeLang: BrandLang
   updateBlockItem: UpdateBlockItem
   onUploadError: (message: string) => void
 }) {
+  const title = getItemTextValue(item, activeLang, 'title')
+  const label = getItemTextValue(item, activeLang, 'label')
+  const ctaText = getItemTextValue(item, activeLang, 'ctaText')
+  const caseStudyLabel = getItemTextValue(item, activeLang, 'caseStudyLabel')
+  const body = getItemTextValue(item, activeLang, 'body')
+
+  function updateText(patch: CmsLocalizedBlockItemFields) {
+    updateBlockItem(pageId, blockId, index, patchItemText(item, activeLang, patch))
+  }
+
   return (
     <div className="grid gap-4">
       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs font-semibold leading-relaxed text-on-surface-variant">
@@ -320,22 +405,22 @@ function PackageItemEditor({
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Package name">
-          <TextInput value={item.title} onChange={(value) => updateBlockItem(pageId, blockId, index, { title: value })} />
+          <TextInput value={title} onChange={(value) => updateText({ title: value })} />
         </Field>
         <Field label="Badge / label">
-          <TextInput value={item.label ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { label: value })} placeholder="Most Popular" />
+          <TextInput value={label} onChange={(value) => updateText({ label: value })} placeholder="Most Popular" />
         </Field>
         <Field label="Package anchor / href">
           <TextInput value={item.href ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { href: value })} placeholder="/packages#the-one-system" />
         </Field>
         <Field label="CTA text">
-          <TextInput value={item.ctaText ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { ctaText: value })} placeholder="Choose this package" />
+          <TextInput value={ctaText} onChange={(value) => updateText({ ctaText: value })} placeholder="Choose this package" />
         </Field>
         <Field label="Case study link">
           <TextInput value={item.caseStudyLink ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { caseStudyLink: value })} placeholder="/the-one#curnon" />
         </Field>
         <Field label="Case study button text">
-          <TextInput value={item.caseStudyLabel ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { caseStudyLabel: value })} placeholder="See case studies" />
+          <TextInput value={caseStudyLabel} onChange={(value) => updateText({ caseStudyLabel: value })} placeholder="See case studies" />
         </Field>
       </div>
       <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
@@ -361,7 +446,7 @@ function PackageItemEditor({
         <MediaPreview url={item.imageUrl} alt={item.imageAlt} />
       </div>
       <Field label="Package content">
-        <TextArea value={item.body ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { body: value })} minHeight={180} />
+        <TextArea value={body} onChange={(value) => updateText({ body: value })} minHeight={180} />
       </Field>
     </div>
   )
@@ -372,14 +457,23 @@ function FaqItemEditor({
   blockId,
   index,
   item,
+  activeLang,
   updateBlockItem,
 }: {
   pageId: string
   blockId: string
   index: number
   item: CmsBlockItem
+  activeLang: BrandLang
   updateBlockItem: UpdateBlockItem
 }) {
+  const question = getItemTextValue(item, activeLang, 'title')
+  const answer = getItemTextValue(item, activeLang, 'body')
+
+  function updateText(patch: CmsLocalizedBlockItemFields) {
+    updateBlockItem(pageId, blockId, index, patchItemText(item, activeLang, patch))
+  }
+
   return (
     <div className="grid gap-4">
       <label className="inline-flex w-fit items-center gap-2 rounded-xl border border-outline-variant/45 bg-surface px-3 py-2 text-xs font-extrabold text-on-surface-variant">
@@ -392,10 +486,10 @@ function FaqItemEditor({
         Show this FAQ
       </label>
       <Field label="Question">
-        <TextInput value={item.title} onChange={(value) => updateBlockItem(pageId, blockId, index, { title: value })} />
+        <TextInput value={question} onChange={(value) => updateText({ title: value })} />
       </Field>
       <Field label="Answer">
-        <TextArea value={item.body ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { body: value })} minHeight={120} />
+        <TextArea value={answer} onChange={(value) => updateText({ body: value })} minHeight={120} />
       </Field>
     </div>
   )
@@ -406,6 +500,7 @@ function BasicCardItemEditor({
   blockId,
   index,
   item,
+  activeLang,
   updateBlockItem,
   onUploadError,
 }: {
@@ -413,16 +508,23 @@ function BasicCardItemEditor({
   blockId: string
   index: number
   item: CmsBlockItem
+  activeLang: BrandLang
   updateBlockItem: UpdateBlockItem
   onUploadError: (message: string) => void
 }) {
   const isProcess = blockId === 'process'
+  const title = getItemTextValue(item, activeLang, 'title')
+  const body = getItemTextValue(item, activeLang, 'body')
+
+  function updateText(patch: CmsLocalizedBlockItemFields) {
+    updateBlockItem(pageId, blockId, index, patchItemText(item, activeLang, patch))
+  }
 
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 md:grid-cols-2">
         <Field label={isProcess ? 'Step title' : 'Card title'}>
-          <TextInput value={item.title} onChange={(value) => updateBlockItem(pageId, blockId, index, { title: value })} />
+          <TextInput value={title} onChange={(value) => updateText({ title: value })} />
         </Field>
         <Field label={isProcess ? 'Step marker' : 'Icon'}>
           {isProcess ? (
@@ -433,7 +535,7 @@ function BasicCardItemEditor({
         </Field>
       </div>
       <Field label={isProcess ? 'Step description' : 'Card body'}>
-        <TextArea value={item.body ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { body: value })} minHeight={110} />
+        <TextArea value={body} onChange={(value) => updateText({ body: value })} minHeight={110} />
       </Field>
       {!isProcess && (
         <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
@@ -465,6 +567,7 @@ function StoryItemEditor({
   blockId,
   index,
   item,
+  activeLang,
   updateBlockItem,
   onUploadError,
 }: {
@@ -472,21 +575,40 @@ function StoryItemEditor({
   blockId: string
   index: number
   item: CmsBlockItem
+  activeLang: BrandLang
   updateBlockItem: UpdateBlockItem
   onUploadError: (message: string) => void
 }) {
+  const title = getItemTextValue(item, activeLang, 'title')
+  const category = getItemTextValue(item, activeLang, 'label')
+  const period = getItemTextValue(item, activeLang, 'period')
+  const headline = getItemTextValue(item, activeLang, 'body')
+  const shortDescription = getItemTextValue(item, activeLang, 'shortDescription')
+  const caption = getItemTextValue(item, activeLang, 'caption')
+  const services = getItemServices(item, activeLang)
+  const keyMetrics = getItemKeyMetrics(item, activeLang)
+  const featuredStats = getItemFeaturedStats(item, activeLang)
+  const storyDetail = getItemStoryDetail(item, activeLang)
+  const testimonialQuote = getItemTextValue(item, activeLang, 'testimonialQuote')
+  const testimonialAuthor = getItemTextValue(item, activeLang, 'testimonialAuthor')
+  const testimonialRole = getItemTextValue(item, activeLang, 'testimonialRole')
+  const testimonialAvatar = getItemTextValue(item, activeLang, 'testimonialAvatar')
   const filledMetricCount = storyMetricSlots.filter((metricIndex) => {
-    const metric = getMetric(item, metricIndex)
+    const metric = getMetricFrom(keyMetrics, metricIndex)
     return metric.value.trim() || metric.label.trim()
   }).length
-  const featuredMetricCount = storyMetricSlots.filter((metricIndex) => Boolean(getMetric(item, metricIndex).featured)).length
+  const featuredMetricCount = storyMetricSlots.filter((metricIndex) => Boolean(getMetricFrom(keyMetrics, metricIndex).featured)).length
   const metricWarning = filledMetricCount !== 10 || featuredMetricCount !== 2
 
+  function updateText(patch: CmsLocalizedBlockItemFields) {
+    updateBlockItem(pageId, blockId, index, patchItemText(item, activeLang, patch))
+  }
+
   function updateMetric(metricIndex: number, patch: { value?: string; label?: string; featured?: boolean }) {
-    const nextMetrics = [...(item.keyMetrics ?? [])]
+    const nextMetrics = [...(keyMetrics ?? [])]
     while (nextMetrics.length <= metricIndex) nextMetrics.push({ value: '', label: '', featured: false })
     nextMetrics[metricIndex] = { ...nextMetrics[metricIndex], ...patch }
-    updateBlockItem(pageId, blockId, index, { keyMetrics: nextMetrics })
+    updateText({ keyMetrics: nextMetrics })
   }
 
   function updateSocialLink(field: 'instagram' | 'facebook' | 'tiktok' | 'website', value: string) {
@@ -532,16 +654,16 @@ function StoryItemEditor({
     <div className="grid gap-4">
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Brand name">
-          <TextInput value={item.title} onChange={(value) => updateBlockItem(pageId, blockId, index, { title: value })} />
+          <TextInput value={title} onChange={(value) => updateText({ title: value })} />
         </Field>
         <Field label="Story ID" hint="Giữ ID này để public page map đúng brand.">
           <TextInput value={item.href ?? item.id ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { href: value })} />
         </Field>
         <Field label="Category">
-          <TextInput value={item.label ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { label: value })} />
+          <TextInput value={category} onChange={(value) => updateText({ label: value })} />
         </Field>
         <Field label="Period">
-          <TextInput value={item.period ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { period: value })} />
+          <TextInput value={period} onChange={(value) => updateText({ period: value })} />
         </Field>
         <Field label="Instagram handle">
           <TextInput value={item.accountName ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { accountName: value })} placeholder="brand.handle" />
@@ -589,22 +711,49 @@ function StoryItemEditor({
       </section>
 
       <Field label="Headline">
-        <TextArea value={item.body ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { body: value })} minHeight={78} />
+        <TextArea value={headline} onChange={(value) => updateText({ body: value })} minHeight={78} />
       </Field>
 
       <Field label="Short description">
         <TextArea
-          value={item.shortDescription ?? ''}
-          onChange={(value) => updateBlockItem(pageId, blockId, index, { shortDescription: value })}
+          value={shortDescription}
+          onChange={(value) => updateText({ shortDescription: value })}
           minHeight={110}
         />
       </Field>
 
+      <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Story detail blocks</p>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Field label="Challenge">
+            <TextArea
+              value={storyDetail?.challenge ?? ''}
+              onChange={(value) => updateText({ storyDetail: { ...(storyDetail ?? {}), challenge: value } })}
+              minHeight={104}
+            />
+          </Field>
+          <Field label="Solution">
+            <TextArea
+              value={storyDetail?.solution ?? ''}
+              onChange={(value) => updateText({ storyDetail: { ...(storyDetail ?? {}), solution: value } })}
+              minHeight={104}
+            />
+          </Field>
+          <Field label="Result">
+            <TextArea
+              value={storyDetail?.result ?? ''}
+              onChange={(value) => updateText({ storyDetail: { ...(storyDetail ?? {}), result: value } })}
+              minHeight={104}
+            />
+          </Field>
+        </div>
+      </section>
+
       <div className="grid gap-4 md:grid-cols-[1fr_180px]">
         <Field label="Instagram caption">
           <TextArea
-            value={item.caption ?? ''}
-            onChange={(value) => updateBlockItem(pageId, blockId, index, { caption: value })}
+            value={caption}
+            onChange={(value) => updateText({ caption: value })}
             minHeight={90}
           />
         </Field>
@@ -615,8 +764,8 @@ function StoryItemEditor({
 
       <Field label="Services" hint="Mỗi dòng là một service tag trên story zone.">
         <TextArea
-          value={listToText(item.services)}
-          onChange={(value) => updateBlockItem(pageId, blockId, index, { services: textToDraftList(value) })}
+          value={listToText(services)}
+          onChange={(value) => updateText({ services: textToDraftList(value) })}
           minHeight={96}
         />
       </Field>
@@ -635,7 +784,7 @@ function StoryItemEditor({
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {storyMetricSlots.map((metricIndex, displayIndex) => {
-            const metric = getMetric(item, metricIndex)
+            const metric = getMetricFrom(keyMetrics, metricIndex)
             return (
               <div key={metricIndex} className="rounded-xl border border-outline-variant/45 bg-surface p-4">
                 <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">
@@ -673,16 +822,16 @@ function StoryItemEditor({
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           {[0, 1].map((statIndex) => {
-            const stat = getStatChip(item.featuredStats, statIndex)
+            const stat = getStatChip(featuredStats, statIndex)
             return (
               <div key={statIndex} className="rounded-xl border border-outline-variant/45 bg-surface p-4">
                 <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Featured stat {statIndex + 1}</p>
                 <div className="grid gap-3">
                   <Field label="Value">
-                    <TextInput value={stat.value} onChange={(value) => updateBlockItem(pageId, blockId, index, { featuredStats: patchStatChip(item.featuredStats, statIndex, { value }) })} />
+                    <TextInput value={stat.value} onChange={(value) => updateText({ featuredStats: patchStatChip(featuredStats, statIndex, { value }) })} />
                   </Field>
                   <Field label="Label">
-                    <TextInput value={stat.label} onChange={(value) => updateBlockItem(pageId, blockId, index, { featuredStats: patchStatChip(item.featuredStats, statIndex, { label: value }) })} />
+                    <TextInput value={stat.label} onChange={(value) => updateText({ featuredStats: patchStatChip(featuredStats, statIndex, { label: value }) })} />
                   </Field>
                 </div>
               </div>
@@ -695,17 +844,17 @@ function StoryItemEditor({
         <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Client testimonial</p>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Quote">
-            <TextArea value={item.testimonialQuote ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { testimonialQuote: value })} minHeight={88} />
+            <TextArea value={testimonialQuote} onChange={(value) => updateText({ testimonialQuote: value })} minHeight={88} />
           </Field>
           <div className="grid gap-4">
             <Field label="Author">
-              <TextInput value={item.testimonialAuthor ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { testimonialAuthor: value })} />
+              <TextInput value={testimonialAuthor} onChange={(value) => updateText({ testimonialAuthor: value })} />
             </Field>
             <Field label="Role">
-              <TextInput value={item.testimonialRole ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { testimonialRole: value })} />
+              <TextInput value={testimonialRole} onChange={(value) => updateText({ testimonialRole: value })} />
             </Field>
             <Field label="Avatar URL">
-              <TextInput value={item.testimonialAvatar ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { testimonialAvatar: value })} />
+              <TextInput value={testimonialAvatar} onChange={(value) => updateText({ testimonialAvatar: value })} />
             </Field>
           </div>
         </div>
@@ -856,6 +1005,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
   const blockIndex = page?.blocks.findIndex((item) => item.id === blockId) ?? -1
   const block = blockIndex >= 0 ? page?.blocks[blockIndex] : undefined
   const [idDraft, setIdDraft] = useState(blockId)
+  const [activeLang, setActiveLang] = useState<BrandLang>('vi')
   const [uploadError, setUploadError] = useState('')
 
   useEffect(() => {
@@ -871,6 +1021,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
     )
   }
 
+  const currentBlock = block
   const prevBlock = blockIndex > 0 ? page.blocks[blockIndex - 1] : undefined
   const nextBlock = blockIndex < page.blocks.length - 1 ? page.blocks[blockIndex + 1] : undefined
   const adminSectionLabel = getAdminSectionLabel(pageId, block, blockIndex)
@@ -888,6 +1039,19 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
   const showBlockCtaHref = false
   const showBlockHeading = !isPackageList
   const showBlockItems = !isHomepageHero && !isTheOneHero && !(block.id === 'intro' && !block.items?.length)
+  const blockHeading = getBlockTextValue(currentBlock, activeLang, 'heading')
+  const blockBody = getBlockTextValue(currentBlock, activeLang, 'body')
+  const blockCtaLabel = getBlockTextValue(currentBlock, activeLang, 'ctaLabel')
+  const blockCtaSubtext = getBlockTextValue(currentBlock, activeLang, 'ctaSubtext')
+  const blockPricingNote = getBlockTextValue(currentBlock, activeLang, 'pricingNote')
+  const blockSubtitle = getBlockTextValue(currentBlock, activeLang, 'subtitle')
+  const blockClosingLine1 = getBlockTextValue(currentBlock, activeLang, 'closingLine1')
+  const blockClosingLine2 = getBlockTextValue(currentBlock, activeLang, 'closingLine2')
+  const blockStatChips = getBlockStatChips(currentBlock, activeLang)
+
+  function updateBlockText(patch: CmsLocalizedBlockFields) {
+    updateBlock(pageId, blockId, patchBlockText(currentBlock, activeLang, patch))
+  }
 
   function commitId() {
     const nextId = updateBlockId(pageId, blockId, idDraft)
@@ -940,6 +1104,30 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
         </div>
       </div>
 
+      <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-widest text-primary">Manual bilingual copy</p>
+          <p className="mt-1 text-sm font-semibold text-on-surface-variant">
+            Chon ngon ngu de sua text rieng. Media, gallery, link ky thuat, order va publish status van dung chung cho ca hai version.
+          </p>
+        </div>
+        <div className="inline-flex w-fit rounded-xl border border-outline-variant/45 bg-surface p-1">
+          {languages.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setActiveLang(item.value)}
+              className={`rounded-lg px-4 py-2 text-xs font-extrabold transition-colors ${
+                activeLang === item.value ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-primary'
+              }`}
+              title={item.caption}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <Card>
         <div className="mb-4 flex justify-end">
           <button onClick={handleRemove} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700">
@@ -964,23 +1152,23 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
             )}
             {showBlockCtaLabel && (
               <Field label="CTA button text" hint="Text hiển thị trên button, ví dụ: Call Your Shot.">
-                <TextInput value={block.ctaLabel ?? ''} onChange={(value) => updateBlock(pageId, blockId, { ctaLabel: value })} placeholder="Call Your Shot" />
+                <TextInput value={blockCtaLabel} onChange={(value) => updateBlockText({ ctaLabel: value })} placeholder="Call Your Shot" />
               </Field>
             )}
             {isHomepageHero && (
               <Field label="CTA subtext">
-                <TextInput value={block.ctaSubtext ?? ''} onChange={(value) => updateBlock(pageId, blockId, { ctaSubtext: value })} placeholder="Free 30-min call · không cam kết" />
+                <TextInput value={blockCtaSubtext} onChange={(value) => updateBlockText({ ctaSubtext: value })} placeholder="Free 30-min call" />
               </Field>
             )}
           </div>
 
           {showBlockHeading && (
           <Field label={isFaqBlock ? 'FAQ title' : 'Heading'}>
-            <TextInput value={block.heading} onChange={(value) => updateBlock(pageId, blockId, { heading: value })} />
+            <TextInput value={blockHeading} onChange={(value) => updateBlockText({ heading: value })} />
           </Field>
           )}
           <Field label="Body / mô tả">
-            <TextArea value={block.body} onChange={(value) => updateBlock(pageId, blockId, { body: value })} minHeight={130} />
+            <TextArea value={blockBody} onChange={(value) => updateBlockText({ body: value })} minHeight={130} />
           </Field>
 
           {isHomepageHero && (
@@ -988,16 +1176,16 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
               <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Hero stat chips</p>
               <div className="grid gap-3 md:grid-cols-3">
                 {[0, 1, 2].map((statIndex) => {
-                  const stat = getStatChip(block.statChips, statIndex)
+                  const stat = getStatChip(blockStatChips, statIndex)
                   return (
                     <div key={statIndex} className="rounded-xl border border-outline-variant/45 bg-surface p-4">
                       <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Chip {statIndex + 1}</p>
                       <div className="grid gap-3">
                         <Field label="Value">
-                          <TextInput value={stat.value} onChange={(value) => updateBlock(pageId, blockId, { statChips: patchStatChip(block.statChips, statIndex, { value }) })} />
+                          <TextInput value={stat.value} onChange={(value) => updateBlockText({ statChips: patchStatChip(blockStatChips, statIndex, { value }) })} />
                         </Field>
                         <Field label="Label">
-                          <TextInput value={stat.label} onChange={(value) => updateBlock(pageId, blockId, { statChips: patchStatChip(block.statChips, statIndex, { label: value }) })} />
+                          <TextInput value={stat.label} onChange={(value) => updateBlockText({ statChips: patchStatChip(blockStatChips, statIndex, { label: value }) })} />
                         </Field>
                       </div>
                     </div>
@@ -1009,7 +1197,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
 
           {isPackageList && (
             <Field label="Pricing note" hint="Dòng minh bạch dưới các package cards.">
-              <TextArea value={block.pricingNote ?? ''} onChange={(value) => updateBlock(pageId, blockId, { pricingNote: value })} minHeight={86} />
+              <TextArea value={blockPricingNote} onChange={(value) => updateBlockText({ pricingNote: value })} minHeight={86} />
             </Field>
           )}
 
@@ -1032,10 +1220,10 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
           {isPeopleBlock && (
             <div className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
               <Field label="Closing line 1">
-                <TextInput value={block.closingLine1 ?? ''} onChange={(value) => updateBlock(pageId, blockId, { closingLine1: value })} />
+                <TextInput value={blockClosingLine1} onChange={(value) => updateBlockText({ closingLine1: value })} />
               </Field>
               <Field label="Closing line 2">
-                <TextInput value={block.closingLine2 ?? ''} onChange={(value) => updateBlock(pageId, blockId, { closingLine2: value })} />
+                <TextInput value={blockClosingLine2} onChange={(value) => updateBlockText({ closingLine2: value })} />
               </Field>
             </div>
           )}
@@ -1077,7 +1265,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                 <TextInput value={block.backgroundOverlayOpacity ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundOverlayOpacity: value })} placeholder="0.15" />
               </Field>
               <Field label="Subtitle">
-                <TextInput value={block.subtitle ?? ''} onChange={(value) => updateBlock(pageId, blockId, { subtitle: value })} />
+                <TextInput value={blockSubtitle} onChange={(value) => updateBlockText({ subtitle: value })} />
               </Field>
               {block.id === 'hero' && (
                 <div className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
@@ -1098,10 +1286,10 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
               {block.id === 'people' && (
                 <div className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
                   <Field label="Closing line 1">
-                    <TextInput value={block.closingLine1 ?? ''} onChange={(value) => updateBlock(pageId, blockId, { closingLine1: value })} />
+                    <TextInput value={blockClosingLine1} onChange={(value) => updateBlockText({ closingLine1: value })} />
                   </Field>
                   <Field label="Closing line 2">
-                    <TextInput value={block.closingLine2 ?? ''} onChange={(value) => updateBlock(pageId, blockId, { closingLine2: value })} />
+                    <TextInput value={blockClosingLine2} onChange={(value) => updateBlockText({ closingLine2: value })} />
                   </Field>
                 </div>
               )}
@@ -1114,8 +1302,8 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                   <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                     <CmsIcon name={block.icon} size={20} />
                   </div>
-                  <p className="text-sm font-extrabold text-on-surface">{block.heading || 'Preview icon + text'}</p>
-                  <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-on-surface-variant">{block.body}</p>
+                  <p className="text-sm font-extrabold text-on-surface">{blockHeading || 'Preview icon + text'}</p>
+                  <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-on-surface-variant">{blockBody}</p>
                 </div>
               )}
             </div>
@@ -1138,7 +1326,19 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
             </div>
 
             <div className="space-y-3">
-              {(block.items ?? []).map((item, index) => (
+              {(block.items ?? []).map((item, index) => {
+                const itemTitle = getItemTextValue(item, activeLang, 'title')
+                const itemLabel = getItemTextValue(item, activeLang, 'label')
+                const itemBody = getItemTextValue(item, activeLang, 'body')
+                const itemCaseStudyLabel = getItemTextValue(item, activeLang, 'caseStudyLabel')
+                const itemSummaryTitle = itemTitle || item.title || `Item ${index + 1}`
+                const itemSummaryText = item.href || itemLabel || itemBody || item.label || item.body || 'Icon + text item'
+
+                function updateGenericItemText(patch: CmsLocalizedBlockItemFields) {
+                  updateBlockItem(pageId, blockId, index, patchItemText(item, activeLang, patch))
+                }
+
+                return (
                 <details key={`${blockId}-item-${index}`} className="group min-w-0 overflow-hidden rounded-xl border border-outline-variant/45 bg-surface">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                     <span className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
@@ -1152,8 +1352,8 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                         </span>
                       )}
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-extrabold">{item.title || `Item ${index + 1}`}</span>
-                        <span className="block truncate text-xs text-on-surface-variant">{item.href || item.label || item.body || 'Icon + text item'}</span>
+                        <span className="block truncate text-sm font-extrabold">{itemSummaryTitle}</span>
+                        <span className="block truncate text-xs text-on-surface-variant">{itemSummaryText}</span>
                       </span>
                     </span>
                     <ChevronDown size={16} className="shrink-0 text-on-surface-variant transition-transform group-open:rotate-180" />
@@ -1186,20 +1386,20 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                       </button>
                     </div>
                     {isStoryBlock ? (
-                      <StoryItemEditor pageId={pageId} blockId={blockId} index={index} item={item} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
+                      <StoryItemEditor pageId={pageId} blockId={blockId} index={index} item={item} activeLang={activeLang} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
                     ) : isPeopleBlock ? (
-                      <PeopleItemEditor pageId={pageId} blockId={blockId} index={index} item={item} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
+                      <PeopleItemEditor pageId={pageId} blockId={blockId} index={index} item={item} activeLang={activeLang} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
                     ) : isPackageList ? (
-                      <PackageItemEditor pageId={pageId} blockId={blockId} index={index} item={item} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
+                      <PackageItemEditor pageId={pageId} blockId={blockId} index={index} item={item} activeLang={activeLang} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
                     ) : isFaqBlock ? (
-                      <FaqItemEditor pageId={pageId} blockId={blockId} index={index} item={item} updateBlockItem={updateBlockItem} />
+                      <FaqItemEditor pageId={pageId} blockId={blockId} index={index} item={item} activeLang={activeLang} updateBlockItem={updateBlockItem} />
                     ) : isBasicCards ? (
-                      <BasicCardItemEditor pageId={pageId} blockId={blockId} index={index} item={item} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
+                      <BasicCardItemEditor pageId={pageId} blockId={blockId} index={index} item={item} activeLang={activeLang} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
                     ) : (
                     <>
                     <div className="grid gap-4 md:grid-cols-2">
                       <Field label="Title">
-                        <TextInput value={item.title} onChange={(value) => updateBlockItem(pageId, blockId, index, { title: value })} />
+                        <TextInput value={itemTitle} onChange={(value) => updateGenericItemText({ title: value })} />
                       </Field>
                       <Field label="Href">
                         <TextInput value={item.href ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { href: value })} />
@@ -1208,10 +1408,10 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                         <TextInput value={item.caseStudyLink ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { caseStudyLink: value })} placeholder="/the-one#curnon" />
                       </Field>
                       <Field label="Case study label">
-                        <TextInput value={item.caseStudyLabel ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { caseStudyLabel: value })} placeholder="See case studies" />
+                        <TextInput value={itemCaseStudyLabel} onChange={(value) => updateGenericItemText({ caseStudyLabel: value })} placeholder="See case studies" />
                       </Field>
                       <Field label="Label phụ">
-                        <TextInput value={item.label ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { label: value })} />
+                        <TextInput value={itemLabel} onChange={(value) => updateGenericItemText({ label: value })} />
                       </Field>
                       {canEditItemMedia && (
                         <Field label="Icon">
@@ -1222,7 +1422,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                     <div className={`mt-4 grid gap-4 ${canEditItemMedia ? 'md:grid-cols-[1fr_220px]' : ''}`}>
                       <div className="grid gap-4">
                         <Field label="Body">
-                          <TextArea value={item.body ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { body: value })} minHeight={100} />
+                          <TextArea value={itemBody} onChange={(value) => updateGenericItemText({ body: value })} minHeight={100} />
                         </Field>
                         {canEditItemMedia && (
                           <>
@@ -1272,7 +1472,8 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                     )}
                   </div>
                 </details>
-              ))}
+                )
+              })}
               {(block.items ?? []).length === 0 && (
                 <p className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
                   <ImageIcon size={13} /> Chưa có item nào trong section này.

@@ -84,6 +84,7 @@ function normalizePage(page: CmsPageContent): CmsPageContent {
     ...template,
     ...page,
     meta: { ...template.meta, ...page.meta },
+    metaLocales: { ...(template.metaLocales ?? {}), ...(page.metaLocales ?? {}) },
     blocks: [...mergedBlocks, ...extraBlocks],
   }
 }

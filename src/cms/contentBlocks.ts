@@ -57,7 +57,9 @@ export function getLocalizedCmsBlocks(page: CmsPageContent | null | undefined, l
 }
 
 export function getLocalizedPageMeta(page: CmsPageContent | null | undefined, lang: BrandLang, fallback: PageMeta) {
-  return page?.metaLocales?.[lang] ?? page?.meta ?? fallback
+  if (!page) return fallback
+  if (lang === 'vi') return { ...fallback, ...page.meta }
+  return { ...fallback, ...(page.metaLocales?.[lang] ?? {}) }
 }
 
 export function splitCmsParagraphs(body: string | null | undefined) {

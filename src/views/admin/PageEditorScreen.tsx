@@ -1,15 +1,36 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronRight, Layers3, Plus, Save, Search, Trash2, Type } from 'lucide-react'
 import { useAdminData } from '../../admin/AdminDataContext'
 import { BackLink, Breadcrumbs, Card, EmptyState, Field, StatusBadge, StatusSelect, TextArea, TextInput } from '../../admin/ui'
 import { getAdminSectionLabel } from '../../cms/adminSectionLabels'
+import type { BrandLang, PageMeta } from '../../brandContent'
+
+type PageMetaKey = keyof PageMeta
+
+const languages: Array<{ label: string; value: BrandLang; caption: string }> = [
+  { label: 'VI', value: 'vi', caption: 'Vietnamese SEO' },
+  { label: 'EN', value: 'en', caption: 'English SEO' },
+]
+
+function emptyMeta(): PageMeta {
+  return {
+    title: '',
+    description: '',
+    path: '',
+    ogTitle: '',
+    ogDescription: '',
+    ogImage: '',
+  }
+}
 
 export default function PageEditorScreen({ pageId }: { pageId: string }) {
   const router = useRouter()
   const { getPage, updatePageField, updatePageMeta, addBlock, removeBlock, savePage, saving } = useAdminData()
+  const [activeLang, setActiveLang] = useState<BrandLang>('vi')
   const page = getPage(pageId)
 
   if (!page) {
@@ -21,6 +42,8 @@ export default function PageEditorScreen({ pageId }: { pageId: string }) {
     )
   }
 
+  const currentPage = page
+
   function handleAddBlock() {
     const id = addBlock(pageId)
     router.push(`/admin/pages/${pageId}/sections/${id}`)
@@ -29,6 +52,24 @@ export default function PageEditorScreen({ pageId }: { pageId: string }) {
   function handleRemoveBlock(blockId: string) {
     if (!window.confirm('Xóa section này khỏi trang?')) return
     removeBlock(pageId, blockId)
+  }
+
+  const activeMeta = activeLang === 'vi' ? currentPage.meta : { ...emptyMeta(), ...(currentPage.metaLocales?.[activeLang] ?? {}) }
+
+  function updateLocalizedMeta(key: PageMetaKey, value: string) {
+    if (activeLang === 'vi') {
+      updatePageMeta(pageId, key, value)
+      return
+    }
+
+    updatePageField(pageId, 'metaLocales', {
+      ...(currentPage.metaLocales ?? {}),
+      [activeLang]: {
+        ...emptyMeta(),
+        ...(currentPage.metaLocales?.[activeLang] ?? {}),
+        [key]: value,
+      },
+    })
   }
 
   return (
@@ -63,29 +104,50 @@ export default function PageEditorScreen({ pageId }: { pageId: string }) {
           <Field label="Tên trong CMS">
             <TextInput value={page.title} onChange={(value) => updatePageField(pageId, 'title', value)} />
           </Field>
-          <Field label="Canonical path">
-            <TextInput value={page.meta.path} onChange={(value) => updatePageMeta(pageId, 'path', value)} />
-          </Field>
         </div>
       </Card>
 
       <Card title="SEO" action={<Search size={18} className="text-primary" />}>
+        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-widest text-primary">Manual SEO language</p>
+            <p className="mt-1 text-sm font-semibold text-on-surface-variant">Meta title, description, OG text va canonical path duoc sua rieng cho tung version.</p>
+          </div>
+          <div className="inline-flex w-fit rounded-xl border border-outline-variant/45 bg-surface p-1">
+            {languages.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setActiveLang(item.value)}
+                className={`rounded-lg px-4 py-2 text-xs font-extrabold transition-colors ${
+                  activeLang === item.value ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-primary'
+                }`}
+                title={item.caption}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid gap-4">
+          <Field label="Canonical path">
+            <TextInput value={activeMeta.path} onChange={(value) => updateLocalizedMeta('path', value)} placeholder={activeLang === 'en' ? '/en' : '/'} />
+          </Field>
           <Field label="Meta title">
-            <TextInput value={page.meta.title} onChange={(value) => updatePageMeta(pageId, 'title', value)} />
+            <TextInput value={activeMeta.title} onChange={(value) => updateLocalizedMeta('title', value)} />
           </Field>
           <Field label="Meta description">
-            <TextArea value={page.meta.description} onChange={(value) => updatePageMeta(pageId, 'description', value)} minHeight={88} />
+            <TextArea value={activeMeta.description} onChange={(value) => updateLocalizedMeta('description', value)} minHeight={88} />
           </Field>
           <div className="grid gap-4 md:grid-cols-3">
             <Field label="OG title">
-              <TextInput value={page.meta.ogTitle ?? ''} onChange={(value) => updatePageMeta(pageId, 'ogTitle', value)} />
+              <TextInput value={activeMeta.ogTitle ?? ''} onChange={(value) => updateLocalizedMeta('ogTitle', value)} />
             </Field>
             <Field label="OG description">
-              <TextInput value={page.meta.ogDescription ?? ''} onChange={(value) => updatePageMeta(pageId, 'ogDescription', value)} />
+              <TextInput value={activeMeta.ogDescription ?? ''} onChange={(value) => updateLocalizedMeta('ogDescription', value)} />
             </Field>
             <Field label="OG image">
-              <TextInput value={page.meta.ogImage ?? ''} onChange={(value) => updatePageMeta(pageId, 'ogImage', value)} placeholder="/og-image.jpg" />
+              <TextInput value={activeMeta.ogImage ?? ''} onChange={(value) => updateLocalizedMeta('ogImage', value)} placeholder="/og-image.jpg" />
             </Field>
           </div>
         </div>

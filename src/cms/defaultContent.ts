@@ -388,12 +388,20 @@ const storyVietnameseCopy: Record<string, Partial<CmsBlockItem>> = {
       'PHINƠI cần giáo dục thị trường cho sản phẩm phin cao cấp và giảm phụ thuộc marketplace. The One vận hành P&L online qua website, Shopee, social/B2B, ads, KOL và livestream.',
     caption: 'Từ văn hóa cà phê ngách thành một growth engine owned-commerce cân bằng.',
     featuredStats: [
-      { value: '0 -> 36%', label: 'doanh thu từ website' },
-      { value: '+84%', label: 'doanh thu tháng gần nhất' },
+      { value: '≈50%', label: 'doanh thu cả năm 2025 đạt trong 6 tháng thấp điểm 2026' },
+      { value: '×3', label: 'doanh thu dự kiến 2026 so với 2025' },
     ],
     keyMetrics: [
-      { value: 'x3', label: 'doanh thu FY2026 dự phóng' },
-      { value: '+84%', label: 'doanh thu tháng gần nhất' },
+      { value: '≈50%', label: 'doanh thu cả năm 2025 đạt trong 6 tháng thấp điểm 2026', featured: true },
+      { value: '×3', label: 'doanh thu dự kiến 2026 so với 2025', featured: true },
+      { value: '+84%', label: 'doanh thu tháng so với tháng đầu dự án' },
+      { value: '×4', label: 'doanh thu tháng cao điểm mùa quà tặng' },
+      { value: '0 → 36%', label: 'website thành kênh doanh thu số 1' },
+      { value: '70% → 32%', label: 'giảm phụ thuộc một sàn TMĐT' },
+      { value: '-74%', label: 'tỷ lệ hủy đơn trên Shopee' },
+      { value: '+27%', label: 'giá trị trung bình mỗi đơn hàng' },
+      { value: '200+', label: 'micro KOLs TikTok được vận hành' },
+      { value: '5.8M+', label: 'người dùng tiếp cận qua TikTok Ads' },
     ],
     storyDetail: {
       challenge:
@@ -415,11 +423,19 @@ const storyVietnameseCopy: Record<string, Partial<CmsBlockItem>> = {
     caption: 'Một brand kính Gen Z được xây từ số 0 với commerce, content và creator ops chạy cùng nhau.',
     featuredStats: [
       { value: 'x35', label: 'doanh thu đỉnh' },
-      { value: '20,668', label: 'sản phẩm đã bán' },
+      { value: 'x19', label: 'sau 4 tháng đầu' },
     ],
     keyMetrics: [
-      { value: '4.42B VND', label: 'doanh thu lũy kế' },
-      { value: '20,668', label: 'sản phẩm đã bán' },
+      { value: '×35', label: 'tăng trưởng doanh thu tháng cao điểm', featured: true },
+      { value: '×19', label: 'chỉ sau 4 tháng đầu vận hành', featured: true },
+      { value: '×3,6', label: 'doanh thu Q4 tăng trưởng YoY' },
+      { value: '×10', label: 'sản lượng bán ra tháng cao điểm' },
+      { value: '20.668', label: 'sản phẩm bán ra trong 20 tháng' },
+      { value: '~70%', label: 'biên lợi nhuận gộp duy trì ổn định' },
+      { value: '82%', label: 'doanh thu từ TikTok Shop xây từ con số 0' },
+      { value: '100+', label: 'KOL/KOC booking và quản lý' },
+      { value: '150+', label: 'SKU được R&D và thương mại hóa' },
+      { value: '37,2K', label: 'followers TikTok · 1,5M lượt thích' },
     ],
     storyDetail: {
       challenge:
@@ -440,12 +456,20 @@ const storyVietnameseCopy: Record<string, Partial<CmsBlockItem>> = {
       'The One vận hành e-commerce, ads, KOL/KOC, content và product strategy cho INKAHOLIC suốt 5 năm platform thay đổi. Cú pivot TikTok Shop đúng lúc biến social attention thành revenue engine chính.',
     caption: '5 năm platform shifts, creator operations và performance discipline.',
     featuredStats: [
-      { value: '326K+', label: 'đơn hàng' },
-      { value: '~29.8B VND', label: 'net online revenue' },
+      { value: '5+', label: 'năm vận hành end-to-end' },
+      { value: '+35%', label: 'doanh thu YoY 2024' },
     ],
     keyMetrics: [
-      { value: '~29.8B VND', label: 'net online revenue' },
-      { value: '326K+', label: 'đơn qua các kênh' },
+      { value: '5+', label: 'năm vận hành end-to-end, không gián đoạn', featured: true },
+      { value: '+35%', label: 'doanh thu & +58% đơn hàng YoY (2024)', featured: true },
+      { value: '0 → 79%', label: 'tỷ trọng doanh thu từ TikTok Shop sau 3 năm' },
+      { value: '×2.1', label: 'quy mô kênh TikTok Shop chỉ trong 1 năm (2024)' },
+      { value: '~2×', label: 'giá trị đơn hàng trung bình sau tối ưu combo' },
+      { value: '+50%', label: 'số sản phẩm mỗi đơn (1.6 → 2.4 items/order)' },
+      { value: '2×', label: 'tỷ lệ chuyển đổi vs benchmark ngành trên sàn' },
+      { value: '1,000+', label: 'booking KOL/KOC · 90M+ views tracked' },
+      { value: '326K+', label: 'đơn hàng đa kênh · 6.9M+ traffic' },
+      { value: '193K+', label: 'followers cộng đồng · 2.6M likes TikTok' },
     ],
     storyDetail: {
       challenge:
@@ -470,8 +494,16 @@ const storyVietnameseCopy: Record<string, Partial<CmsBlockItem>> = {
       { value: '4.56', label: 'blended ROAS' },
     ],
     keyMetrics: [
-      { value: '25.04B VND', label: 'GMV từ ads' },
-      { value: '4.56', label: 'blended ROAS' },
+      { value: '25.04B VND', label: 'GMV ghi nhận từ TikTok Ads', featured: true },
+      { value: '4.56', label: 'blended ROAS toàn hệ TikTok commerce', featured: true },
+      { value: '101,301', label: 'đơn hàng tạo ra từ hệ vận hành' },
+      { value: '203M', label: 'paid impressions được tracking' },
+      { value: '5.8–9.3', label: 'dải ROAS Live Shopping trong 2026' },
+      { value: '16 tháng', label: 'vận hành TikTok commerce liên tục' },
+      { value: '170K–345K VND', label: 'AOV theo sách và combo khóa học' },
+      { value: '3 lớp', label: 'content, KOC/KOL review và commerce ads kết nối' },
+      { value: 'Hằng ngày', label: 'report SKU-level để ra quyết định ngân sách' },
+      { value: 'GMV Max', label: 'Video Shopping, Live Shopping và GMV Max tích hợp' },
     ],
     storyDetail: {
       challenge:
@@ -492,12 +524,20 @@ const storyVietnameseCopy: Record<string, Partial<CmsBlockItem>> = {
       'CURNON cần tăng trưởng online-offline có kỷ luật mà không làm mòn brand value. The One nối promotion, pricing, marketplace, ads và real-order reporting thành một hệ vận hành.',
     caption: 'Premium local watch growth với promotion, marketplace và reporting kết nối.',
     featuredStats: [
-      { value: '2.48B VND', label: 'doanh thu campaign đỉnh' },
-      { value: '19.7', label: 'Shopee Ads ROAS' },
+      { value: '+35%', label: 'đơn hàng thành công' },
+      { value: '+53%', label: 'sản phẩm bán ra' },
     ],
     keyMetrics: [
-      { value: '2.48B VND', label: 'doanh thu campaign đỉnh' },
-      { value: '~16%', label: 'ads cost / revenue' },
+      { value: '+35%', label: 'đơn hàng thành công (2024 vs 2023)', featured: true },
+      { value: '+53%', label: 'sản phẩm bán ra (2024 vs 2023)', featured: true },
+      { value: '+22%', label: 'tổng traffic online (2024 vs 2023)' },
+      { value: '-12%', label: 'chi phí CAC quảng cáo (2024 vs 2023)' },
+      { value: '+32%', label: 'hiệu suất ROAS blended (6T/2026 vs 2024)' },
+      { value: '~80%', label: 'tỷ trọng doanh thu online, đỉnh 84% từ mức ~73%' },
+      { value: '2,400+', label: 'lượt hợp tác KOL/KOC ghi nhận trên tracker' },
+      { value: '500+', label: 'video KOC booking 0đ + ~500 KOL join livestream' },
+      { value: '35+', label: 'kế hoạch promotion tháng đồng bộ 4 nền tảng bán' },
+      { value: '400K+', label: 'followers hệ sinh thái social đa nền tảng' },
     ],
     storyDetail: {
       challenge:
@@ -519,16 +559,20 @@ const storyVietnameseCopy: Record<string, Partial<CmsBlockItem>> = {
     caption:
       'Từ launch đến hệ social commerce tự vận hành: ROAS x12, CIR giảm 92%, peak revenue x11 và 50K+ followers trên ba kênh.',
     featuredStats: [
-      { value: 'x12', label: 'ROAS lift' },
+      { value: '×12', label: 'ROAS theo tháng' },
       { value: '-92%', label: 'CIR reduction' },
     ],
     keyMetrics: [
-      { value: 'x12', label: 'monthly ROAS lift từ 1.5x lên 18.3x peak', featured: true },
-      { value: '-92%', label: 'CIR giảm từ khoảng 68% xuống 5.5%', featured: true },
-      { value: '6.4x', label: 'blended ROAS trong 12 tháng đầu' },
-      { value: '11x+', label: 'ROAS giữ qua mùa cao điểm Q4' },
-      { value: 'x12', label: 'message-to-order CVR từ 1.6% lên 19.2%' },
-      { value: 'x11', label: 'doanh thu tháng đỉnh so với tháng ads đầu' },
+      { value: '×12', label: 'ROAS theo tháng: 1.5 → 18.3 peak (11/2023)', featured: true },
+      { value: '-92%', label: 'CIR (chi phí ads/doanh thu): ~68% → ~5.5%', featured: true },
+      { value: '6.4×', label: 'ROAS blended trung bình 12 tháng đầu' },
+      { value: '11×+', label: 'ROAS duy trì suốt quý cao điểm Q4/2023' },
+      { value: '×12', label: 'CVR mess → đơn: 1.6% → 19.2% peak' },
+      { value: '×11', label: 'doanh thu tháng peak so với tháng đầu có doanh thu ads' },
+      { value: '2.8M+', label: 'Page reach lũy kế 12 tháng (9.4M+ impressions)' },
+      { value: '5,900+', label: 'hội thoại mess tạo ra từ ads (+280% cuối kỳ vs đầu kỳ)' },
+      { value: '~50%', label: 'doanh thu ads cả năm đến từ 3 tháng mùa tiệc Q4' },
+      { value: '50K+', label: 'followers 3 kênh social — vẫn active sau bàn giao' },
     ],
     storyDetail: {
       challenge:

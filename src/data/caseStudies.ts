@@ -67,8 +67,16 @@ export const caseStudies: CaseStudy[] = [
     likesSeed: '2486',
     services: ['E-commerce Management', 'Performance Ads', 'Micro KOLs', 'Livestream Commerce'],
     keyMetrics: [
-      { value: 'x3', label: 'projected FY2026 revenue' },
-      { value: '+84%', label: 'latest monthly revenue' },
+      { value: '≈50%', label: 'of full-year 2025 revenue achieved in 6 low-season months of 2026', featured: true },
+      { value: '×3', label: 'projected 2026 revenue vs 2025', featured: true },
+      { value: '+84%', label: 'monthly revenue vs first project month' },
+      { value: '×4', label: 'peak monthly revenue during gifting season' },
+      { value: '0 → 36%', label: 'website became the #1 revenue channel' },
+      { value: '70% → 32%', label: 'marketplace dependence reduced' },
+      { value: '-74%', label: 'Shopee cancellation rate' },
+      { value: '+27%', label: 'average order value' },
+      { value: '200+', label: 'TikTok micro-KOLs operated' },
+      { value: '5.8M+', label: 'users reached through TikTok Ads' },
     ],
     storyDetail: {
       challenge:
@@ -99,8 +107,16 @@ export const caseStudies: CaseStudy[] = [
     likesSeed: '4420',
     services: ['Go-to-market', 'E-commerce Management', 'Digital Ads', 'KOL/KOC Operations'],
     keyMetrics: [
-      { value: '4.42B VND', label: 'cumulative revenue' },
-      { value: '20,668', label: 'products sold' },
+      { value: '×35', label: 'peak monthly revenue growth', featured: true },
+      { value: '×19', label: 'within the first 4 operating months', featured: true },
+      { value: '×3.6', label: 'Q4 revenue YoY growth' },
+      { value: '×10', label: 'peak monthly sales volume' },
+      { value: '20,668', label: 'products sold in 20 months' },
+      { value: '~70%', label: 'stable gross margin maintained' },
+      { value: '82%', label: 'revenue from TikTok Shop built from zero' },
+      { value: '100+', label: 'KOL/KOC bookings managed' },
+      { value: '150+', label: 'SKUs R&D and commercialized' },
+      { value: '37.2K', label: 'TikTok followers · 1.5M likes' },
     ],
     storyDetail: {
       challenge:
@@ -131,8 +147,16 @@ export const caseStudies: CaseStudy[] = [
     likesSeed: '29800',
     services: ['E-commerce Operation', 'Performance Ads', 'Influencer Machine', 'Product Strategy'],
     keyMetrics: [
-      { value: '~29.8B VND', label: 'net online revenue' },
-      { value: '326K+', label: 'orders across channels' },
+      { value: '5+', label: 'years of uninterrupted end-to-end operation', featured: true },
+      { value: '+35%', label: 'revenue growth & +58% order growth YoY in 2024', featured: true },
+      { value: '0 → 79%', label: 'revenue share from TikTok Shop after 3 years' },
+      { value: '×2.1', label: 'TikTok Shop channel scale in a single year (2024)' },
+      { value: '~2×', label: 'average order value after bundle optimization' },
+      { value: '+50%', label: 'basket size from 1.6 to 2.4 items/order' },
+      { value: '2×', label: 'marketplace CVR vs category benchmark' },
+      { value: '1,000+', label: 'KOL/KOC bookings · 90M+ tracked views' },
+      { value: '326K+', label: 'multi-channel orders · 6.9M+ traffic' },
+      { value: '193K+', label: 'community followers · 2.6M TikTok likes' },
     ],
     storyDetail: {
       challenge:
@@ -163,8 +187,16 @@ export const caseStudies: CaseStudy[] = [
     likesSeed: '25040',
     services: ['Content Strategy', 'TikTok Ads', 'Live Shopping', 'Daily Reporting'],
     keyMetrics: [
-      { value: '25.04B VND', label: 'GMV from ads' },
-      { value: '4.56', label: 'blended ROAS' },
+      { value: '25.04B VND', label: 'GMV attributed to TikTok ads', featured: true },
+      { value: '4.56', label: 'blended ROAS across the TikTok commerce system', featured: true },
+      { value: '101,301', label: 'orders generated from the operating system' },
+      { value: '203M', label: 'paid impressions tracked' },
+      { value: '5.8–9.3', label: 'Live Shopping ROAS range through 2026' },
+      { value: '16 months', label: 'continuous TikTok commerce operation' },
+      { value: '170K–345K VND', label: 'AOV range across books and course bundles' },
+      { value: '3 layers', label: 'content, KOC/KOL reviews and commerce ads connected' },
+      { value: 'Daily', label: 'SKU-level reporting rhythm for budget decisions' },
+      { value: 'GMV Max', label: 'Video Shopping, Live Shopping and GMV Max integrated' },
     ],
     storyDetail: {
       challenge:
@@ -195,8 +227,16 @@ export const caseStudies: CaseStudy[] = [
     likesSeed: '2480',
     services: ['Promotion & Pricing', 'Marketplace Ops', 'Multi-channel Ads', 'Dashboard Reporting'],
     keyMetrics: [
-      { value: '2.48B VND', label: 'peak campaign revenue' },
-      { value: '~16%', label: 'ads cost / revenue' },
+      { value: '+35%', label: 'successful orders (2024 vs 2023)', featured: true },
+      { value: '+53%', label: 'products sold (2024 vs 2023)', featured: true },
+      { value: '+22%', label: 'total online traffic (2024 vs 2023)' },
+      { value: '-12%', label: 'advertising CAC cost (2024 vs 2023)' },
+      { value: '+32%', label: 'blended ROAS efficiency (H1 2026 vs 2024)' },
+      { value: '~80%', label: 'online revenue share, peaking at 84% from ~73%' },
+      { value: '2,400+', label: 'KOL/KOC collaborations logged in tracker' },
+      { value: '500+', label: 'zero-fee KOC videos + ~500 creators joined livestreams' },
+      { value: '35+', label: 'monthly promotion plans across 4 sales platforms' },
+      { value: '400K+', label: 'multi-platform social ecosystem followers' },
     ],
     storyDetail: {
       challenge:
@@ -231,12 +271,12 @@ export const caseStudies: CaseStudy[] = [
     likesSeed: '50000',
     services: ['Online Business Strategy', 'Meta Ads', 'Social Commerce', 'Livestream Operations'],
     keyMetrics: [
-      { value: 'x12', label: 'monthly ROAS lift from 1.5x to 18.3x peak', featured: true },
+      { value: '×12', label: 'monthly ROAS lift from 1.5x to 18.3x peak (11/2023)', featured: true },
       { value: '-92%', label: 'CIR reduction from about 68% to 5.5%', featured: true },
-      { value: '6.4x', label: 'blended ROAS across the first 12 months' },
-      { value: '11x+', label: 'ROAS sustained through the Q4 peak season' },
-      { value: 'x12', label: 'message-to-order CVR lift from 1.6% to 19.2%' },
-      { value: 'x11', label: 'peak monthly revenue vs first ad-sales month' },
+      { value: '6.4×', label: 'average blended ROAS across the first 12 months' },
+      { value: '11×+', label: 'ROAS sustained through the Q4/2023 peak quarter' },
+      { value: '×12', label: 'message-to-order CVR from 1.6% to 19.2% peak' },
+      { value: '×11', label: 'peak monthly revenue vs first ad-sales month' },
       { value: '2.8M+', label: '12-month cumulative page reach' },
       { value: '5,900+', label: 'ad-generated message conversations' },
       { value: '~50%', label: 'annual ad revenue from the Q4 party season' },

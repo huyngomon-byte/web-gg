@@ -41,90 +41,6 @@ const storyLogoById: Record<string, string> = {
   'annita-studios': '/logo-annita.png',
 }
 
-const metricLayouts: string[][] = [
-  [
-    'col-start-1 row-start-1 col-span-2 row-span-2',
-    'col-start-3 row-start-2 col-span-2 row-span-2',
-    'col-start-3 row-start-1',
-    'col-start-4 row-start-1',
-    'col-start-1 row-start-3',
-    'col-start-2 row-start-3',
-    'col-start-1 row-start-4',
-    'col-start-2 row-start-4',
-    'col-start-3 row-start-4',
-    'col-start-4 row-start-4',
-  ],
-  [
-    'col-start-3 row-start-1 col-span-2 row-span-2',
-    'col-start-1 row-start-3 col-span-2 row-span-2',
-    'col-start-1 row-start-1',
-    'col-start-2 row-start-1',
-    'col-start-1 row-start-2',
-    'col-start-2 row-start-2',
-    'col-start-3 row-start-3',
-    'col-start-4 row-start-3',
-    'col-start-3 row-start-4',
-    'col-start-4 row-start-4',
-  ],
-  [
-    'col-start-1 row-start-1 col-span-2 row-span-2',
-    'col-start-3 row-start-3 col-span-2 row-span-2',
-    'col-start-3 row-start-1',
-    'col-start-4 row-start-1',
-    'col-start-3 row-start-2',
-    'col-start-4 row-start-2',
-    'col-start-1 row-start-3',
-    'col-start-2 row-start-3',
-    'col-start-1 row-start-4',
-    'col-start-2 row-start-4',
-  ],
-  [
-    'col-start-2 row-start-1 col-span-2 row-span-2',
-    'col-start-1 row-start-3 col-span-2 row-span-2',
-    'col-start-1 row-start-1',
-    'col-start-4 row-start-1',
-    'col-start-1 row-start-2',
-    'col-start-4 row-start-2',
-    'col-start-3 row-start-3',
-    'col-start-4 row-start-3',
-    'col-start-3 row-start-4',
-    'col-start-4 row-start-4',
-  ],
-  [
-    'col-start-1 row-start-2 col-span-2 row-span-2',
-    'col-start-3 row-start-1 col-span-2 row-span-2',
-    'col-start-1 row-start-1',
-    'col-start-2 row-start-1',
-    'col-start-3 row-start-3',
-    'col-start-4 row-start-3',
-    'col-start-1 row-start-4',
-    'col-start-2 row-start-4',
-    'col-start-3 row-start-4',
-    'col-start-4 row-start-4',
-  ],
-  [
-    'col-start-1 row-start-1 col-span-2 row-span-2',
-    'col-start-3 row-start-1 col-span-2 row-span-2',
-    'col-start-1 row-start-3',
-    'col-start-2 row-start-3',
-    'col-start-3 row-start-3',
-    'col-start-4 row-start-3',
-    'col-start-1 row-start-4',
-    'col-start-2 row-start-4',
-    'col-start-3 row-start-4',
-    'col-start-4 row-start-4',
-  ],
-]
-
-const storyLayoutById: Record<string, number> = {
-  phinoi: 0,
-  'cota-cuti': 1,
-  inkaholic: 2,
-  'qanda-books': 3,
-  curnon: 4,
-  'annita-studios': 5,
-}
-
 const storyThemesById: Record<string, { gradient: string; accent: string; accentSoft: string; tile: string; featured: string }> = {
   phinoi: {
     gradient: 'linear-gradient(145deg,#1a0e06 0%,#91581f 45%,#f0b45c 100%)',
@@ -204,16 +120,19 @@ function metricKey(metric: CaseStudyMetric) {
   return `${metric.value.trim().toLowerCase()}::${metric.label.trim().toLowerCase()}`
 }
 
-function getStoryLayoutIndex(story: CaseStudy, storyIndex: number) {
-  return storyLayoutById[story.id] ?? storyIndex % metricLayouts.length
-}
-
 function getStoryTheme(story: CaseStudy, storyIndex: number) {
   const fallbackThemes = Object.values(storyThemesById)
   return storyThemesById[story.id] ?? fallbackThemes[storyIndex % fallbackThemes.length]
 }
 
-function buildMetricTiles(story: CaseStudy, storyIndex: number) {
+function getMetricDensity(value: string) {
+  const compactLength = value.replace(/\s+/g, '').length
+  if (compactLength >= 11) return 'is-dense-value'
+  if (compactLength >= 8) return 'is-long-value'
+  return ''
+}
+
+function buildMetricTiles(story: CaseStudy) {
   const metricItems = story.keyMetrics.filter((metric) => metric.value.trim() || metric.label.trim())
   const serviceItems: CaseStudyMetric[] = story.services.map((service) => ({ value: initials(service), label: service }))
   const fallbackItems: CaseStudyMetric[] = [
@@ -237,11 +156,10 @@ function buildMetricTiles(story: CaseStudy, storyIndex: number) {
 
   const featuredMetrics = uniqueMetrics.filter((metric) => metric.featured).slice(0, 2)
   const ordered = [...featuredMetrics, ...uniqueMetrics.filter((metric) => !featuredMetrics.includes(metric))].slice(0, 10)
-  const layout = metricLayouts[getStoryLayoutIndex(story, storyIndex)] ?? metricLayouts[storyIndex % metricLayouts.length]
 
   return ordered.map((metric, index) => ({
     ...metric,
-    className: layout[index] ?? '',
+    className: getMetricDensity(metric.value),
     featured: index < 2,
   }))
 }
@@ -356,7 +274,7 @@ function StoryMediaFrame({ story, index }: { story: CaseStudy; index: number }) 
   const frameRef = useRef<HTMLDivElement | null>(null)
   const touchStartX = useRef(0)
   const images = useMemo(() => carouselImagesForStory(story), [story])
-  const metricTiles = useMemo(() => buildMetricTiles(story, index), [index, story])
+  const metricTiles = useMemo(() => buildMetricTiles(story), [story])
   const theme = useMemo(() => getStoryTheme(story, index), [index, story])
   const [activeImage, setActiveImage] = useState(0)
   const [inView, setInView] = useState(true)
@@ -481,21 +399,22 @@ function StoryMediaFrame({ story, index }: { story: CaseStudy; index: number }) 
         </>
       )}
 
-      <div className="relative z-10 grid h-full min-w-0 grid-cols-[repeat(4,minmax(0,1fr))] grid-rows-6 gap-1.5 p-2 sm:gap-2 sm:p-4">
-        <div className="story-bento-grid col-span-4 row-span-4 grid min-w-0 grid-cols-[repeat(4,minmax(0,1fr))] grid-rows-4 gap-1.5 sm:gap-2">
+      <div className="relative z-10 grid h-full min-w-0 grid-cols-[repeat(4,minmax(0,1fr))] grid-rows-[repeat(7,minmax(0,1fr))] gap-1.5 p-2 sm:gap-2 sm:p-4">
+        <div className="story-metric-grid col-span-4 row-span-5 min-w-0 sm:row-span-3">
           {metricTiles.map((metric, metricIndex) => (
             <div
               key={`${story.id}-metric-${metricIndex}`}
               className={`story-glass-tile ${metric.className} ${metric.featured ? 'is-featured' : ''}`}
               style={{ '--ri': metricIndex } as CSSProperties}
             >
+              <span className="story-metric-kicker">{String(metricIndex + 1).padStart(2, '0')}</span>
               <span className={`story-metric-value ${metric.featured ? 'is-featured' : ''}`}>{metric.value || initials(metric.label)}</span>
               <span className="story-metric-label">{metric.label}</span>
             </div>
           ))}
         </div>
 
-        <div className="story-glass-tile col-span-4 row-span-1 justify-end text-left">
+        <div className="story-glass-tile col-span-4 row-span-1 justify-end text-left sm:row-span-3">
           <span className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-white/78">{story.category}</span>
           <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-relaxed text-white sm:text-sm">{story.shortDescription}</p>
         </div>

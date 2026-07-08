@@ -14,6 +14,7 @@ import { SeoHead } from '../components/SeoHead'
 import { useScrollReveal } from '../hooks/useScrollReveal'
 import { whenIntroGone } from '../hooks/useIntroGate'
 import { FlowWaveBackground } from '../components/FlowWaveBackground'
+import { HeroBackgroundVideo } from '../components/HeroBackgroundVideo'
 import { getCmsBlock, getLocalizedCmsBlock, getLocalizedPageMeta, splitCmsParagraphs } from '../cms/contentBlocks'
 import { mergeHomepageBackground } from '../cms/siteSettings'
 import { buildHomeFaqSchema, getHomeClosingFaqItems } from '../cms/homeFaqSchema'
@@ -990,10 +991,18 @@ export default function BrandHomePage({
   const heroLineOne = heroBlock?.heading?.trim() || 'The One by gg99'
   const heroLineTwo = heroBlock?.subtitle?.trim() || heroLines[0] || 'The only one digital agency you needed'
   const isDefaultHeroTitle = heroLineOne.toLowerCase() === 'the one by gg99'
-  const heroHasOwnBackground = !flowWaveActive || Boolean(heroBlock?.backgroundImageUrl?.trim())
+  const heroVideoSources = {
+    mp4: heroBlock?.backgroundVideoUrl?.trim() || undefined,
+    webm: heroBlock?.backgroundVideoWebmUrl?.trim() || undefined,
+    mobileMp4: heroBlock?.backgroundVideoMobileUrl?.trim() || undefined,
+    mobileWebm: heroBlock?.backgroundVideoMobileWebmUrl?.trim() || undefined,
+    poster: heroBlock?.backgroundVideoPoster?.trim() || undefined,
+  }
+  const heroHasVideo = Boolean(heroVideoSources.mp4 || heroVideoSources.webm)
+  const heroHasOwnBackground = !heroHasVideo && (!flowWaveActive || Boolean(heroBlock?.backgroundImageUrl?.trim()))
   const rawHeroTextMode = heroBlock?.textColor ?? 'light'
-  // "light" was chosen for the old opaque pink gradient; on the transparent aurora canvas it is unreadable.
-  const heroTextMode = !heroHasOwnBackground && rawHeroTextMode === 'light' ? 'dark' : rawHeroTextMode
+  // "light" was chosen for opaque hero backgrounds (gradient/video); on the transparent aurora canvas it is unreadable.
+  const heroTextMode = !heroHasOwnBackground && !heroHasVideo && rawHeroTextMode === 'light' ? 'dark' : rawHeroTextMode
   const showHeroDivider = heroBlock?.dividerShow !== false
   const heroWordCount = countStaggerWords(heroLineOne)
   const heroDelays = getHeroAnimationDelays(heroWordCount, showHeroDivider)
@@ -1029,9 +1038,12 @@ export default function BrandHomePage({
       {flowWaveActive && <FlowWaveBackground settings={homeBackground} />}
 
       <section
-        className={`home-hero relative flex min-h-[52vh] items-center overflow-hidden md:min-h-[58vh] ${heroReady ? 'is-ready' : ''}`}
+        className={`home-hero relative flex items-center overflow-hidden ${
+          heroHasVideo ? 'min-h-[100svh]' : 'min-h-[52vh] md:min-h-[58vh]'
+        } ${heroReady ? 'is-ready' : ''}`}
         style={heroHasOwnBackground ? heroBackgroundStyle(heroBlock) : undefined}
       >
+        {heroHasVideo && <HeroBackgroundVideo sources={heroVideoSources} />}
         {heroHasOwnBackground && (
           <>
             <div className="absolute inset-0 tech-grid opacity-35 pointer-events-none" aria-hidden="true" />

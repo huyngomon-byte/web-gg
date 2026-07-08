@@ -143,6 +143,11 @@ export type CmsBlock = {
   backgroundImageUrl?: string
   backgroundGradient?: string
   backgroundOverlayOpacity?: string
+  backgroundVideoUrl?: string
+  backgroundVideoWebmUrl?: string
+  backgroundVideoMobileUrl?: string
+  backgroundVideoMobileWebmUrl?: string
+  backgroundVideoPoster?: string
   subtitle?: string
   textColor?: 'light' | 'dark' | 'gradient'
   dividerShow?: boolean

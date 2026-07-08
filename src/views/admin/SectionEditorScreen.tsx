@@ -1486,6 +1486,45 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
               <Field label="Subtitle">
                 <TextInput value={blockSubtitle} onChange={(value) => updateBlockText({ subtitle: value })} />
               </Field>
+              {block.id === 'hero' && pageId === 'homepage' && (
+                <div className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-primary">Hero background video</p>
+                  <p className="text-xs font-semibold text-on-surface-variant">
+                    When a video URL is set the hero plays it (autoplay, muted, loop) and the aurora + wave show through below. Leave all fields empty to fall back to the aurora background. Mobile fields serve the 720p versions.
+                  </p>
+                  <Field label="Video URL - desktop MP4">
+                    <div className="grid gap-2">
+                      <TextInput value={block.backgroundVideoUrl ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundVideoUrl: value })} placeholder="https://res.cloudinary.com/.../hero-1080.mp4" />
+                      <VideoUploadButton
+                        folder={`cms/pages/${pageId}/${blockId}/video`}
+                        onUploaded={(url) => updateBlock(pageId, blockId, { backgroundVideoUrl: url })}
+                        onError={setUploadError}
+                        label={block.backgroundVideoUrl ? 'Replace video' : 'Upload video'}
+                      />
+                    </div>
+                  </Field>
+                  <Field label="Video URL - desktop WebM (optional, lighter)">
+                    <TextInput value={block.backgroundVideoWebmUrl ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundVideoWebmUrl: value })} placeholder="https://res.cloudinary.com/.../hero-1080.webm" />
+                  </Field>
+                  <Field label="Video URL - mobile MP4 (720p)">
+                    <TextInput value={block.backgroundVideoMobileUrl ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundVideoMobileUrl: value })} placeholder="https://res.cloudinary.com/.../hero-720.mp4" />
+                  </Field>
+                  <Field label="Video URL - mobile WebM (720p, optional)">
+                    <TextInput value={block.backgroundVideoMobileWebmUrl ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundVideoMobileWebmUrl: value })} placeholder="https://res.cloudinary.com/.../hero-720.webm" />
+                  </Field>
+                  <Field label="Video poster (image shown before/instead of video)">
+                    <div className="grid gap-2">
+                      <TextInput value={block.backgroundVideoPoster ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundVideoPoster: value })} placeholder="https://res.cloudinary.com/.../hero-poster.webp" />
+                      <ImageUploadButton
+                        folder={`cms/pages/${pageId}/${blockId}/video`}
+                        onUploaded={(url) => updateBlock(pageId, blockId, { backgroundVideoPoster: url })}
+                        onError={setUploadError}
+                        label={block.backgroundVideoPoster ? 'Replace poster' : 'Upload poster'}
+                      />
+                    </div>
+                  </Field>
+                </div>
+              )}
               {block.id === 'hero' && (
                 <div className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
                   <Field label="Text color mode">

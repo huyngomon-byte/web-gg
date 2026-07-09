@@ -524,7 +524,7 @@ function CaseStudyShowcase({ stories, lang, openingBaseMs = 0 }: { stories: Case
   }
 
   return (
-    <section className="section-pad relative overflow-visible px-5 lg:px-10" onMouseLeave={closePreviewSoon}>
+    <section className="home-section-pad home-section-pad--featured relative overflow-visible px-5 lg:px-10" onMouseLeave={closePreviewSoon}>
       {/* Round 7 A2.1: warm bridge from the video's bottom tone into the shared wave background */}
       <div
         aria-hidden="true"
@@ -556,7 +556,7 @@ function CaseStudyShowcase({ stories, lang, openingBaseMs = 0 }: { stories: Case
           href={activeStoryHref}
           onMouseEnter={() => setPreviewStory(null)}
           onFocus={() => setPreviewStory(null)}
-          className="group relative block aspect-[16/8] w-full overflow-hidden text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:aspect-[16/6]"
+          className="featured-banner group relative block w-full overflow-hidden text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
           aria-label={`Open ${activeStory.brandName} story`}
         >
           {/* Feathered media layer: images + scrim fade at all four edges (no hard card border, Round 8 A2.1) */}
@@ -579,14 +579,14 @@ function CaseStudyShowcase({ stories, lang, openingBaseMs = 0 }: { stories: Case
             })}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/18 to-transparent" aria-hidden="true" />
           </div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 p-5 text-white md:p-8">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/68">Featured case</p>
-            <h2 className="mt-2 max-w-2xl text-[30px] font-extrabold leading-tight md:text-[48px]">{activeStory.brandName}</h2>
-            <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-white/76 md:text-base">{activeStory.caption || activeStory.shortDescription}</p>
+          <div className="featured-banner-copy pointer-events-none absolute inset-x-0 bottom-0 text-white">
+            <p className="featured-banner-kicker font-extrabold uppercase text-white/68">Featured case</p>
+            <h2 className="featured-banner-title mt-2 max-w-2xl font-extrabold leading-tight">{activeStory.brandName}</h2>
+            <p className="featured-banner-caption mt-2 max-w-2xl font-semibold leading-relaxed text-white/76">{activeStory.caption || activeStory.shortDescription}</p>
             {activeStats.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="featured-banner-stats mt-4 flex flex-wrap gap-2">
                 {activeStats.map((stat) => (
-                  <span key={`${activeStory.id}-banner-stat-${stat.value}-${stat.label}`} className="rounded-full border border-white/24 bg-white/18 px-3 py-1.5 text-xs font-black text-white shadow-[0_10px_26px_rgba(0,0,0,0.16)] backdrop-blur-md">
+                  <span key={`${activeStory.id}-banner-stat-${stat.value}-${stat.label}`} className="featured-banner-stat rounded-full border border-white/24 bg-white/18 px-3 py-1.5 text-xs font-black text-white shadow-[0_10px_26px_rgba(0,0,0,0.16)] backdrop-blur-md">
                     {stat.value}{stat.label ? ` ${stat.label}` : ''}
                   </span>
                 ))}
@@ -731,7 +731,7 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
   const hasHiddenMobileReplies = items.length > mobileVisibleCount
 
   return (
-    <section className="section-pad px-5 lg:px-10">
+    <section className="home-section-pad px-5 lg:px-10">
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.4fr_0.6fr] lg:items-start lg:gap-12">
         <div className="lg:sticky lg:top-28">
           <p data-reveal className="text-[11px] font-black uppercase tracking-[0.2em] text-[#3d1226]/55">Red flags</p>
@@ -946,7 +946,7 @@ function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
   }
 
   return (
-    <section className="section-pad px-5 lg:px-10" onMouseLeave={closeMemberPreviewSoon}>
+    <section className="home-section-pad px-5 lg:px-10" onMouseLeave={closeMemberPreviewSoon}>
       <div className="mx-auto max-w-6xl">
         {/* Round 12 A5: the CMS body ("Teamwork makes the dream work.") renders as an editorial pull-quote */}
         <SectionHeader
@@ -1117,7 +1117,7 @@ function ClosingBanner({
   // Round 7 A5: no solid gradient background and no logo marquee — glass items float
   // directly on the shared aurora + wave background.
   return (
-    <section className="closing-section section-pad px-5 lg:px-10">
+    <section className="closing-section home-section-pad px-5 lg:px-10">
       <div className="closing-content relative mx-auto w-full max-w-[880px]" data-reveal="closing-content">
         {/* Round 8 A5.2: left-aligned, lined up with the other zone headings */}
         <div className="mb-7 text-left">
@@ -1239,7 +1239,7 @@ export default function BrandHomePage({
 
       <section
         className={`home-hero relative flex overflow-hidden ${
-          heroHasVideo ? 'min-h-[78vh] items-start md:min-h-[82vh]' : 'min-h-[52vh] items-center md:min-h-[58vh]'
+          heroHasVideo ? 'home-hero--video items-start' : 'home-hero--static items-center'
         } ${heroReady ? 'is-ready' : ''}`}
         style={heroHasOwnBackground ? heroBackgroundStyle(heroBlock) : undefined}
       >
@@ -1262,7 +1262,7 @@ export default function BrandHomePage({
         )}
         <div
           className={`relative mx-auto flex w-full max-w-5xl flex-col items-center px-5 text-center lg:px-10 ${
-            heroHasVideo ? 'pb-14 pt-36 md:pt-40' : 'justify-center pb-14 pt-28'
+            heroHasVideo ? 'home-hero-copy home-hero-copy--video' : 'home-hero-copy home-hero-copy--static justify-center'
           }`}
         >
           <h1
@@ -1317,7 +1317,7 @@ export default function BrandHomePage({
       <CaseStudyShowcase stories={storyTargets} lang={lang} openingBaseMs={heroDelays.cta + 200} />
       <RedFlagsSection block={redFlagsBlock} />
 
-      <section id="packages" className="section-pad px-5 lg:px-10">
+      <section id="packages" className="home-section-pad px-5 lg:px-10">
         <div className="max-w-6xl mx-auto">
           <SectionHeader
             title={packagesBlock?.heading || 'The One Packages'}

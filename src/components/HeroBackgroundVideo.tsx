@@ -76,8 +76,8 @@ export function HeroBackgroundVideo({ sources }: { sources: HeroVideoSources }) 
       aria-hidden="true"
       className="absolute inset-0 overflow-hidden"
       style={{
-        WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 160px), transparent 100%)',
-        maskImage: 'linear-gradient(to bottom, black calc(100% - 160px), transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - clamp(88px, 11svh, 140px)), transparent 100%)',
+        maskImage: 'linear-gradient(to bottom, black calc(100% - clamp(88px, 11svh, 140px)), transparent 100%)',
       }}
     >
       {sources.poster && (

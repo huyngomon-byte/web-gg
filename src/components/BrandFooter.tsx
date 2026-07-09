@@ -73,7 +73,7 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[2fr_1fr_1fr_1fr]">
           <div>
             <div className="flex items-center gap-3 mb-3">
-              {footer.logoSrc && <img src={footer.logoSrc} alt={footer.logoAlt || footer.brandName} className="h-12 w-auto flex-shrink-0" />}
+              {footer.logoSrc && <img src={footer.logoSrc === '/logo-gg.png' ? '/avatars/logo-gg.png' : footer.logoSrc} alt={footer.logoAlt || footer.brandName} className="h-12 w-auto flex-shrink-0" />}
               <div>
                 {footer.brandName && <div className="font-extrabold text-[15px] text-primary leading-tight">{footer.brandName}</div>}
                 {footer.tagline && <div className="text-[11px] text-primary/60 tracking-wide mt-0.5">{footer.tagline}</div>}

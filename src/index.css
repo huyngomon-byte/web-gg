@@ -2463,3 +2463,37 @@
   .story-chart-bars-bar,
   .story-chart-trend-line.is-drawn { transition: none; }
 }
+
+/* ============ Round 11: performance budgets ============ */
+
+/* P0-B blur budget: backdrop-filter only for posts intersecting the viewport
+   (frame gets .glass-active from IO) AND only on the active slide's tiles.
+   Offscreen/non-active fallback is a flat tint — invisible to the user because
+   those tiles are either outside the viewport or behind the track transform. */
+.story-media-frame:not(.glass-active) .story-glass-tile,
+.story-media-frame:not(.glass-active) .story-summary-glass,
+.story-media-frame .story-slide-unit:not(.is-active) .story-glass-tile,
+.story-media-frame .story-slide-unit:not(.is-active) .story-summary-glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(30, 30, 30, 0.45);
+}
+
+.story-media-frame:not(.glass-active) .about-story-btn {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(22, 20, 26, 0.6);
+}
+
+.story-media-frame:not(.glass-active) .story-swipe-hint {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(20, 18, 22, 0.62);
+}
+
+/* P1: skip layout/paint entirely for offscreen story posts and homepage sections */
+.story-post {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 1250px;
+}
+

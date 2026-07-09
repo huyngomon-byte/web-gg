@@ -21,6 +21,7 @@ import { FlowWaveBackground } from '../components/FlowWaveBackground'
 import { HeroBackgroundVideo } from '../components/HeroBackgroundVideo'
 import { getCmsBlock, getLocalizedCmsBlock, getLocalizedPageMeta, splitCmsParagraphs } from '../cms/contentBlocks'
 import { mergeHomepageBackground } from '../cms/siteSettings'
+import { cldSrcSet, cldWidth } from '../lib/cloudinaryImage'
 import { buildHomeFaqSchema, getHomeClosingFaqItems } from '../cms/homeFaqSchema'
 import type { CmsBlockItem, CmsPageContent, CmsSiteSettings } from '../cms/types'
 import { getOrderedCaseStudies } from '../data/caseStudyStories'
@@ -38,16 +39,16 @@ function resolvePrimaryBookingCtaLabel(label?: string) {
 }
 
 const storyLogoById: Record<string, string> = {
-  phinoi: '/logo-phinoi.png',
-  'cota-cuti': '/logo-cotacuti.png',
-  inkaholic: '/logo-inkaholic.png',
-  'qanda-books': '/logo-qandabook.png',
-  curnon: '/logo-curnon.png',
-  'annita-studios': '/logo-annita.png',
+  phinoi: '/avatars/logo-phinoi.png',
+  'cota-cuti': '/avatars/logo-cotacuti.png',
+  inkaholic: '/avatars/logo-inkaholic.png',
+  'qanda-books': '/avatars/logo-qandabook.png',
+  curnon: '/avatars/logo-curnon.png',
+  'annita-studios': '/avatars/logo-annita.png',
 }
 
 function getStoryLogoForHome(story: Pick<CaseStudy, 'id' | 'logoUrl'>) {
-  return story.logoUrl || storyLogoById[story.id] || '/logo-gg.png'
+  return story.logoUrl || storyLogoById[story.id] || '/avatars/logo-gg.png'
 }
 
 function SectionHeader({
@@ -162,19 +163,6 @@ function cssUrl(value: string) {
   return `url("${value.replace(/"/g, '%22')}")`
 }
 
-// Round 8 A2.2: serve properly sized Cloudinary renditions (f_auto,q_auto:good).
-// Non-Cloudinary URLs and already-transformed URLs pass through untouched.
-function cloudinaryWidth(url: string, width: number) {
-  if (!/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url)) return url
-  if (/\/upload\/[^/]*\bw_\d+/.test(url)) return url
-  return url.replace('/upload/', `/upload/f_auto,q_auto:good,w_${width}/`)
-}
-
-function cloudinarySrcSet(url: string, widths: number[]) {
-  if (!/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url)) return undefined
-  if (/\/upload\/[^/]*\bw_\d+/.test(url)) return undefined
-  return widths.map((width) => `${cloudinaryWidth(url, width)} ${width}w`).join(', ')
-}
 
 function heroBackgroundStyle(block: ReturnType<typeof getCmsBlock>): CSSProperties {
   const gradient = block?.backgroundGradient?.trim() || defaultHeroGradient
@@ -344,7 +332,10 @@ function CaseStudyPreviewPopover({ story, lang }: { story: CaseStudy; lang: Bran
         {images.map((imageUrl, index) => (
           <img
             key={`${story.id}-preview-${imageUrl}-${index}`}
-            src={imageUrl}
+            src={cldWidth(imageUrl, 420)}
+            srcSet={cldSrcSet(imageUrl, [420, 840])}
+            sizes="380px"
+            decoding="async"
             alt={index === 0 ? `${story.brandName} case study preview` : ''}
             aria-hidden={index === 0 ? undefined : true}
             className={`absolute inset-0 h-full w-full transition duration-700 ${
@@ -506,7 +497,7 @@ function CaseStudyShowcase({ stories, lang }: { stories: CaseStudy[]; lang: Bran
               return (
                 <img
                   key={`${story.id}-glow-${index}`}
-                  src={cloudinaryWidth(thumbnail, 640)}
+                  src={cldWidth(thumbnail, 640)}
                   alt=""
                   className={`absolute inset-0 h-full w-full scale-[1.06] object-cover blur-[48px] saturate-[1.4] transition-opacity duration-700 ${
                     index === activeBannerIndex ? 'opacity-45' : 'opacity-0'
@@ -529,8 +520,8 @@ function CaseStudyShowcase({ stories, lang }: { stories: CaseStudy[]; lang: Bran
               return (
                 <img
                   key={`${story.id}-banner-${index}`}
-                  src={cloudinaryWidth(thumbnail, 1600)}
-                  srcSet={cloudinarySrcSet(thumbnail, [1600, 2400])}
+                  src={cldWidth(thumbnail, 1600)}
+                  srcSet={cldSrcSet(thumbnail, [1600, 2400])}
                   sizes="(min-width: 1280px) 1152px, 96vw"
                   alt={index === activeBannerIndex ? `${story.brandName} case study thumbnail` : ''}
                   aria-hidden={index === activeBannerIndex ? undefined : true}
@@ -610,8 +601,8 @@ function CaseStudyShowcase({ stories, lang }: { stories: CaseStudy[]; lang: Bran
                       const thumbnail = getCaseStudyThumbnail(story)
                       return (
                         <img
-                          src={cloudinaryWidth(thumbnail, 640)}
-                          srcSet={cloudinarySrcSet(thumbnail, [640, 960])}
+                          src={cldWidth(thumbnail, 640)}
+                          srcSet={cldSrcSet(thumbnail, [640, 960])}
                           sizes="(min-width: 1024px) 25vw, 42vw"
                           alt=""
                           aria-hidden="true"
@@ -719,7 +710,7 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
           <div className="thread-line" aria-hidden="true" style={{ left: 39, top: 64 }} />
 
           <article data-reveal="tile-in" data-tile-direction="bottom" style={{ '--ri': 0 } as CSSProperties} className="relative grid grid-cols-[40px_1fr] gap-3">
-            <img src="/logo-gg.png" alt="" aria-hidden="true" className="relative z-10 h-10 w-10 rounded-full border border-white/80 bg-white object-contain p-1 shadow-sm" />
+            <img src="/avatars/logo-gg.png" alt="" aria-hidden="true" className="relative z-10 h-10 w-10 rounded-full border border-white/80 bg-white object-contain p-1 shadow-sm" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[14px] font-extrabold text-[#3d1226]">{postHandle}</span>
@@ -784,7 +775,7 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
 
           {/* Mobile only: the punchline closes the feed (desktop shows it in the left column). */}
           <article data-reveal="tile-in" data-tile-direction="bottom" style={{ '--ri': punchlineIndex } as CSSProperties} className="relative mt-6 grid grid-cols-[40px_1fr] gap-3 lg:hidden">
-            <img src="/logo-gg.png" alt="" aria-hidden="true" className="relative z-10 h-10 w-10 rounded-full border border-white/80 bg-white object-contain p-1 shadow-sm" />
+            <img src="/avatars/logo-gg.png" alt="" aria-hidden="true" className="relative z-10 h-10 w-10 rounded-full border border-white/80 bg-white object-contain p-1 shadow-sm" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[14px] font-extrabold text-[#3d1226]">{postHandle}</span>
@@ -913,7 +904,10 @@ function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
         <SectionHeader title={block.heading || 'The One People'} intro={block.body} align="left" />
         <div data-reveal="scale" className="group relative aspect-[16/8] overflow-hidden rounded-[24px] bg-[#190b12] text-white shadow-[0_24px_70px_rgba(80,20,50,0.16)] ring-1 ring-white/70 md:aspect-[16/6]">
           <img
-            src={activeBanner}
+            src={cldWidth(activeBanner, 1280)}
+            srcSet={cldSrcSet(activeBanner, [1280, 2400])}
+            sizes="(min-width: 1280px) 1152px, 96vw"
+            decoding="async"
             alt={`${activeMember.title} banner`}
             className={`absolute inset-0 h-full w-full transition duration-700 ${
               isLogoLikeImage(activeBanner) ? 'bg-[linear-gradient(135deg,#fff7fb,#ffd8e8)] object-contain p-12 md:p-20' : 'object-cover'
@@ -980,7 +974,11 @@ function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
                 ].join(' ')}
               >
                 <img
-                  src={thumbnail}
+                  src={cldWidth(thumbnail, 320)}
+                  srcSet={cldSrcSet(thumbnail, [320, 640])}
+                  sizes="(min-width: 1024px) 25vw, 42vw"
+                  loading="lazy"
+                  decoding="async"
                   alt=""
                   aria-hidden="true"
                   className={`absolute inset-0 h-full w-full transition duration-500 group-hover:scale-[1.06] ${
@@ -1016,7 +1014,7 @@ function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
               return (
                 <article className="pointer-events-auto flex max-h-[min(520px,82vh)] flex-col overflow-hidden rounded-[22px] border border-white/70 bg-white/[0.92] text-on-surface shadow-[0_28px_90px_rgba(219,39,119,0.28)] ring-1 ring-white/60 backdrop-blur-xl">
                   <div className="m-3 aspect-video max-h-[180px] shrink-0 overflow-hidden rounded-[18px] bg-surface-container-low">
-                    <img src={image} alt={`${member.title} preview`} className={`h-full w-full ${isLogoLikeImage(image) ? 'object-contain p-10' : 'object-cover'}`} />
+                    <img src={cldWidth(image, 420)} srcSet={cldSrcSet(image, [420, 840])} sizes="380px" decoding="async" alt={`${member.title} preview`} className={`h-full w-full ${isLogoLikeImage(image) ? 'object-contain p-10' : 'object-cover'}`} />
                   </div>
                   <div className="m-3 mt-0 rounded-[18px] border border-primary/10 bg-white/88 p-4">
                     <h3 className="text-[22px] font-extrabold leading-tight text-on-surface">{member.title}</h3>

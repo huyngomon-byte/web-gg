@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { memo, useEffect, useId, useRef } from 'react'
 import type { CaseStudyMetric } from '../data/caseStudies'
 
 // Round 9 Part B: five self-drawn SVG/CSS chart tiles for the story carousel.
@@ -16,38 +16,43 @@ function parseNumericValue(raw: string): { prefix: string; num: number; suffix: 
   return { prefix: match[1], num: numeric, suffix: match[3], decimals: decimalPart ? decimalPart.length : 0 }
 }
 
-function useCountUp(raw: string, activated: boolean, durationMs = 900) {
-  const parsed = useRef(parseNumericValue(raw))
-  const [display, setDisplay] = useState(() => {
-    const p = parsed.current
-    return p ? `${p.prefix}${(0).toFixed(p.decimals)}${p.suffix}` : raw
-  })
+function CountUpValue({ raw, activated, className }: { raw: string; activated: boolean; className?: string }) {
+  const ref = useRef<HTMLSpanElement | null>(null)
 
+  // Round 11 §6.3: the counter writes textContent directly inside rAF — no React
+  // re-render per animation frame, no layout reads in the loop.
   useEffect(() => {
-    const p = parsed.current
-    if (!p) {
-      setDisplay(raw)
+    const el = ref.current
+    if (!el) return
+    const parsed = parseNumericValue(raw)
+    if (!parsed) {
+      el.textContent = raw
       return
     }
     if (!activated) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setDisplay(raw)
+      el.textContent = raw
       return
     }
     let rafId = 0
     const start = performance.now()
-    const formatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: p.decimals, maximumFractionDigits: p.decimals })
+    const formatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: parsed.decimals, maximumFractionDigits: parsed.decimals })
     const tick = (now: number) => {
-      const progress = Math.min(1, (now - start) / durationMs)
+      const progress = Math.min(1, (now - start) / 900)
       const eased = 1 - Math.pow(1 - progress, 3)
-      setDisplay(`${p.prefix}${formatter.format(p.num * eased)}${p.suffix}`)
+      el.textContent = parsed.prefix + formatter.format(parsed.num * eased) + parsed.suffix
       if (progress < 1) rafId = requestAnimationFrame(tick)
     }
     rafId = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafId)
-  }, [activated, durationMs, raw])
+  }, [activated, raw])
 
-  return display
+  const parsed = parseNumericValue(raw)
+  return (
+    <span ref={ref} className={className}>
+      {parsed ? parsed.prefix + (0).toFixed(parsed.decimals) + parsed.suffix : raw}
+    </span>
+  )
 }
 
 // Round 10 D.2: a leading minus means "a decrease that is good" (CAC, CPA, cancellations) —
@@ -76,18 +81,17 @@ function parseComparableNumber(raw: string | undefined) {
   return parsed ? parsed.num : null
 }
 
-export function BigStatTile({ metric, activated }: { metric: CaseStudyMetric; activated: boolean }) {
-  const display = useCountUp(metric.value, activated)
+export const BigStatTile = memo(function BigStatTile({ metric, activated }: { metric: CaseStudyMetric; activated: boolean }) {
   return (
     <div className="story-chart-bignum">
       <svg className="story-chart-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
         <path d="M0,28 C18,26 30,20 46,18 C62,16 74,10 100,4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
       </svg>
-      <span className="story-chart-bignum-value">{display}</span>
+      <CountUpValue raw={metric.value} activated={activated} className="story-chart-bignum-value" />
       <span className="story-chart-label">{metric.shortLabel?.trim() || metric.label}</span>
     </div>
   )
-}
+})
 
 export function BeforeAfterTile({ metric, activated }: { metric: CaseStudyMetric; activated: boolean }) {
   const from = metric.from?.trim() || ''
@@ -123,7 +127,6 @@ export function DonutTile({ metric, activated }: { metric: CaseStudyMetric; acti
   const percent = Math.max(0, Math.min(100, metric.percent ?? parseComparableNumber(metric.value) ?? 0))
   const radius = 42
   const circumference = 2 * Math.PI * radius
-  const display = useCountUp(metric.value, activated)
 
   return (
     <div className="story-chart-donut">
@@ -149,7 +152,7 @@ export function DonutTile({ metric, activated }: { metric: CaseStudyMetric; acti
           transform="rotate(-90 50 50)"
         />
       </svg>
-      <span className="story-chart-donut-value">{display}</span>
+      <CountUpValue raw={metric.value} activated={activated} className="story-chart-donut-value" />
       <span className="story-chart-label">{metric.shortLabel?.trim() || metric.label}</span>
     </div>
   )
@@ -250,7 +253,7 @@ export function TrendLineTile({ metric, activated }: { metric: CaseStudyMetric; 
   )
 }
 
-export function StoryMetricChart({ metric, activated }: { metric: CaseStudyMetric; activated: boolean }) {
+export const StoryMetricChart = memo(function StoryMetricChart({ metric, activated }: { metric: CaseStudyMetric; activated: boolean }) {
   let chart
   switch (metric.display) {
     case 'beforeafter':
@@ -275,4 +278,4 @@ export function StoryMetricChart({ metric, activated }: { metric: CaseStudyMetri
       {metric.chartCaption?.trim() && <span className="story-chart-caption">{metric.chartCaption}</span>}
     </>
   )
-}
+})

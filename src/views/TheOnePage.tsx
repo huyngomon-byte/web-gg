@@ -23,6 +23,7 @@ import { getOrderedCaseStudies } from '../data/caseStudyStories'
 import type { CaseStudy, CaseStudyMetric } from '../data/caseStudies'
 import { useScrollReveal } from '../hooks/useScrollReveal'
 import { BigStatTile, StoryMetricChart } from '../components/StoryMetricCharts'
+import { cldSrcSet, cldWidth } from '../lib/cloudinaryImage'
 
 type SocialKey = 'facebook' | 'instagram' | 'tiktok' | 'website'
 type MetricLayoutSlot = {
@@ -33,7 +34,30 @@ type MetricLayoutSlot = {
 }
 type StoryGlassTone = 'tone-on-dark' | 'tone-on-medium' | 'tone-on-light'
 
-const luminanceCache = new Map<string, Promise<ImageData | null>>()
+// Round 11 P0-C: adaptive-tone cache. Tones are computed ONCE per image from a tiny
+// w_64 Cloudinary variant during idle time, then cached in memory + localStorage.
+// Slide changes only ever read this cache — no decode, no getImageData in the hot path.
+const storyToneCache = new Map<string, Promise<StoryGlassTone[] | null>>()
+const TONE_STORAGE_KEY = 'gg99-story-tones-v1'
+
+function readStoredTones(url: string): StoryGlassTone[] | null {
+  try {
+    const store = JSON.parse(window.localStorage.getItem(TONE_STORAGE_KEY) || '{}') as Record<string, StoryGlassTone[]>
+    return Array.isArray(store[url]) ? store[url] : null
+  } catch {
+    return null
+  }
+}
+
+function writeStoredTones(url: string, tones: StoryGlassTone[]) {
+  try {
+    const store = JSON.parse(window.localStorage.getItem(TONE_STORAGE_KEY) || '{}') as Record<string, StoryGlassTone[]>
+    store[url] = tones
+    window.localStorage.setItem(TONE_STORAGE_KEY, JSON.stringify(store))
+  } catch {
+    // storage full/blocked — memory cache still holds the value
+  }
+}
 
 const socialPlatforms: Array<{ key: SocialKey; label: string; Icon: typeof Instagram }> = [
   { key: 'facebook', label: 'Facebook', Icon: Facebook },
@@ -42,13 +66,15 @@ const socialPlatforms: Array<{ key: SocialKey; label: string; Icon: typeof Insta
   { key: 'website', label: 'Website', Icon: Globe2 },
 ]
 
+// Round 11 P0-A: avatar-role logos come from pre-resized 176px statics — the originals
+// (up to 6251px for inkaholic) were being decoded for 35-88px circles.
 const storyLogoById: Record<string, string> = {
-  phinoi: '/logo-phinoi.png',
-  'cota-cuti': '/logo-cotacuti.png',
-  inkaholic: '/logo-inkaholic.png',
-  'qanda-books': '/logo-qandabook.png',
-  curnon: '/logo-curnon.png',
-  'annita-studios': '/logo-annita.png',
+  phinoi: '/avatars/logo-phinoi.png',
+  'cota-cuti': '/avatars/logo-cotacuti.png',
+  inkaholic: '/avatars/logo-inkaholic.png',
+  'qanda-books': '/avatars/logo-qandabook.png',
+  curnon: '/avatars/logo-curnon.png',
+  'annita-studios': '/avatars/logo-annita.png',
 }
 
 
@@ -98,7 +124,13 @@ const storyThemesById: Record<string, { gradient: string; accent: string; accent
 }
 
 function getStoryLogo(story: CaseStudy) {
-  return story.logoUrl || storyLogoById[story.id] || '/logo-gg.png'
+  return story.logoUrl || storyLogoById[story.id] || '/avatars/logo-gg.png'
+}
+
+// Round 11 P0-A: avatars display at 35-88px — w_96 (1x) / w_176 (2x) via srcset.
+function storyAvatarProps(story: CaseStudy) {
+  const logo = getStoryLogo(story)
+  return { src: cldWidth(logo, 96), srcSet: cldSrcSet(logo, [96, 176]), sizes: '88px' }
 }
 
 function getAccountName(story: CaseStudy) {
@@ -152,36 +184,47 @@ function getToneFromLuminance(luminance: number): StoryGlassTone {
   return 'tone-on-dark'
 }
 
-function loadLuminanceData(url: string) {
-  if (!luminanceCache.has(url)) {
-    luminanceCache.set(url, new Promise((resolve) => {
-      if (typeof window === 'undefined') {
-        resolve(null)
-        return
-      }
-      const image = new Image()
-      image.crossOrigin = 'anonymous'
-      image.onload = () => {
-        try {
-          const canvas = document.createElement('canvas')
-          canvas.width = 60
-          canvas.height = 75
-          const context = canvas.getContext('2d', { willReadFrequently: true })
-          if (!context) {
-            resolve(null)
-            return
-          }
-          context.drawImage(image, 0, 0, canvas.width, canvas.height)
-          resolve(context.getImageData(0, 0, canvas.width, canvas.height))
-        } catch {
-          resolve(null)
-        }
-      }
-      image.onerror = () => resolve(null)
-      image.src = url
-    }))
+// Loads the w_64 thumbnail (not the full image!) and computes the tone for all
+// 4 slide tile zones in one pass. Cached per URL in memory + localStorage.
+function getSlideTonesCached(url: string): Promise<StoryGlassTone[] | null> {
+  if (typeof window === 'undefined') return Promise.resolve(null)
+  const cached = storyToneCache.get(url)
+  if (cached) return cached
+
+  const stored = readStoredTones(url)
+  if (stored) {
+    const resolved = Promise.resolve(stored)
+    storyToneCache.set(url, resolved)
+    return resolved
   }
-  return luminanceCache.get(url) as Promise<ImageData | null>
+
+  const promise = new Promise<StoryGlassTone[] | null>((resolve) => {
+    const image = new Image()
+    image.crossOrigin = 'anonymous'
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = 48
+        canvas.height = 60
+        const context = canvas.getContext('2d', { willReadFrequently: true })
+        if (!context) {
+          resolve(null)
+          return
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height)
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+        const tones = storySlideTileZones.map((zone) => getToneFromLuminance(getAverageLuminance(imageData, zone)))
+        writeStoredTones(url, tones)
+        resolve(tones)
+      } catch {
+        resolve(null)
+      }
+    }
+    image.onerror = () => resolve(null)
+    image.src = cldWidth(url, 64)
+  })
+  storyToneCache.set(url, promise)
+  return promise
 }
 
 function getAverageLuminance(imageData: ImageData, slot: MetricLayoutSlot) {
@@ -234,7 +277,7 @@ function StoryRing({
     <button type="button" onClick={() => onClick(story)} className="ig-story-button group text-center">
       <span className={`ig-story-ring mx-auto ${viewed ? 'is-viewed' : ''}`}>
         <span className="ig-story-ring-inner">
-          <img src={getStoryLogo(story)} alt={getDisplayName(story)} className="h-full w-full rounded-full object-contain" />
+          <img {...storyAvatarProps(story)} alt={getDisplayName(story)} className="h-full w-full rounded-full object-contain" decoding="async" />
         </span>
       </span>
       {!compact && (
@@ -251,7 +294,7 @@ function YourStoryRing({ compact }: { compact: boolean }) {
     <button type="button" onClick={() => openBookingModal('your-story')} className="ig-story-button group text-center">
       <span className="ig-story-ring is-your-story mx-auto">
         <span className="ig-story-ring-inner relative">
-          <img src="/logo-gg.png" alt="GG99" className="h-full w-full rounded-full object-contain opacity-45" />
+          <img src="/avatars/logo-gg.png" alt="GG99" className="h-full w-full rounded-full object-contain opacity-45" />
           <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-primary text-white">
             <Plus size={14} strokeWidth={3} />
           </span>
@@ -311,12 +354,6 @@ function PostMoreMenu({ story, onCopy }: { story: CaseStudy; onCopy: (story: Cas
       </button>
     </details>
   )
-}
-
-function cloudinaryStoryImage(url: string, width: number) {
-  if (!/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url)) return url
-  if (/\/upload\/[^/]*\bw_\d+/.test(url)) return url
-  return url.replace('/upload/', `/upload/f_auto,q_auto:good,w_${width}/`)
 }
 
 // Round 9: every story post is a 4-slide Instagram-style carousel. Slide 1 tells the
@@ -389,7 +426,8 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
   const [activeSlide, setActiveSlide] = useState(0)
   const [activatedSlides, setActivatedSlides] = useState<boolean[]>(() => slides.map((_, slideIndex) => slideIndex === 0))
   const [slideTones, setSlideTones] = useState<StoryGlassTone[]>(() => slides.map(() => 'tone-on-medium'))
-  const [inView, setInView] = useState(true)
+  const [inView, setInView] = useState(false)
+  const [pageVisible, setPageVisible] = useState(true)
   const [reducedMotion, setReducedMotion] = useState(false)
   const [canHover, setCanHover] = useState(false)
   const [hovered, setHovered] = useState(false)
@@ -422,9 +460,21 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
     if (!('IntersectionObserver' in window)) return
     const element = frameRef.current
     if (!element) return
-    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.2 })
-    observer.observe(element)
+    // Round 11 P0-C: threshold 0.3 — autoplay/charts only for posts truly in view.
+    // Observe the outer .story-post article: it carries content-visibility:auto and
+    // is never itself skipped — IO does NOT fire for elements inside skipped subtrees.
+    const target = element.closest('.story-post') ?? element
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.3 })
+    observer.observe(target)
     return () => observer.disconnect()
+  }, [])
+
+  // Round 11 P0-C: everything stops while the tab is hidden.
+  useEffect(() => {
+    const sync = () => setPageVisible(!document.hidden)
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => document.removeEventListener('visibilitychange', sync)
   }, [])
 
   // Chart animations run once per slide per view: remember which slides were shown.
@@ -434,7 +484,7 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
 
   // Auto-advance every 5s while visible; posts are phase-shifted so the feed doesn't tick in unison.
   useEffect(() => {
-    if (slideCount <= 1 || !inView || reducedMotion || summaryExpanded || (canHover && hovered)) return
+    if (slideCount <= 1 || !inView || !pageVisible || reducedMotion || summaryExpanded || (canHover && hovered)) return
     const wait = Math.max(initialDelayRef.current, pausedUntil - Date.now())
     const timer = window.setTimeout(() => {
       initialDelayRef.current = 5000
@@ -443,21 +493,30 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
     return () => window.clearTimeout(timer)
   }, [activeSlide, canHover, hovered, inView, pausedUntil, reducedMotion, slideCount, summaryExpanded])
 
-  // Adaptive luminance for the active slide's tile zone (cached per image URL).
+  // Round 11 P0-C: adaptive tones resolve once per post during idle time from the
+  // w_64 thumbnail cache. Slide changes never trigger decode or pixel sampling.
   useEffect(() => {
     let cancelled = false
-    const image = slides[activeSlide]?.image
-    if (!image) return
-    void loadLuminanceData(image).then((imageData) => {
-      if (cancelled || !imageData) return
-      const zone = storySlideTileZones[activeSlide] ?? storySlideTileZones[0]
-      const tone = getToneFromLuminance(getAverageLuminance(imageData, zone))
-      setSlideTones((current) => (current[activeSlide] === tone ? current : current.map((value, slideIndex) => (slideIndex === activeSlide ? tone : value))))
-    })
+    const run = () => {
+      slides.forEach((slide, slideIndex) => {
+        if (!slide.image) return
+        void getSlideTonesCached(slide.image).then((tones) => {
+          if (cancelled || !tones) return
+          const tone = tones[slideIndex] ?? tones[0]
+          setSlideTones((current) => (current[slideIndex] === tone ? current : current.map((value, i) => (i === slideIndex ? tone : value))))
+        })
+      })
+    }
+    let idleId = 0
+    let timeoutId = 0
+    if (typeof window.requestIdleCallback === 'function') idleId = window.requestIdleCallback(run, { timeout: 4000 })
+    else timeoutId = window.setTimeout(run, 300)
     return () => {
       cancelled = true
+      if (idleId && typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(idleId)
+      if (timeoutId) window.clearTimeout(timeoutId)
     }
-  }, [activeSlide, slides])
+  }, [slides])
 
   useEffect(() => {
     const element = summaryCopyRef.current
@@ -564,7 +623,7 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
       role="group"
       aria-roledescription="carousel"
       aria-label={`${getDisplayName(story)} results — slide ${activeSlide + 1} of ${slideCount}`}
-      className="story-media-frame relative aspect-[4/5] max-w-full overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className={`story-media-frame relative aspect-[4/5] max-w-full overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary ${inView ? 'glass-active' : ''}`}
       style={frameStyle as CSSProperties}
       onMouseEnter={() => setHovered(true)}
       onPointerEnter={(event) => {
@@ -596,28 +655,29 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
           return (
             <div
               key={`${story.id}-slide-${slideIndex}`}
-              className="relative h-full w-full shrink-0 overflow-hidden"
+              className={`story-slide-unit relative h-full w-full shrink-0 overflow-hidden ${slideIndex === activeSlide ? 'is-active' : ''}`}
               aria-hidden={slideIndex === activeSlide ? undefined : true}
               aria-label={`Slide ${slideIndex + 1} of ${slideCount}`}
             >
               {slide.image && nearActive ? (
                 <img
-                  src={cloudinaryStoryImage(slide.image, 1080)}
-                  srcSet={/res\.cloudinary\.com/.test(slide.image) && !/\/upload\/[^/]*\bw_\d+/.test(slide.image)
-                    ? `${cloudinaryStoryImage(slide.image, 1080)} 1080w, ${cloudinaryStoryImage(slide.image, 2160)} 2160w`
-                    : undefined}
-                  sizes="(min-width: 900px) 860px, 100vw"
+                  /* Round 11 role table: feed column ~630px → w_720 (1x) / w_1440 (2x) */
+                  src={cldWidth(slide.image, 720)}
+                  srcSet={cldSrcSet(slide.image, [720, 1440])}
+                  sizes="(min-width: 900px) 630px, 100vw"
                   alt=""
                   crossOrigin="anonymous"
                   className="absolute inset-0 h-full w-full object-cover"
                   loading={index === 0 && slideIndex === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
                 />
               ) : (
                 <div className="absolute inset-0" style={{ backgroundImage: story.screenBackground?.gradient || theme.gradient }} aria-hidden="true" />
               )}
               <div className="story-slide-scrim absolute inset-0" aria-hidden="true" />
 
-              {slide.isHero ? (
+              {/* Round 11: only slides within ±1 of active render their tiles */}
+              {!nearActive ? null : slide.isHero ? (
                 <>
                   {slide.metrics.length > 0 && (
                     <div className="story-slide-hero-stats">
@@ -833,7 +893,7 @@ function InstagramPost({
       className={`story-post w-full max-w-full overflow-hidden rounded-[28px] border bg-white shadow-[0_24px_70px_rgba(219,39,119,0.12)] transition duration-500 ${highlighted ? 'is-highlighted' : ''}`}
     >
       <header className="flex items-center gap-3 border-b border-outline-variant/35 px-4 py-3">
-        <img src={getStoryLogo(story)} alt={getDisplayName(story)} className="h-11 w-11 rounded-full border border-outline-variant/45 object-contain" />
+        <img {...storyAvatarProps(story)} alt={getDisplayName(story)} className="h-11 w-11 rounded-full border border-outline-variant/45 object-contain" loading="lazy" decoding="async" />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <p className="truncate text-sm font-extrabold text-on-surface">{getAccountName(story)}</p>
@@ -887,7 +947,7 @@ function StickyStoryRail({
       <div className="sticky top-32 space-y-4">
         <div className="rounded-[24px] border border-white/70 bg-white/80 p-5 shadow-[0_20px_60px_rgba(219,39,119,0.12)] backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <img src="/logo-gg.png" alt="The One - GG99" className="h-12 w-12 rounded-full border border-outline-variant/35 object-contain" />
+            <img src="/avatars/logo-gg.png" alt="The One - GG99" className="h-12 w-12 rounded-full border border-outline-variant/35 object-contain" />
             <div>
               <p className="text-sm font-extrabold text-on-surface">The One - GG99</p>
               <p className="text-xs font-semibold text-on-surface-variant">Client story feed</p>
@@ -907,7 +967,7 @@ function StickyStoryRail({
           <div className="mt-4 space-y-3">
             {stories.slice(0, 4).map((story) => (
               <button key={story.id} type="button" onClick={() => onStoryClick(story)} className="flex w-full items-center gap-3 text-left">
-                <img src={getStoryLogo(story)} alt="" className="h-10 w-10 rounded-full border border-outline-variant/35 object-contain" />
+                <img {...storyAvatarProps(story)} alt="" className="h-10 w-10 rounded-full border border-outline-variant/35 object-contain" loading="lazy" decoding="async" />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-extrabold text-on-surface">{getDisplayName(story)}</span>
                   <span className="block truncate text-xs font-semibold text-on-surface-variant">{story.category}</span>

@@ -11,6 +11,9 @@ export type CaseStudyMetric = {
   benchmarkLabel?: string
   benchmarkValue?: string
   percent?: number
+  // Round 10: multi-row bars ("Label:Value|Label:Value") + small caption under big charts
+  series?: string
+  chartCaption?: string
 }
 
 export type CaseStudy = {

@@ -2307,7 +2307,7 @@
   background: rgba(255,255,255,0.40);
 }
 .story-chart-ba-bar.is-after {
-  background: linear-gradient(90deg, #FF2E88, #FFB199);
+  background: linear-gradient(90deg, #FF2E88, #FF9A3D);
   transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1) 150ms;
 }
 .story-chart-ba-arrow {
@@ -2356,7 +2356,16 @@
   border-radius: 9999px;
   transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.story-chart-bars-bar.is-own { background: linear-gradient(90deg, #FF2E88, #FFB199); }
+.story-chart-bars-bar.is-own { background: linear-gradient(90deg, #FF2E88, #FF9A3D); }
+.story-chart-bars-bar.is-down { background: linear-gradient(90deg, #FF9A3D, #FFD166); }
+.story-chart-ba-bar.is-after.is-down { background: linear-gradient(90deg, #FF9A3D, #FFD166); }
+.story-chart-caption {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.62;
+}
 .story-chart-bars-bar.is-bench { background: rgba(255,255,255,0.38); }
 
 /* TrendLine */
@@ -2405,11 +2414,11 @@
   50% { transform: translateX(4px); }
 }
 
-/* Desktop hover arrows */
+/* Desktop hover arrows — shown via native :hover so they never depend on JS hover state (Round 10 A) */
 .story-carousel-arrow {
   position: absolute;
   top: 50%;
-  z-index: 25;
+  z-index: 40;
   display: flex;
   width: 44px;
   height: 44px;
@@ -2417,7 +2426,15 @@
   justify-content: center;
   transform: translateY(-50%);
   color: transparent;
-  animation: storyArrowIn 200ms ease both;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.story-media-frame:hover .story-carousel-arrow,
+.story-media-frame:focus-within .story-carousel-arrow {
+  opacity: 1;
+  pointer-events: auto;
 }
 .story-carousel-arrow::before {
   content: '';

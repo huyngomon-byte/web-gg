@@ -825,6 +825,8 @@ function StoryItemEditor({
       benchmarkLabel?: string
       benchmarkValue?: string
       percent?: number
+      series?: string
+      chartCaption?: string
     },
   ) {
     const nextMetrics = [...(keyMetrics ?? [])]
@@ -1087,15 +1089,26 @@ function StoryItemEditor({
                     </div>
                   )}
                   {metric.display === 'bars' && (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <Field label="Benchmark label" hint='e.g. "Industry"'>
-                        <TextInput value={metric.benchmarkLabel ?? ''} onChange={(value) => updateMetric(metricIndex, { benchmarkLabel: value })} />
+                    <>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <Field label="Benchmark label" hint='e.g. "Industry"'>
+                          <TextInput value={metric.benchmarkLabel ?? ''} onChange={(value) => updateMetric(metricIndex, { benchmarkLabel: value })} />
+                        </Field>
+                        <Field label="Benchmark value" hint='e.g. "1x"'>
+                          <TextInput value={metric.benchmarkValue ?? ''} onChange={(value) => updateMetric(metricIndex, { benchmarkValue: value })} />
+                        </Field>
+                      </div>
+                      <Field
+                        label="Series (multi-row chart)"
+                        hint='Overrides benchmark mode. Format: "Label:Value|Label:Value". A leading minus (−12%) flips that row to the down-is-good amber style.'
+                      >
+                        <TextInput value={metric.series ?? ''} onChange={(value) => updateMetric(metricIndex, { series: value })} placeholder="Orders:+35%|Products:+53%|Traffic:+22%|CAC:−12%" />
                       </Field>
-                      <Field label="Benchmark value" hint='e.g. "1x"'>
-                        <TextInput value={metric.benchmarkValue ?? ''} onChange={(value) => updateMetric(metricIndex, { benchmarkValue: value })} />
-                      </Field>
-                    </div>
+                    </>
                   )}
+                  <Field label="Chart caption (optional)" hint="Small source note under the tile.">
+                    <TextInput value={metric.chartCaption ?? ''} onChange={(value) => updateMetric(metricIndex, { chartCaption: value })} placeholder="Per operating dashboard, 2023-2026" />
+                  </Field>
                   {metric.display === 'donut' && (
                     <Field label="Percent (0-100)" hint="Donut sweep angle. Empty = parsed from Value.">
                       <TextInput

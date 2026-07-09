@@ -54,6 +54,9 @@ export type CmsLocalizedBlockItemFields = {
     benchmarkLabel?: string
     benchmarkValue?: string
     percent?: number
+    // Round 10: multi-row bars ("Label:Value|Label:Value") + small caption under big charts
+    series?: string
+    chartCaption?: string
   }>
   ctaText?: string
   caseStudyLabel?: string
@@ -132,6 +135,9 @@ export type CmsBlockItem = {
     benchmarkLabel?: string
     benchmarkValue?: string
     percent?: number
+    // Round 10: multi-row bars ("Label:Value|Label:Value") + small caption under big charts
+    series?: string
+    chartCaption?: string
   }>
   storyDetail?: {
     challenge?: string

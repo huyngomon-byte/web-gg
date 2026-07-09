@@ -25,6 +25,8 @@ export function storyFromCmsItem(item: CmsBlockItem) {
         benchmarkLabel: metric.benchmarkLabel,
         benchmarkValue: metric.benchmarkValue,
         percent: metric.percent,
+        series: metric.series,
+        chartCaption: metric.chartCaption,
       }))
       const keyMetrics = Array.from({ length: 10 }, (_, index) => {
         const metric = cmsMetrics[index]

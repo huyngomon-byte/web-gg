@@ -34,6 +34,8 @@ function mergeStoryItem(templateItem: CmsBlockItem, currentItem: CmsBlockItem): 
       ...templateItem.storyDetail,
       ...currentItem.storyDetail,
     },
+    // Same rule as the block-level merge (Round 8): never inherit stale template locale overlays.
+    locales: currentItem.locales,
   }
 }
 
@@ -47,8 +49,12 @@ function mergeStoryItems(templateItems: CmsBlockItem[] = [], currentItems: CmsBl
     return mergeStoryItem(templateItems[templateIndex], currentItem)
   })
 
-  const missingTemplateItems = templateItems.filter((_, index) => !usedTemplateIndexes.has(index))
-  return [...mergedItems, ...missingTemplateItems]
+  // Round 10 fix: the CMS doc is the single source of truth for content. Unmatched
+  // template items must NOT be appended — they resurrect stale seed posts (old metrics,
+  // pre-cleanup money figures) alongside the real ones whenever key matching drifts.
+  if (currentItems.length) return mergedItems
+
+  return templateItems
 }
 
 export function mergeCmsBlockWithTemplate(templateBlock: CmsBlock, currentBlock: CmsBlock | undefined): CmsBlock {

@@ -553,7 +553,7 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
     }
   }
 
-  const showArrows = canHover && hovered && slideCount > 1
+  const showArrows = canHover && slideCount > 1
   const showHint = slideCount > 1 && activeSlide === 0 && !interacted
 
   return (
@@ -567,9 +567,18 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
       className="story-media-frame relative aspect-[4/5] max-w-full overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary"
       style={frameStyle as CSSProperties}
       onMouseEnter={() => setHovered(true)}
+      onPointerEnter={(event) => {
+        if (event.pointerType === 'mouse') setHovered(true)
+      }}
       onMouseLeave={() => {
         setHovered(false)
         pauseAuto(3000)
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === 'mouse') {
+          setHovered(false)
+          pauseAuto(3000)
+        }
       }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -672,12 +681,30 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
       )}
 
       {showArrows && activeSlide > 0 && (
-        <button type="button" className="story-carousel-arrow is-left" aria-label="Previous slide" onClick={() => goTo(-1)}>
+        <button
+          type="button"
+          className="story-carousel-arrow is-left"
+          aria-label="Previous slide"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            goTo(-1)
+          }}
+        >
           <ChevronLeft size={19} strokeWidth={2.6} />
         </button>
       )}
       {showArrows && activeSlide < slideCount - 1 && (
-        <button type="button" className="story-carousel-arrow is-right" aria-label="Next slide" onClick={() => goTo(1)}>
+        <button
+          type="button"
+          className="story-carousel-arrow is-right"
+          aria-label="Next slide"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            goTo(1)
+          }}
+        >
           <ChevronRight size={19} strokeWidth={2.6} />
         </button>
       )}

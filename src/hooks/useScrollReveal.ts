@@ -16,9 +16,21 @@ export function useScrollReveal() {
       window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+    // Round 12 A2: elements in the opening cascade carry data-reveal-open plus an
+    // inline --rd delay tuned to follow the hero sequence. That delay only makes
+    // sense right after the intro while the user is at the top of the page —
+    // otherwise (reload mid-page, scrolling back up later) strip it so the
+    // element reveals with the normal stagger.
+    let openingStartedAt = 0
     const revealElement = (el: Element) => {
+      const html = el as HTMLElement
+      if (html.dataset.revealOpen !== undefined) {
+        const inOpeningWindow =
+          openingStartedAt > 0 && performance.now() - openingStartedAt < 2500 && window.scrollY < 200
+        if (!inOpeningWindow) html.style.setProperty('--rd', '0ms')
+      }
       el.classList.add('is-visible')
-      ;(el as HTMLElement).dataset.revealed = 'true'
+      html.dataset.revealed = 'true'
     }
 
     const revealAll = () =>
@@ -45,6 +57,7 @@ export function useScrollReveal() {
 
     whenIntroGone(() => {
       if (cancelled) return
+      openingStartedAt = performance.now()
       io = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {

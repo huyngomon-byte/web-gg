@@ -16,7 +16,6 @@ import { SeoHead } from '../components/SeoHead'
 import { getLocalizedCmsBlock, getLocalizedPageMeta, splitCmsParagraphs } from '../cms/contentBlocks'
 import { getLocalizedSiteSettings } from '../cms/siteSettings'
 import type { CmsBlockItem, CmsPageContent, CmsSiteSettings } from '../cms/types'
-import { useScrollReveal } from '../hooks/useScrollReveal'
 
 const defaultServiceItems: CmsBlockItem[] = [
   { title: 'Brand', body: 'Identity, positioning and campaign direction.', icon: 'BadgeCheck' },
@@ -33,7 +32,6 @@ const defaultContactItems: CmsBlockItem[] = [
 ]
 
 export function PackagesPage({ lang = 'en', cmsPage, siteSettings }: { lang?: BrandLang; cmsPage?: CmsPageContent | null; siteSettings?: CmsSiteSettings | null }) {
-  useScrollReveal()
 
   const c = theOnePackagesByLang[lang]
   const meta = getLocalizedPageMeta(cmsPage, lang, packagesMetaByLang[lang])

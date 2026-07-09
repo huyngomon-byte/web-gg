@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Menu, X } from 'lucide-react'
 import { BookingModal } from './BookingModal'
 import { BrandFooter } from './BrandFooter'
+import { useScrollReveal } from '../hooks/useScrollReveal'
 import { localizedPath, type BrandLang } from '../brandContent'
 import { getLocalizedSiteSettings } from '../cms/siteSettings'
 import type { CmsSiteSettings } from '../cms/types'
@@ -37,6 +38,9 @@ export function BrandLayout({
   floatingCtaRevealSelector,
   resolveNavHref,
 }: BrandLayoutProps) {
+  // Round 12 A2: one reveal system for every page that renders this layout —
+  // the footer carries data-reveal, so the hook must live here, not per-view.
+  useScrollReveal()
   const [bookingOpen, setBookingOpen] = useState(false)
   const [showTop, setShowTop] = useState(false)
   const [showFloatingCta, setShowFloatingCta] = useState(!floatingCtaRevealSelector)

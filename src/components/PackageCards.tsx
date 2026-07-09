@@ -133,7 +133,7 @@ function isSystemPackage(item: CmsBlockItem, index: number) {
   return index === 1 || /system/i.test(item.title)
 }
 
-function PriceText({ price }: { price: string }) {
+function PriceText({ price, startDelayMs = 0 }: { price: string; startDelayMs?: number }) {
   const ref = useRef<HTMLSpanElement | null>(null)
   const match = price.match(/^([^0-9]*)([\d,.]+)(.*)$/)
   const prefix = match?.[1] ?? ''
@@ -156,6 +156,7 @@ function PriceText({ price }: { price: string }) {
     const el = ref.current
     if (!el) return
     let raf = 0
+    let startTimer = 0
     let started = false
     const formatter = new Intl.NumberFormat('en-US')
 
@@ -175,7 +176,8 @@ function PriceText({ price }: { price: string }) {
         if (entry.isIntersecting && !started) {
           started = true
           observer.disconnect()
-          run()
+          if (startDelayMs > 0) startTimer = window.setTimeout(run, startDelayMs)
+          else run()
         }
       },
       { threshold: 0.35 },
@@ -184,8 +186,9 @@ function PriceText({ price }: { price: string }) {
     return () => {
       observer.disconnect()
       cancelAnimationFrame(raf)
+      if (startTimer) window.clearTimeout(startTimer)
     }
-  }, [prefix, price, suffix, target])
+  }, [prefix, price, startDelayMs, suffix, target])
 
   return <span ref={ref}>{value}</span>
 }
@@ -259,12 +262,23 @@ export function PackageCards({
 
           const selected = selectedIndex === index
 
+          // Round 12 A4.1 (3rd report): the gradient border + scale + pink shadow
+          // used to be hardcoded on the System card, so clicking Start/Scale
+          // changed state without any visible response. Emphasis is now driven
+          // ONLY by `selected`; the badge alone stays tied to System.
           return (
             <div
               key={`${item.title}-${index}-horizontal`}
-              data-reveal="scale"
+              data-reveal="pkg-card"
+              data-testid="package-card"
+              data-package-id={id}
+              data-selected={selected ? 'true' : 'false'}
               style={{ '--ri': index } as CSSProperties}
-              className={system ? 'rounded-[22px] bg-gradient-to-r from-primary via-tertiary to-secondary p-[2px] md:scale-[1.02]' : 'p-[2px]'}
+              className={[
+                'rounded-[22px] p-[2px] transition-[transform,box-shadow] duration-[250ms]',
+                system ? 'pkg-card-spring' : '',
+                selected ? 'bg-gradient-to-r from-primary via-tertiary to-secondary md:scale-[1.02]' : 'bg-transparent',
+              ].join(' ')}
             >
               <article
                 id={id}
@@ -275,9 +289,8 @@ export function PackageCards({
                 onKeyDown={(event) => handleKeyDown(event, index)}
                 className={[
                   // Round 8 A4.2: denser frost so text stays readable over the wave; emphasis by border, never by background.
-                  'glass-panel glass-panel--frost relative flex h-full cursor-pointer scroll-mt-32 flex-col p-6 outline-none transition duration-300 focus-visible:ring-2 focus-visible:ring-primary',
-                  system ? 'shadow-[0_24px_60px_-24px_rgba(219,39,119,0.55)]' : '',
-                  selected && !system ? 'ring-2 ring-primary/45' : '',
+                  'glass-panel glass-panel--frost relative flex h-full cursor-pointer scroll-mt-32 flex-col p-6 outline-none transition duration-[250ms] focus-visible:ring-2 focus-visible:ring-primary',
+                  selected ? 'shadow-[0_24px_60px_-24px_rgba(219,39,119,0.55)]' : '',
                   highlight ? 'is-anchor-highlighted' : '',
                 ].join(' ')}
               >
@@ -286,7 +299,9 @@ export function PackageCards({
                     {item.label || 'Most Popular'}
                   </span>
                 )}
-                <div className="flex items-center gap-3">
+                {/* Round 12 A3.3: internal cascade — each block carries --pi; CSS turns
+                    that into a 60ms/step transition-delay after the card reveals. */}
+                <div className="pkg-rv flex items-center gap-3" style={{ '--pi': 0 } as CSSProperties}>
                   <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.imageAlt || item.title} className="h-7 w-7 object-contain" />
@@ -296,17 +311,17 @@ export function PackageCards({
                   </span>
                   <h3 className="text-xl font-extrabold text-[#3d1226]">{item.title}</h3>
                 </div>
-                {subtitle && <p className="mt-3 text-sm font-semibold leading-relaxed text-[#7a5566]">{subtitle}</p>}
+                {subtitle && <p className="pkg-rv mt-3 text-sm font-semibold leading-relaxed text-[#7a5566]" style={{ '--pi': 1 } as CSSProperties}>{subtitle}</p>}
                 {metricRow && (
                   // Round 8 A4.2: solid chip — same style on all three cards, no gradient text.
-                  <span className="mt-4 w-fit rounded-full border border-[#F9C1D6] bg-[#FFF1F5] px-3 py-1.5 text-xs font-extrabold text-[#B3124B]">
+                  <span className="pkg-rv mt-4 w-fit rounded-full border border-[#F9C1D6] bg-[#FFF1F5] px-3 py-1.5 text-xs font-extrabold text-[#B3124B]" style={{ '--pi': 2 } as CSSProperties}>
                     {metricRow.text}
                   </span>
                 )}
                 {compactRows.length > 0 && (
                   <ul className="mt-4 grid gap-2">
                     {compactRows.map((row, rowIndex) => (
-                      <li key={`${item.title}-featured-${rowIndex}`} className="flex items-start gap-2 text-[13px] font-semibold leading-snug text-[#3d1226]">
+                      <li key={`${item.title}-featured-${rowIndex}`} className="pkg-rv flex items-start gap-2 text-[13px] font-semibold leading-snug text-[#3d1226]" style={{ '--pi': 3 + rowIndex } as CSSProperties}>
                         <Check size={15} strokeWidth={3} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
                         <span>{row.text}</span>
                       </li>
@@ -318,40 +333,45 @@ export function PackageCards({
                     type="button"
                     onClick={() => setExpandedIds((current) => ({ ...current, [id]: !current[id] }))}
                     aria-expanded={expanded}
-                    className="mt-3 inline-flex w-fit items-center gap-1 text-xs font-extrabold text-primary transition-colors hover:text-primary/70"
+                    style={{ '--pi': 3 + compactRows.length } as CSSProperties}
+                    className="pkg-rv mt-3 inline-flex w-fit items-center gap-1 text-xs font-extrabold text-primary transition-colors hover:text-primary/70"
                   >
                     {expanded ? 'Hide full deliverables' : 'See full deliverables'}
                     <ChevronDown size={14} strokeWidth={3} className={`transition-transform duration-[250ms] ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
                   </button>
                 )}
-                <div className={`grid transition-[grid-template-rows] duration-[250ms] ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className={`pkg-acc grid transition-[grid-template-rows] duration-[250ms] ${expanded ? 'is-open grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                   <div className="overflow-hidden">
                     <div className="mt-3 grid gap-3 rounded-2xl border border-white/70 bg-white/55 p-3.5">
-                      {groups.map((group) => (
-                        <div key={`${item.title}-group-${group.name}`}>
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary/80">{group.name}</p>
-                          <ul className="mt-1.5 grid gap-1.5">
-                            {group.rows.map((row, rowIndex) => (
-                              <li key={`${item.title}-${group.name}-${rowIndex}`} className="flex items-start gap-2 text-[12px] font-semibold leading-relaxed text-[#7a5566]">
-                                <Check size={13} strokeWidth={3} className="mt-0.5 shrink-0 text-primary/70" aria-hidden="true" />
-                                {row.text}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
+                      {(() => {
+                        let accRow = 0
+                        return groups.map((group) => (
+                          <div key={`${item.title}-group-${group.name}`}>
+                            <p className="pkg-acc-row text-[10px] font-black uppercase tracking-[0.14em] text-primary/80" style={{ '--pi': accRow++ } as CSSProperties}>{group.name}</p>
+                            <ul className="mt-1.5 grid gap-1.5">
+                              {group.rows.map((row, rowIndex) => (
+                                <li key={`${item.title}-${group.name}-${rowIndex}`} className="pkg-acc-row flex items-start gap-2 text-[12px] font-semibold leading-relaxed text-[#7a5566]" style={{ '--pi': accRow++ } as CSSProperties}>
+                                  <Check size={13} strokeWidth={3} className="mt-0.5 shrink-0 text-primary/70" aria-hidden="true" />
+                                  {row.text}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))
+                      })()}
                     </div>
                   </div>
                 </div>
                 {priceValue && (
-                  <div className="mt-5 rounded-2xl border border-primary/15 bg-[#FFF8F4] p-3.5">
+                  <div className="pkg-rv mt-5 rounded-2xl border border-primary/15 bg-[#FFF8F4] p-3.5" style={{ '--pi': 4 + compactRows.length } as CSSProperties}>
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7a5566]">{priceLabel}</p>
                     <p className="home-price-shimmer mt-1 text-2xl font-extrabold text-[#B3124B]">
-                      <PriceText price={priceValue} />
+                      {/* Round 12 A3.3: count-up waits for the price block's own slot in the cascade */}
+                      <PriceText price={priceValue} startDelayMs={index * 150 + 180 + (4 + compactRows.length) * 60} />
                     </p>
                   </div>
                 )}
-                <div className="mt-auto flex flex-col gap-2 pt-5">
+                <div className="pkg-rv mt-auto flex flex-col gap-2 pt-5" style={{ '--pi': 5 + compactRows.length } as CSSProperties}>
                   <button
                     type="button"
                     onClick={openBookingModal}

@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
+  Info,
   MessageCircle,
   Repeat2,
   Send,
@@ -15,7 +16,6 @@ import { BrandLayout } from '../components/BrandLayout'
 import { openBookingModal } from '../components/openBookingModal'
 import { PackageCards } from '../components/PackageCards'
 import { SeoHead } from '../components/SeoHead'
-import { useScrollReveal } from '../hooks/useScrollReveal'
 import { whenIntroGone } from '../hooks/useIntroGate'
 import { FlowWaveBackground } from '../components/FlowWaveBackground'
 import { HeroBackgroundVideo } from '../components/HeroBackgroundVideo'
@@ -51,25 +51,68 @@ function getStoryLogoForHome(story: Pick<CaseStudy, 'id' | 'logoUrl'>) {
   return story.logoUrl || storyLogoById[story.id] || '/avatars/logo-gg.png'
 }
 
+// Round 12 A2.3: word-by-word reveal for big headings/quotes ([data-reveal='words'] CSS)
+function RevealWords({ text }: { text: string }) {
+  const words = splitWords(text)
+  return (
+    <>
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true">
+        {words.map((word, index) => (
+          <span key={`${word}-${index}`} className="rw-word" style={{ '--wi': index } as CSSProperties}>
+            {word}
+            {index < words.length - 1 ? ' ' : ''}
+          </span>
+        ))}
+      </span>
+    </>
+  )
+}
+
 function SectionHeader({
   title,
   intro,
+  quote,
   dark = false,
   align = 'left',
+  perWord = false,
 }: {
   title: string
   intro?: string
+  quote?: string
   dark?: boolean
   align?: 'left' | 'center'
+  perWord?: boolean
 }) {
   const centered = align === 'center'
+  const titleWordCount = countStaggerWords(title)
+  const followDelayMs = perWord ? titleWordCount * 70 + 240 : 130
   return (
     <div className={`mb-8 max-w-3xl ${centered ? 'mx-auto text-center' : ''}`}>
-      <h2 data-reveal className={`text-[28px] md:text-[36px] font-extrabold leading-tight ${dark ? 'text-white' : 'text-on-surface'}`}>
-        {title}
+      <h2 data-reveal={perWord ? 'words' : 'true'} className={`text-[28px] md:text-[36px] font-extrabold leading-tight ${dark ? 'text-white' : 'text-on-surface'}`}>
+        {perWord ? <RevealWords text={title} /> : title}
       </h2>
       <div data-reveal="line" className={`home-gradient-underline mt-3 ${centered ? 'mx-auto' : ''}`} aria-hidden="true" />
-      {intro && <p className={`mt-4 text-[15px] md:text-base leading-relaxed ${dark ? 'text-white/65' : 'text-on-surface-variant'}`}>{intro}</p>}
+      {intro && (
+        <p
+          data-reveal="soft"
+          style={{ '--rd': `${followDelayMs}ms` } as CSSProperties}
+          className={`mt-4 text-[15px] md:text-base leading-relaxed ${dark ? 'text-white/65' : 'text-on-surface-variant'}`}
+        >
+          {intro}
+        </p>
+      )}
+      {quote && (
+        // Round 12 A5: editorial pull-quote — oversized gradient quote mark behind-left,
+        // hero-family serif italic, thin gradient underline. Text stays a CMS field.
+        <div className="people-quote mt-6" data-reveal="words" style={{ '--rd': `${followDelayMs}ms` } as CSSProperties}>
+          <span className="people-quote-mark" aria-hidden="true">&ldquo;</span>
+          <p className="people-quote-text text-[19px] italic leading-snug text-[#3d1226] md:text-[24px]">
+            <RevealWords text={quote} />
+          </p>
+          <div className="people-quote-underline" aria-hidden="true" />
+        </div>
+      )}
     </div>
   )
 }
@@ -391,7 +434,7 @@ function CaseStudyPreviewPopover({ story, lang }: { story: CaseStudy; lang: Bran
   )
 }
 
-function CaseStudyShowcase({ stories, lang }: { stories: CaseStudy[]; lang: BrandLang }) {
+function CaseStudyShowcase({ stories, lang, openingBaseMs = 0 }: { stories: CaseStudy[]; lang: BrandLang; openingBaseMs?: number }) {
   const railRef = useRef<HTMLDivElement | null>(null)
   const showcaseStories = getHomepageCaseStudies(stories)
   const [bannerIndex, setBannerIndex] = useState(0)
@@ -489,7 +532,10 @@ function CaseStudyShowcase({ stories, lang }: { stories: CaseStudy[]; lang: Bran
         style={{ background: 'linear-gradient(to bottom, rgba(255,182,170,0.55), transparent)' }}
       />
       <div className="relative mx-auto max-w-6xl">
-        <div className="relative" data-reveal="scale">
+        {/* Round 12 A2.2: the banner + thumbnail strip join the hero opening cascade —
+            banner +200ms after the CTA, then tiles left→right (80ms/tile). useScrollReveal
+            strips --rd outside the opening window (reload mid-page, scroll back). */}
+        <div className="relative" data-reveal="scale" data-reveal-open style={{ '--rd': `${openingBaseMs}ms` } as CSSProperties}>
           {/* Round 8 A2.1: ambient glow — a blurred copy of the active slide bleeds its colors into the wave */}
           <div aria-hidden="true" className="pointer-events-none absolute -inset-4 md:-inset-8">
             {showcaseStories.map((story, index) => {
@@ -578,7 +624,8 @@ function CaseStudyShowcase({ stories, lang }: { stories: CaseStudy[]; lang: Bran
                 type="button"
                 data-reveal="tile-in"
                 data-tile-direction={index % 2 ? 'right' : 'bottom'}
-                style={{ '--ri': index } as CSSProperties}
+                data-reveal-open
+                style={{ '--ri': index, '--rd': `${openingBaseMs + 320}ms` } as CSSProperties}
                 onMouseEnter={(event) => showPreview(story, event.currentTarget)}
                 onFocus={(event) => showPreview(story, event.currentTarget)}
                 onMouseLeave={closePreviewSoon}
@@ -901,7 +948,13 @@ function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
   return (
     <section className="section-pad px-5 lg:px-10" onMouseLeave={closeMemberPreviewSoon}>
       <div className="mx-auto max-w-6xl">
-        <SectionHeader title={block.heading || 'The One People'} intro={block.body} align="left" />
+        {/* Round 12 A5: the CMS body ("Teamwork makes the dream work.") renders as an editorial pull-quote */}
+        <SectionHeader
+          title={block.heading || 'The One People'}
+          quote={block.body?.trim().replace(/^["“‘']+/, '').replace(/["”’']+$/, '')}
+          align="left"
+          perWord
+        />
         <div data-reveal="scale" className="group relative aspect-[16/8] overflow-hidden rounded-[24px] bg-[#190b12] text-white shadow-[0_24px_70px_rgba(80,20,50,0.16)] ring-1 ring-white/70 md:aspect-[16/6]">
           <img
             src={cldWidth(activeBanner, 1280)}
@@ -1034,8 +1087,8 @@ function PeopleSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) {
           </div>
         )}
         <div className="mx-auto mt-16 max-w-3xl text-center">
-          <p className="home-people-closing-one text-[24px] italic leading-tight text-on-surface/85 md:text-[28px]">{closingLine1}</p>
-          <p className="home-people-closing-two mt-3 bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-[28px] font-semibold leading-tight text-transparent md:text-[44px]">
+          <p data-reveal="soft" className="home-people-closing-one text-[24px] italic leading-tight text-on-surface/85 md:text-[28px]">{closingLine1}</p>
+          <p data-reveal="soft" style={{ '--ri': 1 } as CSSProperties} className="home-people-closing-two mt-3 bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-[28px] font-semibold leading-tight text-transparent md:text-[44px]">
             {closingLine2}
           </p>
         </div>
@@ -1123,7 +1176,6 @@ export default function BrandHomePage({
   theOnePage?: CmsPageContent | null
   siteSettings?: CmsSiteSettings | null
 }) {
-  useScrollReveal()
   const [heroReady, setHeroReady] = useState(false)
 
   const c = compactHomeByLang[lang]
@@ -1262,7 +1314,7 @@ export default function BrandHomePage({
         </div>
       </section>
 
-      <CaseStudyShowcase stories={storyTargets} lang={lang} />
+      <CaseStudyShowcase stories={storyTargets} lang={lang} openingBaseMs={heroDelays.cta + 200} />
       <RedFlagsSection block={redFlagsBlock} />
 
       <section id="packages" className="section-pad px-5 lg:px-10">
@@ -1271,14 +1323,22 @@ export default function BrandHomePage({
             title={packagesBlock?.heading || 'The One Packages'}
             intro={packagesBlock?.body || (lang === 'vi' ? 'Chọn nhịp tăng trưởng phù hợp với giai đoạn của bạn.' : 'Choose the growth system that fits your stage.')}
             align="center"
+            perWord
           />
           <PackageCards items={packageItems} lang={lang} layout={packagesBlock?.layout === 'cards' ? 'cards' : 'horizontal'} />
           {(packagesBlock?.packagesNote?.trim() || packagesBlock?.pricingNote?.trim() || packagesBlock?.disclaimer?.trim()) && (
-            // Round 7 A4.4: one merged note, on a soft glass strip so it stays readable over the wave.
-            <p className="glass-panel mx-auto mt-8 max-w-[720px] whitespace-pre-line px-5 py-3.5 text-center text-[12px] italic leading-relaxed text-[#3d1226]/70 md:text-[13px]">
-              {packagesBlock.packagesNote?.trim() ||
-                [packagesBlock.pricingNote?.trim(), packagesBlock.disclaimer?.trim()].filter(Boolean).join('\n')}
-            </p>
+            // Round 12 A4.2: the single merged note (Round 8 rule) moves onto a dense glass
+            // card so it stays legible over the drifting wave blobs.
+            <div
+              data-reveal="soft"
+              className="mx-auto mt-8 flex max-w-[760px] items-start gap-2.5 rounded-[14px] border border-primary/[0.12] bg-white/85 px-6 py-[18px] shadow-[0_12px_34px_rgba(219,39,119,0.08)] backdrop-blur-[12px]"
+            >
+              <Info size={15} strokeWidth={2.5} className="mt-0.5 shrink-0 text-[#B3124B]" aria-hidden="true" />
+              <p className="whitespace-pre-line text-left text-[13px] italic leading-[1.6] text-[#6b4a58]">
+                {packagesBlock.packagesNote?.trim() ||
+                  [packagesBlock.pricingNote?.trim(), packagesBlock.disclaimer?.trim()].filter(Boolean).join('\n')}
+              </p>
+            </div>
           )}
         </div>
       </section>

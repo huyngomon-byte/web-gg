@@ -1,5 +1,6 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import { AtSign, Facebook, Instagram, MapPin, Music2 } from 'lucide-react'
 import { localizedPath, type BrandLang } from '../brandContent'
 import { getLocalizedSiteSettings } from '../cms/siteSettings'
@@ -58,12 +59,15 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
         />
       )}
       <div className="relative max-w-6xl mx-auto px-5 lg:px-10 pt-10 pb-8">
+        {/* Round 12 A2.4: footer joins the page cascade — serif line → button → columns L→R → bottom bar */}
         {footer.ctaHeading?.trim() && (
           <div className="mb-10 flex flex-col gap-5 border-b border-primary/10 pb-9 md:flex-row md:items-center md:justify-between">
-            <p className="font-serif text-[30px] leading-tight text-[#3d1226] md:text-[42px]">{footer.ctaHeading}</p>
+            <p data-reveal="soft" className="font-serif text-[30px] leading-tight text-[#3d1226] md:text-[42px]">{footer.ctaHeading}</p>
             <button
               type="button"
               onClick={openBookingModal}
+              data-reveal="soft"
+              style={{ '--ri': 1 } as CSSProperties}
               className="btn-shine cta-idle inline-flex w-fit shrink-0 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary px-6 py-3 text-sm font-extrabold text-white shadow-[0_16px_36px_rgba(219,39,119,0.24)] hover:opacity-95"
             >
               Schedule Our Date
@@ -71,7 +75,7 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
           </div>
         )}
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[2fr_1fr_1fr_1fr]">
-          <div>
+          <div data-reveal="soft" style={{ '--ri': 2 } as CSSProperties}>
             <div className="flex items-center gap-3 mb-3">
               {footer.logoSrc && <img src={footer.logoSrc === '/logo-gg.png' ? '/avatars/logo-gg.png' : footer.logoSrc} alt={footer.logoAlt || footer.brandName} className="h-12 w-auto flex-shrink-0" />}
               <div>
@@ -127,7 +131,7 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
           </div>
 
           <div className="grid grid-cols-2 gap-6 md:contents">
-            <div>
+            <div data-reveal="soft" style={{ '--ri': 3 } as CSSProperties}>
               {footer.solutionsHeading && (
                 <h2 className="font-bold text-[11px] uppercase tracking-widest text-primary mb-3">
                   {footer.solutionsHeading}
@@ -142,7 +146,7 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
               </ul>
             </div>
 
-            <div>
+            <div data-reveal="soft" style={{ '--ri': 4 } as CSSProperties}>
               {footer.navigationHeading && (
                 <h2 className="font-bold text-[11px] uppercase tracking-widest text-primary mb-3">
                   {footer.navigationHeading}
@@ -158,7 +162,7 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
             </div>
           </div>
 
-          <div className="hidden md:block">
+          <div data-reveal="soft" style={{ '--ri': 5 } as CSSProperties} className="hidden md:block">
             {footer.contactHeading && (
               <h2 className="font-bold text-[11px] uppercase tracking-widest text-primary mb-3">
                 {footer.contactHeading}
@@ -190,7 +194,7 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
       </div>
 
       <div className="border-t border-primary/10">
-        <div className="max-w-6xl mx-auto px-5 lg:px-10 py-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+        <div data-reveal="soft" style={{ '--ri': 6 } as CSSProperties} className="max-w-6xl mx-auto px-5 lg:px-10 py-4 flex flex-col sm:flex-row justify-between items-center gap-2">
           {footer.copyright && <p className="text-[11px] text-on-surface/45">{footer.copyright}</p>}
           {hasLegalLinks && (
             <div className="flex gap-5">

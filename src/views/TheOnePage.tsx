@@ -21,7 +21,6 @@ import { getLocalizedCmsBlock, getLocalizedPageMeta } from '../cms/contentBlocks
 import type { CmsPageContent, CmsSiteSettings } from '../cms/types'
 import { getOrderedCaseStudies } from '../data/caseStudyStories'
 import type { CaseStudy, CaseStudyMetric } from '../data/caseStudies'
-import { useScrollReveal } from '../hooks/useScrollReveal'
 import { BigStatTile, StoryMetricChart } from '../components/StoryMetricCharts'
 import { cldSrcSet, cldWidth } from '../lib/cloudinaryImage'
 
@@ -1025,7 +1024,6 @@ export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lan
   const storyIntro = heroBlock?.body?.trim()
   const finalCtaLabel = heroBlock?.ctaLabel?.trim() || 'How about our stories?'
 
-  useScrollReveal()
 
   useEffect(() => {
     const viewed = new Set<string>()

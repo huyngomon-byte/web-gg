@@ -11,7 +11,9 @@
    ============================================================ */
 :root {
   /* Round 8: one vertical rhythm for every homepage section */
-  --section-gap: clamp(48px, 8vh, 96px);
+  /* Round 12 A1: rem-only — vh made gaps balloon at browser zoom-out (vh stays
+     constant in physical px while content shrinks). Only the hero may use vh. */
+  --section-gap: clamp(3rem, 5rem, 6rem);
   --c-background: 255 247 250;
   --c-surface: 255 248 251;
   --c-surface-container-low: 255 241 246;
@@ -331,7 +333,8 @@
 [data-reveal][data-revealed] {
   opacity: 1;
   animation: rv-up 0.62s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  animation-delay: calc(var(--ri, 0) * 65ms);
+  /* Round 12 A2: --rd = orchestration base delay (opening cascade), --ri = stagger index */
+  animation-delay: calc(var(--rd, 0ms) + var(--ri, 0) * 65ms);
 }
 [data-reveal='left'].is-visible,
 [data-reveal='left'][data-revealed]   { animation-name: rv-left; }
@@ -354,7 +357,7 @@
 [data-reveal='tile-in'].is-visible,
 [data-reveal='tile-in'][data-revealed] {
   animation: rv-tile-in 0.44s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  animation-delay: calc(120ms + (var(--ri, 0) * 80ms));
+  animation-delay: calc(var(--rd, 120ms) + (var(--ri, 0) * 80ms));
 }
 [data-reveal='tile-in'][data-tile-direction='right'].is-visible,
 [data-reveal='tile-in'][data-tile-direction='right'][data-revealed] { animation-name: rv-tile-right; }
@@ -946,7 +949,7 @@
   [data-reveal].is-visible,
   [data-reveal][data-revealed] {
     animation-duration: 0.5s;
-    animation-delay: calc(var(--ri, 0) * 55ms);
+    animation-delay: calc(var(--rd, 0ms) + var(--ri, 0) * 55ms);
   }
 }
 @media (hover: none) {
@@ -1099,7 +1102,7 @@
 }
 
 .home-explore-grid {
-  min-height: min(74vh, 760px);
+  min-height: min(47.5rem, 760px);
   gap: 8px;
   padding: 8px;
 }
@@ -1143,7 +1146,7 @@
 
 @media (min-width: 768px) {
   .home-explore-grid {
-    min-height: min(64vh, 680px);
+    min-height: min(42.5rem, 680px);
   }
 
   .home-explore-tile {
@@ -2497,3 +2500,135 @@
   contain-intrinsic-size: auto 1250px;
 }
 
+
+/* ============================================================
+   Round 12 — full-page reveal orchestration (A2/A3/A5)
+   ============================================================ */
+
+/* A2.4: footer + light elements — gentle 12px fade-up, no 3D */
+@keyframes rv-soft {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+[data-reveal='soft'].is-visible,
+[data-reveal='soft'][data-revealed] {
+  animation: rv-soft 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--rd, 0ms) + var(--ri, 0) * 90ms);
+}
+
+/* A2.3/A5: per-word reveal for big section headings and the People pull-quote.
+   The container keeps the [data-reveal] opacity gate; each .rw-word animates
+   with its own delay once the container reveals. */
+[data-reveal='words'].is-visible,
+[data-reveal='words'][data-revealed] {
+  opacity: 1;
+  animation: none;
+}
+[data-reveal='words'] .rw-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(14px);
+}
+[data-reveal='words'].is-visible .rw-word,
+[data-reveal='words'][data-revealed] .rw-word {
+  animation: heroWordIn 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--rd, 0ms) + var(--wi, 0) * 70ms);
+}
+
+/* A3: package cards — outer stagger Start → System → Scale (150ms/card) */
+[data-reveal='pkg-card'].is-visible,
+[data-reveal='pkg-card'][data-revealed] {
+  opacity: 1;
+  animation: rv-pkg 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--rd, 0ms) + var(--ri, 0) * 150ms);
+}
+@keyframes rv-pkg {
+  from { opacity: 0; transform: translate3d(0, 26px, 0) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+/* "System vào cuối với spring nhẹ": the featured card lands with a soft overshoot */
+[data-reveal='pkg-card'].pkg-card-spring.is-visible,
+[data-reveal='pkg-card'].pkg-card-spring[data-revealed] {
+  animation-name: rv-pkg-spring;
+  animation-duration: 0.72s;
+  animation-timing-function: cubic-bezier(0.2, 1.25, 0.4, 1);
+}
+@keyframes rv-pkg-spring {
+  from { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.955); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* A3.3: in-card cascade — icon/name → subtitle → chip → feature rows → price → CTAs.
+   Pure CSS transitions keyed off the card's reveal class; per-item index --pi,
+   card offset inherited via --ri (150ms/card) so card 2/3 content waits its turn. */
+[data-reveal='pkg-card'] .pkg-rv {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(var(--ri, 0) * 150ms + 180ms + var(--pi, 0) * 60ms);
+}
+[data-reveal='pkg-card'].is-visible .pkg-rv,
+[data-reveal='pkg-card'][data-revealed] .pkg-rv {
+  opacity: 1;
+  transform: none;
+}
+
+/* A3.5: accordion rows fade in per line when the expander opens */
+.pkg-acc .pkg-acc-row {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 300ms ease, transform 300ms ease;
+  transition-delay: 0ms;
+}
+.pkg-acc.is-open .pkg-acc-row {
+  opacity: 1;
+  transform: none;
+  transition-delay: calc(var(--pi, 0) * 50ms);
+}
+
+/* A5: The One People pull-quote (editorial) */
+.people-quote {
+  position: relative;
+  padding-left: 34px;
+}
+.people-quote-mark {
+  position: absolute;
+  left: -6px;
+  top: -18px;
+  z-index: 0;
+  font-family: 'Instrument Serif', 'Fraunces', Georgia, serif;
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 700;
+  background: linear-gradient(120deg, #ff2e88, #ff9a3d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0.35;
+  pointer-events: none;
+}
+.people-quote-text {
+  position: relative;
+  z-index: 1;
+}
+.people-quote-underline {
+  margin-top: 12px;
+  height: 3px;
+  width: 40px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #ff2e88, #ff9a3d);
+}
+
+/* Reduced motion: R12 additions all collapse to static (matches global rule) */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal='words'] .rw-word,
+  [data-reveal='pkg-card'] .pkg-rv,
+  .pkg-acc .pkg-acc-row {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}

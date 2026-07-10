@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react'
+import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
 import { ArrowRight, Check, ChevronDown, Megaphone, Rocket, Workflow } from 'lucide-react'
 import { localizedPath, type BrandLang } from '../brandContent'
 import type { CmsBlockItem } from '../cms/types'
@@ -139,64 +139,43 @@ function isSystemPackage(item: CmsBlockItem, index: number) {
   return index === 1 || /system/i.test(item.title)
 }
 
-function PriceText({ price, startDelayMs = 0 }: { price: string; startDelayMs?: number }) {
-  const ref = useRef<HTMLSpanElement | null>(null)
-  const match = price.match(/^([^0-9]*)([\d,.]+)(.*)$/)
-  const prefix = match?.[1] ?? ''
-  const suffix = match?.[3] ?? ''
-  const target = match ? Number.parseFloat(match[2].replace(/,/g, '')) : Number.NaN
-  const [value, setValue] = useState(match && Number.isFinite(target) ? `${prefix}0${suffix}` : price)
-
-  useEffect(() => {
-    if (!match || !Number.isFinite(target)) {
-      setValue(price)
-      return
-    }
-
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (reduced || !('IntersectionObserver' in window)) {
-      setValue(`${prefix}${new Intl.NumberFormat('en-US').format(target)}${suffix}`)
-      return
-    }
-
-    const el = ref.current
-    if (!el) return
-    let raf = 0
-    let startTimer = 0
-    let started = false
-    const formatter = new Intl.NumberFormat('en-US')
-
-    const run = () => {
-      const start = performance.now()
-      const tick = (now: number) => {
-        const progress = Math.min(1, (now - start) / 1050)
-        const eased = 1 - Math.pow(1 - progress, 3)
-        setValue(`${prefix}${formatter.format(Math.round(target * eased))}${suffix}`)
-        if (progress < 1) raf = requestAnimationFrame(tick)
-      }
-      raf = requestAnimationFrame(tick)
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !started) {
-          started = true
-          observer.disconnect()
-          if (startDelayMs > 0) startTimer = window.setTimeout(run, startDelayMs)
-          else run()
-        }
-      },
-      { threshold: 0.35 },
-    )
-    observer.observe(el)
-    return () => {
-      observer.disconnect()
-      cancelAnimationFrame(raf)
-      if (startTimer) window.clearTimeout(startTimer)
-    }
-  }, [prefix, price, startDelayMs, suffix, target])
-
-  return <span ref={ref}>{value}</span>
+function PackageSelectionControl({
+  checked,
+  name,
+  packageId,
+  packageTitle,
+  onSelect,
+}: {
+  checked: boolean
+  name: string
+  packageId: string
+  packageTitle: string
+  onSelect: () => void
+}) {
+  return (
+    <label
+      className={[
+        'mt-4 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-colors',
+        checked
+          ? 'border-primary/45 bg-primary/10 text-primary'
+          : 'border-outline-variant/60 bg-white/45 text-on-surface-variant hover:border-primary/30 hover:bg-primary/5',
+      ].join(' ')}
+    >
+      <input
+        type="radio"
+        name={name}
+        value={packageId}
+        checked={checked}
+        onChange={onSelect}
+        aria-label={`Choose ${packageTitle} package`}
+        data-testid="package-radio"
+        className="h-5 w-5 shrink-0 cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      />
+      <span className="text-xs font-extrabold">
+        {checked ? 'Selected package' : 'Select this package'}
+      </span>
+    </label>
+  )
 }
 
 export function PackageCards({
@@ -211,6 +190,7 @@ export function PackageCards({
   layout?: 'cards' | 'horizontal'
 }) {
   const cardIds = useMemo(() => items.map(resolvePackageId), [items])
+  const radioGroupName = `package-selection-${useId().replace(/:/g, '')}`
   const systemIndex = Math.max(0, items.findIndex(isSystemPackage))
   const [selectedIndex, setSelectedIndex] = useState(systemIndex)
   const [highlightedId, setHighlightedId] = useState('')
@@ -238,24 +218,12 @@ export function PackageCards({
     return () => window.removeEventListener('hashchange', syncHash)
   }, [cardIds])
 
-  function handleCardClick(event: MouseEvent<HTMLElement>, index: number) {
-    const target = event.target as HTMLElement
-    if (target.closest('a,button')) return
-    setSelectedIndex(index)
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLElement>, index: number) {
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    event.preventDefault()
-    setSelectedIndex(index)
-  }
-
   if (layout === 'horizontal') {
     // Round 7 A4: compact "5-line" glass cards on the wave background —
     // icon + name · subtitle · content chip · max 4 featured rows · price · 2 CTAs,
     // with the full grouped deliverable list inside an in-card expander.
     return (
-      <div className={`grid items-stretch gap-5 md:grid-cols-3 ${className}`}>
+      <div role="radiogroup" aria-label="Choose a package" className={`grid items-stretch gap-5 lg:grid-cols-3 ${className}`}>
         {items.map((item, index) => {
           const { subtitle, features, priceLabel, priceValue } = getPackageContent(item)
           const { metricRow, compactRows, groups, totalRows } = organizePackageFeatures(features)
@@ -289,14 +257,9 @@ export function PackageCards({
             >
               <article
                 id={id}
-                tabIndex={0}
-                role="button"
-                aria-pressed={selected}
-                onClick={(event) => handleCardClick(event, index)}
-                onKeyDown={(event) => handleKeyDown(event, index)}
                 className={[
                   // Round 8 A4.2: denser frost so text stays readable over the wave; emphasis by border, never by background.
-                  'glass-panel glass-panel--frost relative flex h-full cursor-pointer scroll-mt-32 flex-col p-6 outline-none transition duration-[250ms] focus-visible:ring-2 focus-visible:ring-primary',
+                  'glass-panel glass-panel--frost relative flex h-full scroll-mt-32 flex-col p-6 transition duration-[250ms]',
                   selected ? 'shadow-[0_24px_60px_-24px_rgba(219,39,119,0.55)]' : '',
                   highlight ? 'is-anchor-highlighted' : '',
                 ].join(' ')}
@@ -319,6 +282,13 @@ export function PackageCards({
                   <h3 className="text-xl font-extrabold text-[#3d1226]">{item.title}</h3>
                 </div>
                 {subtitle && <p className="pkg-rv mt-3 text-sm font-semibold leading-relaxed text-[#7a5566]" style={{ '--pi': 1 } as CSSProperties}>{subtitle}</p>}
+                <PackageSelectionControl
+                  checked={selected}
+                  name={radioGroupName}
+                  packageId={id}
+                  packageTitle={item.title}
+                  onSelect={() => setSelectedIndex(index)}
+                />
                 {metricRow && (
                   // Round 8 A4.2: solid chip — same style on all three cards, no gradient text.
                   <span className="pkg-rv mt-4 w-fit rounded-full border border-[#F9C1D6] bg-[#FFF1F5] px-3 py-1.5 text-xs font-extrabold text-[#B3124B]" style={{ '--pi': 2 } as CSSProperties}>
@@ -326,7 +296,7 @@ export function PackageCards({
                   </span>
                 )}
                 {compactRows.length > 0 && (
-                  <ul className="mt-4 grid gap-2">
+                  <ul className="package-card-features mt-4 grid gap-2">
                     {compactRows.map((row, rowIndex) => (
                       <li key={`${item.title}-featured-${rowIndex}`} className="pkg-rv flex items-start gap-2 text-[13px] font-semibold leading-snug text-[#3d1226]" style={{ '--pi': 3 + rowIndex } as CSSProperties}>
                         <Check size={15} strokeWidth={3} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
@@ -341,13 +311,13 @@ export function PackageCards({
                     onClick={() => setExpandedIds((current) => ({ ...current, [id]: !current[id] }))}
                     aria-expanded={expanded}
                     style={{ '--pi': 3 + compactRows.length } as CSSProperties}
-                    className="pkg-rv mt-3 inline-flex w-fit items-center gap-1 text-xs font-extrabold text-primary transition-colors hover:text-primary/70"
+                    className="package-card-expander pkg-rv mt-3 inline-flex w-fit items-center gap-1 text-xs font-extrabold text-primary transition-colors hover:text-primary/70"
                   >
                     {expanded ? 'Hide full deliverables' : 'See full deliverables'}
                     <ChevronDown size={14} strokeWidth={3} className={`transition-transform duration-[250ms] ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
                   </button>
                 )}
-                <div className={`pkg-acc grid transition-[grid-template-rows] duration-[250ms] ${expanded ? 'is-open grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className={`package-card-details pkg-acc grid transition-[grid-template-rows] duration-[250ms] ${expanded ? 'is-open grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                   <div className="overflow-hidden">
                     <div className="mt-3 grid gap-3 rounded-2xl border border-white/70 bg-white/55 p-3.5">
                       {(() => {
@@ -370,15 +340,14 @@ export function PackageCards({
                   </div>
                 </div>
                 {priceValue && (
-                  <div className="pkg-rv mt-5 rounded-2xl border border-primary/15 bg-[#FFF8F4] p-3.5" style={{ '--pi': 4 + compactRows.length } as CSSProperties}>
+                  <div className="package-card-price pkg-rv mt-5 rounded-2xl border border-primary/15 bg-[#FFF8F4] p-3.5" style={{ '--pi': 4 + compactRows.length } as CSSProperties}>
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7a5566]">{priceLabel}</p>
                     <p className="home-price-shimmer mt-1 text-2xl font-extrabold text-[#B3124B]">
-                      {/* Round 12 A3.3: count-up waits for the price block's own slot in the cascade */}
-                      <PriceText price={priceValue} startDelayMs={index * 150 + 180 + (4 + compactRows.length) * 60} />
+                      {priceValue}
                     </p>
                   </div>
                 )}
-                <div className="pkg-rv mt-auto flex flex-col gap-2 pt-5" style={{ '--pi': 5 + compactRows.length } as CSSProperties}>
+                <div className="package-card-actions pkg-rv mt-auto flex flex-col gap-2 pt-5" style={{ '--pi': 5 + compactRows.length } as CSSProperties}>
                   <button
                     type="button"
                     onClick={openBookingModal}
@@ -405,7 +374,7 @@ export function PackageCards({
   }
 
   return (
-    <div className={`grid gap-5 md:grid-cols-3 ${className}`}>
+    <div role="radiogroup" aria-label="Choose a package" className={`grid gap-5 md:grid-cols-3 ${className}`}>
       {items.map((item, index) => {
         const { subtitle, features, priceLabel, priceValue } = getPackageContent(item)
         const selected = selectedIndex === index
@@ -427,13 +396,8 @@ export function PackageCards({
           >
           <article
             id={id}
-            tabIndex={0}
-            role="button"
-            aria-pressed={selected}
-            onClick={(event) => handleCardClick(event, index)}
-            onKeyDown={(event) => handleKeyDown(event, index)}
             className={[
-              'home-package-card package-card glass-card card-hover relative flex scroll-mt-32 flex-col overflow-hidden rounded-2xl p-6 outline-none transition duration-300 focus-visible:ring-2 focus-visible:ring-primary',
+              'home-package-card package-card glass-card card-hover relative flex scroll-mt-32 flex-col overflow-hidden rounded-2xl p-6 transition duration-300',
               selected ? 'is-selected' : '',
               system ? 'home-package-featured md:-translate-y-2' : '',
               highlight ? 'is-anchor-highlighted' : '',
@@ -453,6 +417,13 @@ export function PackageCards({
             </span>
             <h3 className="text-xl font-extrabold text-on-surface">{item.title}</h3>
             {subtitle && <p className="mt-3 text-sm font-semibold leading-relaxed text-on-surface-variant">{subtitle}</p>}
+            <PackageSelectionControl
+              checked={selected}
+              name={radioGroupName}
+              packageId={id}
+              packageTitle={item.title}
+              onSelect={() => setSelectedIndex(index)}
+            />
             {features.length > 0 && (
               <div className="mt-4 grid gap-2">
                 {features.map((feature, featureIndex) => (
@@ -467,7 +438,7 @@ export function PackageCards({
               <div className="mt-5 rounded-2xl border border-primary/20 bg-gradient-to-r from-white via-primary/5 to-secondary/10 p-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface-variant">{priceLabel}</p>
                 <p className="home-price-shimmer mt-1 text-lg font-black text-primary">
-                  <PriceText price={priceValue} />
+                  {priceValue}
                 </p>
               </div>
             )}

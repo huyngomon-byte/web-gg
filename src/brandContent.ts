@@ -14,12 +14,12 @@ export type PageMeta = {
 
 export type BrandLang = 'vi' | 'en'
 
-// The site is single-language (English at root); legacy /en URLs collapse onto root paths.
+// The site is single-language (English at root); legacy locale URLs collapse onto root paths.
 export function localizedPath(_lang: BrandLang, path: string) {
   const trimmed = path.trim() || '/'
   if (/^(https?:|mailto:|tel:)/i.test(trimmed) || trimmed.startsWith('#')) return trimmed
-  const withoutEnglishPrefix = trimmed.replace(/^\/en(?=\/|$)/, '')
-  return withoutEnglishPrefix || '/'
+  const withoutLocalePrefix = trimmed.replace(/^\/(?:en|vi|ko)(?=\/|$)/, '')
+  return withoutLocalePrefix || '/'
 }
 
 export const footerCopy = {
@@ -63,8 +63,10 @@ export const theOneMeta: PageMeta = {
 }
 
 export function absoluteUrl(path: string) {
-  if (path === '/') return `${siteUrl}/`
-  return `${siteUrl}${path}`
+  if (/^https?:\/\//i.test(path)) return path
+  const rootPath = localizedPath('en', path)
+  if (rootPath === '/') return `${siteUrl}/`
+  return `${siteUrl}${rootPath}`
 }
 
 export const organizationSchema = {
@@ -97,7 +99,7 @@ export const websiteSchema = {
   alternateName: ['GG99', 'The One', 'The One GG99'],
   url: `${siteUrl}/`,
   publisher: { '@id': `${siteUrl}/#organization` },
-  inLanguage: ['vi', 'en'],
+  inLanguage: 'en',
 }
 
 export const homeWebPageSchema = {
@@ -820,23 +822,20 @@ const packagePagesVi: Record<PackageKey, PackagePage> = {
 
 export const homeMetaByLang: Record<BrandLang, PageMeta> = {
   vi: homeMetaVi,
-  en: { ...homeMeta, path: '/en' },
+  en: homeMeta,
 }
 
 export const theOneMetaByLang: Record<BrandLang, PageMeta> = {
   vi: theOneMetaVi,
-  en: { ...theOneMeta, path: '/en/the-one' },
+  en: theOneMeta,
 }
 
 export const homeCopyByLang: Record<BrandLang, typeof homeCopy> = {
   vi: homeCopyVi,
   en: {
     ...homeCopy,
-    packages: homeCopy.packages.map((item) => ({ ...item, href: `/en${item.href}` })),
-    insights: homeCopy.insights.map((item) => ({
-      ...item,
-      href: item.href === '/the-one' ? '/en/the-one' : `/en${item.href}`,
-    })),
+    packages: homeCopy.packages.map((item) => ({ ...item })),
+    insights: homeCopy.insights.map((item) => ({ ...item })),
   },
 }
 
@@ -848,9 +847,9 @@ export const theOneSectionsByLang: Record<BrandLang, typeof theOneSections> = {
 export const packagePagesByLang: Record<BrandLang, Record<PackageKey, PackagePage>> = {
   vi: packagePagesVi,
   en: {
-    consultant: { ...packagePages.consultant, meta: { ...packagePages.consultant.meta, path: '/en/the-one-consultant' } },
-    agency: { ...packagePages.agency, meta: { ...packagePages.agency.meta, path: '/en/the-one-agency' } },
-    partner: { ...packagePages.partner, meta: { ...packagePages.partner.meta, path: '/en/the-one-partner' } },
+    consultant: { ...packagePages.consultant, meta: { ...packagePages.consultant.meta, path: '/the-one-start' } },
+    agency: { ...packagePages.agency, meta: { ...packagePages.agency.meta, path: '/the-one-system' } },
+    partner: { ...packagePages.partner, meta: { ...packagePages.partner.meta, path: '/the-one-scale' } },
   },
 }
 
@@ -961,7 +960,7 @@ export const compactTheOneByLang = {
     ],
   },
   en: {
-    meta: { ...theOneMeta, path: '/en/the-one' },
+    meta: theOneMeta,
     hero: {
       h1: 'What is The One?',
       lines: ['The One - GG99'],
@@ -973,7 +972,7 @@ export const compactTheOneByLang = {
       { title: 'One Digital Platform', text: 'Website, landing pages, CRM and automation are designed to work together instead of living in separate tools.' },
       { title: 'One Growth Engine', text: 'Performance marketing, data and growth operations help the system learn faster, optimize better and scale with control.' },
     ],
-    packages: compactHomeByLang.en.packages.map((item) => ({ ...item, href: `/en${item.href}` })),
+    packages: compactHomeByLang.en.packages.map((item) => ({ ...item })),
     faq: [
       { q: 'What is GG99?', a: 'The One - GG99 is The One growth partner for startups and SMEs.' },
       { q: 'What is The One?', a: 'The One is the slogan and core positioning of GG99: one growth partner connecting brand, website, CRM, automation and marketing.' },
@@ -1006,7 +1005,7 @@ export const theOneFaqSchemaByLang: Record<BrandLang, unknown> = {
   en: {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    '@id': `${siteUrl}/en/the-one#faq`,
+    '@id': `${siteUrl}/the-one#faq`,
     mainEntity: compactTheOneByLang.en.faq.map((item) => ({
       '@type': 'Question',
       name: item.q,
@@ -1032,7 +1031,7 @@ export const packagesMetaByLang: Record<BrandLang, PageMeta> = {
     title: 'The One Packages | GG99',
     description:
       'The One Packages by GG99 include The One Start, The One System and The One Scale for brand, website, CRM, automation and growth.',
-    path: '/en/packages',
+    path: '/packages',
     ogTitle: 'The One Packages | GG99',
     ogDescription: 'Choose the growth system that fits your stage.',
     ogImage: ogTheOneImagePath,
@@ -1184,7 +1183,7 @@ export const compactPackageByLang = {
         ...packagePages.consultant.meta,
         title: 'The One Start | GG99 Brand & Launch Foundation',
         description: 'The One Start is for brands that need clear identity, concise offer and a launch-ready website.',
-        path: '/en/the-one-start',
+        path: '/the-one-start',
         ogTitle: 'The One - GG99 | The One Start',
         ogDescription: 'The One Start is for brands that need clear identity, concise offer and a launch-ready website.',
       },
@@ -1214,7 +1213,7 @@ export const compactPackageByLang = {
         ...packagePages.agency.meta,
         title: 'The One System | GG99 Website, CRM & Automation',
         description: 'The One System is for teams that need website, CRM and automation working together.',
-        path: '/en/the-one-system',
+        path: '/the-one-system',
         ogTitle: 'The One - GG99 | The One System',
         ogDescription: 'The One System connects website, CRM, tracking and automation into one operating flow.',
       },
@@ -1245,7 +1244,7 @@ export const compactPackageByLang = {
         ...packagePages.partner.meta,
         title: 'The One Scale | GG99 Performance & Growth Operations',
         description: 'The One Scale is for businesses ready to scale with performance marketing and growth operations.',
-        path: '/en/the-one-scale',
+        path: '/the-one-scale',
         ogTitle: 'The One - GG99 | The One Scale',
         ogDescription: 'The One Scale helps businesses scale through performance marketing, data and growth operations.',
       },
@@ -1297,7 +1296,7 @@ export const aboutMetaByLang: Record<BrandLang, PageMeta> = {
     title: 'About The One - GG99',
     description:
       'The One - GG99 is a growth partner for brand, website, CRM, automation and performance marketing.',
-    path: '/en/about',
+    path: '/about',
     ogTitle: 'About The One - GG99',
     ogDescription:
       'GG99 is The One growth partner for startups and SMEs.',
@@ -1654,7 +1653,7 @@ export const insightsIndexSchema = {
   url: absoluteUrl('/insights'),
   description: insightsIndexMeta.description,
   publisher: { '@id': `${siteUrl}/#organization` },
-  inLanguage: 'vi',
+  inLanguage: 'en',
   blogPost: insightPosts.map((post) => ({
     '@type': 'BlogPosting',
     '@id': `${siteUrl}${post.path}#article`,
@@ -1688,7 +1687,7 @@ export const insightArticleSchemas = insightPosts.reduce(
       },
       publisher: { '@id': `${siteUrl}/#organization` },
       isPartOf: { '@id': `${siteUrl}/insights#blog` },
-      inLanguage: 'vi',
+      inLanguage: 'en',
       about: [
         'The One - GG99',
         'Brand',

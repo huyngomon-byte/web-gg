@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type TouchEvent } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowUp,
   Check,
@@ -12,7 +13,10 @@ import {
   Instagram,
   MoreHorizontal,
   Music2,
+  Pause,
+  Play,
   Plus,
+  X,
 } from 'lucide-react'
 import { compactTheOneByLang, organizationSchema, websiteSchema, type BrandLang } from '../brandContent'
 import { BrandLayout } from '../components/BrandLayout'
@@ -24,6 +28,7 @@ import { getOrderedCaseStudies } from '../data/caseStudyStories'
 import type { CaseStudy, CaseStudyMetric } from '../data/caseStudies'
 import { BigStatTile, StoryMetricChart } from '../components/StoryMetricCharts'
 import { cldSrcSet, cldWidth } from '../lib/cloudinaryImage'
+import { useReducedMotionPreference } from '../hooks/useReducedMotionPreference'
 
 type SocialKey = 'facebook' | 'instagram' | 'tiktok' | 'website'
 type MetricLayoutSlot = {
@@ -125,7 +130,9 @@ const storyThemesById: Record<string, { gradient: string; accent: string; accent
 }
 
 function getStoryLogo(story: CaseStudy) {
-  return story.logoUrl || storyLogoById[story.id] || '/avatars/logo-gg.png'
+  // The mapped assets are pre-sized for avatar use. Prefer them over raw CMS
+  // uploads, which can be several thousand pixels wide for an 88px slot.
+  return storyLogoById[story.id] || story.logoUrl || '/avatars/logo-gg.png'
 }
 
 // Round 11 P0-A: avatars display at 35-88px — w_96 (1x) / w_176 (2x) via srcset.
@@ -275,10 +282,18 @@ function StoryRing({
   onClick: (story: CaseStudy) => void
 }) {
   return (
-    <button type="button" onClick={() => onClick(story)} className="ig-story-button group text-center">
+    <a
+      href={`#${encodeURIComponent(story.id)}`}
+      onClick={(event) => {
+        event.preventDefault()
+        onClick(story)
+      }}
+      aria-label={`View ${getDisplayName(story)} case study`}
+      className="ig-story-button group text-center"
+    >
       <span className={`ig-story-ring mx-auto ${viewed ? 'is-viewed' : ''}`}>
         <span className="ig-story-ring-inner">
-          <img {...storyAvatarProps(story)} alt={getDisplayName(story)} className="h-full w-full rounded-full object-contain" decoding="async" />
+          <img {...storyAvatarProps(story)} alt="" className="h-full w-full rounded-full object-contain" decoding="async" />
         </span>
       </span>
       {!compact && (
@@ -286,7 +301,7 @@ function StoryRing({
           {getDisplayName(story)}
         </span>
       )}
-    </button>
+    </a>
   )
 }
 
@@ -328,7 +343,9 @@ function StoriesBar({
   return (
     <section className={`ig-stories-bar sticky z-30 border-y border-white/65 bg-white/[0.72] px-4 shadow-[0_14px_40px_rgba(219,39,119,0.08)] backdrop-blur-xl ${compact ? 'is-compact' : ''} ${mobile ? 'is-mobile' : ''}`}>
       <div className="mx-auto max-w-[900px]">
-        {!mobile && <h1 className="ig-stories-title ig-script-title text-center text-[46px] leading-none text-on-surface md:text-[58px]">{heading}</h1>}
+        <h1 className={mobile ? 'sr-only' : 'ig-stories-title ig-script-title text-center text-[46px] leading-none text-on-surface md:text-[58px]'}>
+          {heading}
+        </h1>
         <div className="ig-stories-row flex max-w-full gap-4 overflow-x-auto overscroll-x-contain pb-1">
           <YourStoryRing compact={compact} />
           {stories.map((story) => (
@@ -343,8 +360,11 @@ function StoriesBar({
 function PostMoreMenu({ story, onCopy }: { story: CaseStudy; onCopy: (story: CaseStudy) => void }) {
   return (
     <details className="group relative">
-      <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full text-on-surface transition-colors hover:bg-surface-container-low">
-        <MoreHorizontal size={20} />
+      <summary
+        aria-label={`More options for ${getDisplayName(story)}`}
+        className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full text-on-surface transition-colors hover:bg-surface-container-low"
+      >
+        <MoreHorizontal size={20} aria-hidden="true" />
       </summary>
       <button
         type="button"
@@ -357,9 +377,8 @@ function PostMoreMenu({ story, onCopy }: { story: CaseStudy; onCopy: (story: Cas
   )
 }
 
-// Round 9: every story post is a 4-slide Instagram-style carousel. Slide 1 tells the
-// story (summary glass + featured BigStats + swipe hint); slides 2-4 mix numbers and
-// self-drawn charts, each on one of the client's background images.
+// Each slide carries at most two unique metrics. This keeps every KPI readable on
+// narrow screens without relying on CSS to hide a third tile.
 type StorySlide = {
   image: string | null
   metrics: CaseStudyMetric[]
@@ -367,7 +386,7 @@ type StorySlide = {
   tileAnchor: StoryTileAnchor
 }
 
-const STORY_SLIDE_COUNT = 4
+const MAX_METRICS_PER_SLIDE = 2
 
 // Approximate zone each slide's tiles occupy (6x8 grid) — used for adaptive luminance.
 const storySlideTileZones: MetricLayoutSlot[] = [
@@ -375,6 +394,7 @@ const storySlideTileZones: MetricLayoutSlot[] = [
   { column: 4, row: 2, columnSpan: 3, rowSpan: 6 },
   { column: 1, row: 2, columnSpan: 3, rowSpan: 6 },
   { column: 4, row: 2, columnSpan: 3, rowSpan: 6 },
+  { column: 1, row: 2, columnSpan: 3, rowSpan: 6 },
 ]
 
 const storyTileAnchors: StoryTileAnchor[] = ['left-stack', 'right-stack', 'top-band', 'split-diagonal', 'center-low']
@@ -389,37 +409,43 @@ function buildStorySlides(story: CaseStudy): StorySlide[] {
   const images = carouselImagesForStory(story)
   const metrics = story.keyMetrics.filter((metric) => metric.value.trim() || metric.label.trim())
   const featured = metrics.filter((metric) => metric.featured).slice(0, 2)
-  const perSlide: CaseStudyMetric[][] = [[...featured], [], [], []]
+  const heroMetrics = featured.length ? featured : metrics.slice(0, MAX_METRICS_PER_SLIDE)
+  const chartSlides: CaseStudyMetric[][] = []
   const unassigned: CaseStudyMetric[] = []
 
   for (const metric of metrics) {
-    if (featured.includes(metric)) continue
-    const slide = metric.slide && metric.slide >= 1 && metric.slide <= STORY_SLIDE_COUNT ? metric.slide : null
-    if (slide === 1) {
-      if (perSlide[0].length < 3) perSlide[0].push(metric)
-      else unassigned.push(metric)
-      continue
-    }
-    if (slide) {
-      perSlide[slide - 1].push(metric)
+    if (heroMetrics.includes(metric)) continue
+    const preferredChartIndex = metric.slide && metric.slide > 1 ? metric.slide - 2 : null
+    if (preferredChartIndex !== null) {
+      while (chartSlides.length <= preferredChartIndex) chartSlides.push([])
+      if (chartSlides[preferredChartIndex].length < MAX_METRICS_PER_SLIDE) {
+        chartSlides[preferredChartIndex].push(metric)
+      } else {
+        unassigned.push(metric)
+      }
       continue
     }
     unassigned.push(metric)
   }
 
-  // Fallback (metric without a slide): drop into the chart slide with the fewest tiles.
+  // Metrics without a CMS slide, and overflow from a populated CMS slide, fill the
+  // first available two-tile chart slide. Nothing is sliced or discarded.
   for (const metric of unassigned) {
-    let target = 1
-    for (let slideIndex = 2; slideIndex < STORY_SLIDE_COUNT; slideIndex += 1) {
-      if (perSlide[slideIndex].length < perSlide[target].length) target = slideIndex
+    let target = chartSlides.findIndex((slideMetrics) => slideMetrics.length < MAX_METRICS_PER_SLIDE)
+    if (target < 0) {
+      target = chartSlides.length
+      chartSlides.push([])
     }
-    perSlide[target].push(metric)
+    chartSlides[target].push(metric)
   }
 
+  const perSlide = [heroMetrics, ...chartSlides.filter((slideMetrics) => slideMetrics.length > 0)]
+  if (!perSlide.length) perSlide.push([])
+
   return perSlide.map((slideMetrics, slideIndex) => ({
-    // <4 images: repeat the last one; none at all: brand gradient background.
+    // When there are fewer images than data slides, repeat the final supplied image.
     image: images[slideIndex] ?? images[images.length - 1] ?? null,
-    metrics: slideMetrics.slice(0, 3),
+    metrics: slideMetrics,
     isHero: slideIndex === 0,
     tileAnchor: resolveSlideTileAnchor(slideMetrics, slideIndex),
   }))
@@ -443,7 +469,9 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
   const [reducedMotion, setReducedMotion] = useState(false)
   const [canHover, setCanHover] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const [focusWithin, setFocusWithin] = useState(false)
   const [interacted, setInteracted] = useState(false)
+  const [manuallyPaused, setManuallyPaused] = useState(false)
   const [pausedUntil, setPausedUntil] = useState(0)
   const [summaryExpanded, setSummaryExpanded] = useState(false)
   const [summaryNeedsMore, setSummaryNeedsMore] = useState(false)
@@ -496,14 +524,23 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
 
   // Auto-advance every 5s while visible; posts are phase-shifted so the feed doesn't tick in unison.
   useEffect(() => {
-    if (slideCount <= 1 || !inView || !pageVisible || reducedMotion || summaryExpanded || (canHover && hovered)) return
+    if (
+      slideCount <= 1
+      || !inView
+      || !pageVisible
+      || reducedMotion
+      || summaryExpanded
+      || manuallyPaused
+      || focusWithin
+      || (canHover && hovered)
+    ) return
     const wait = Math.max(initialDelayRef.current, pausedUntil - Date.now())
     const timer = window.setTimeout(() => {
       initialDelayRef.current = 5000
       setActiveSlide((current) => (current + 1) % slideCount)
     }, wait)
     return () => window.clearTimeout(timer)
-  }, [activeSlide, canHover, hovered, inView, pausedUntil, reducedMotion, slideCount, summaryExpanded])
+  }, [activeSlide, canHover, focusWithin, hovered, inView, manuallyPaused, pageVisible, pausedUntil, reducedMotion, slideCount, summaryExpanded])
 
   // Round 11 P0-C: adaptive tones resolve once per post during idle time from the
   // w_64 thumbnail cache. Slide changes never trigger decode or pixel sampling.
@@ -544,6 +581,8 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
   useEffect(() => {
     if (!summaryExpanded) return
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     window.setTimeout(() => summaryCloseRef.current?.focus(), 0)
 
     function onKeyDown(event: KeyboardEvent) {
@@ -571,6 +610,7 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
       previousFocus?.focus()
     }
   }, [summaryExpanded])
@@ -583,18 +623,21 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
   function goTo(delta: number) {
     if (slideCount <= 1) return
     setInteracted(true)
+    setManuallyPaused(true)
     pauseAuto(canHover ? 3000 : 6000)
     setActiveSlide((current) => Math.max(0, Math.min(slideCount - 1, current + delta)))
   }
 
   function goToSlide(slideIndex: number) {
     setInteracted(true)
+    setManuallyPaused(true)
     pauseAuto(canHover ? 3000 : 6000)
     setActiveSlide(Math.max(0, Math.min(slideCount - 1, slideIndex)))
   }
 
   function openSummarySheet() {
     pauseAuto(8000)
+    setManuallyPaused(true)
     setSummaryExpanded(true)
   }
 
@@ -606,6 +649,8 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
     touchStartX.current = event.touches[0]?.clientX ?? 0
     touchStartY.current = event.touches[0]?.clientY ?? 0
     pauseAuto(6000)
+    setInteracted(true)
+    setManuallyPaused(true)
   }
 
   function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
@@ -657,6 +702,10 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onKeyDown={handleKeyDown}
+      onFocusCapture={() => setFocusWithin(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusWithin(false)
+      }}
     >
       <div
         className="story-slide-track absolute inset-0 flex transition-transform duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
@@ -676,10 +725,10 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
             >
               {slide.image && nearActive ? (
                 <img
-                  /* Round 11 role table: feed column ~630px → w_720 (1x) / w_1440 (2x) */
-                  src={cldWidth(slide.image, 720)}
-                  srcSet={cldSrcSet(slide.image, [720, 1440])}
-                  sizes="(min-width: 900px) 630px, 100vw"
+                  /* The feed reaches 860px; 960/1920 delivery stays sharp at DPR 2. */
+                  src={cldWidth(slide.image, 960)}
+                  srcSet={cldSrcSet(slide.image, [960, 1920])}
+                  sizes="(min-width: 900px) 860px, (min-width: 640px) calc(100vw - 40px), calc(100vw - 24px)"
                   alt=""
                   crossOrigin="anonymous"
                   className="absolute inset-0 h-full w-full object-cover"
@@ -743,9 +792,26 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
       </div>
 
       {slideCount > 1 && (
-        <span className="absolute right-3 top-3 z-30 rounded-full bg-black/55 px-2.5 py-1 text-xs font-extrabold text-white">
-          {activeSlide + 1}/{slideCount}
-        </span>
+        <div className="story-carousel-status absolute right-3 top-3 z-30 flex items-center gap-2">
+          <span className="rounded-full bg-black/55 px-2.5 py-1 text-xs font-extrabold text-white" aria-hidden="true">
+            {activeSlide + 1}/{slideCount}
+          </span>
+          <button
+            type="button"
+            disabled={reducedMotion}
+            aria-pressed={manuallyPaused}
+            aria-label={reducedMotion ? 'Carousel autoplay is disabled by reduced-motion settings' : manuallyPaused ? 'Play carousel' : 'Pause carousel'}
+            className="story-carousel-toggle inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              setInteracted(true)
+              setManuallyPaused((current) => !current)
+            }}
+          >
+            {manuallyPaused || reducedMotion ? <Play size={17} aria-hidden="true" /> : <Pause size={17} aria-hidden="true" />}
+          </button>
+        </div>
       )}
 
       {showHint && (
@@ -787,14 +853,16 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
       <div className="absolute inset-x-0 bottom-0 z-30 flex px-3.5 pb-3.5">
         <button
           type="button"
-          onClick={() => openBookingModal('story-media')}
+          onClick={openSummarySheet}
+          aria-haspopup="dialog"
+          aria-controls={summarySheetId}
           className="about-story-btn"
         >
           About this story
         </button>
       </div>
 
-      {summaryExpanded && (
+      {summaryExpanded && typeof document !== 'undefined' && createPortal(
         <div
           className="story-summary-sheet-backdrop"
           onMouseDown={(event) => {
@@ -806,42 +874,110 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
             ref={summarySheetRef}
             role="dialog"
             aria-modal="true"
-            aria-label={`${getDisplayName(story)} full summary`}
+            aria-labelledby={`${summarySheetId}-title`}
+            aria-describedby={`${summarySheetId}-description`}
+            data-testid="story-detail-dialog"
             className="story-summary-sheet"
           >
             <button
               type="button"
               ref={summaryCloseRef}
               className="story-summary-sheet-close"
-              aria-label="Close summary"
+              aria-label={`Close ${getDisplayName(story)} case study details`}
               onClick={closeSummarySheet}
             >
-              &times;
+              <X size={22} aria-hidden="true" />
             </button>
             <span className="story-summary-sheet-kicker">{story.category}</span>
-            <p>{story.shortDescription}</p>
+            <h3 id={`${summarySheetId}-title`} className="story-detail-title pr-12 text-2xl font-extrabold leading-tight">
+              {getDisplayName(story)} case study
+            </h3>
+            <p id={`${summarySheetId}-description`} className="mt-3">{story.shortDescription}</p>
             <div className="story-summary-sheet-tags" aria-label="Services">
               {story.services.map((service) => (
                 <span key={`${story.id}-sheet-${service}`}>{service}</span>
               ))}
             </div>
+
+            <div className="story-detail-sections mt-6 grid gap-5">
+              {story.storyDetail.challenge && (
+                <section>
+                  <h4 className="text-sm font-extrabold uppercase tracking-[0.08em]">Challenge</h4>
+                  <p className="mt-2">{story.storyDetail.challenge}</p>
+                </section>
+              )}
+              {story.storyDetail.solution && (
+                <section>
+                  <h4 className="text-sm font-extrabold uppercase tracking-[0.08em]">Solution</h4>
+                  <p className="mt-2">{story.storyDetail.solution}</p>
+                </section>
+              )}
+              {story.storyDetail.result && (
+                <section>
+                  <h4 className="text-sm font-extrabold uppercase tracking-[0.08em]">Result</h4>
+                  <p className="mt-2">{story.storyDetail.result}</p>
+                </section>
+              )}
+            </div>
+
+            {story.keyMetrics.some((metric) => metric.value.trim() || metric.label.trim()) && (
+              <section className="story-detail-metrics mt-6" aria-labelledby={`${summarySheetId}-metrics-title`}>
+                <h4 id={`${summarySheetId}-metrics-title`} className="text-sm font-extrabold uppercase tracking-[0.08em]">Full results</h4>
+                <dl className="mt-3 grid grid-cols-2 gap-3" data-testid="story-detail-metrics">
+                  {story.keyMetrics.filter((metric) => metric.value.trim() || metric.label.trim()).map((metric, metricIndex) => (
+                    <div key={`${story.id}-detail-metric-${metricIndex}`} className="story-detail-metric flex flex-col rounded-2xl border border-white/20 bg-white/10 p-3">
+                      <dt className="order-2 mt-1 text-xs font-bold leading-snug text-white/80">{metric.label}</dt>
+                      <dd className="order-1 text-xl font-extrabold">{metric.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
+
+            {story.testimonialQuote && (
+              <figure className="story-detail-testimonial mt-6 rounded-2xl border border-white/20 bg-white/10 p-4">
+                <blockquote className="font-semibold italic">“{story.testimonialQuote}”</blockquote>
+                {(story.testimonialAuthor || story.testimonialRole) && (
+                  <figcaption className="mt-2 text-xs font-extrabold uppercase tracking-[0.08em] text-white/75">
+                    {story.testimonialAuthor}{story.testimonialRole ? `, ${story.testimonialRole}` : ''}
+                  </figcaption>
+                )}
+              </figure>
+            )}
+
+            <button
+              type="button"
+              className="story-detail-booking-cta mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-extrabold text-white"
+              onClick={() => {
+                closeSummarySheet()
+                window.setTimeout(() => openBookingModal(`story-detail-${story.id}`), 0)
+              }}
+            >
+              Book a consultation
+            </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
 
     {slideCount > 1 && (
-      <div className="story-carousel-dots mt-2.5 flex justify-center gap-1.5" role="tablist" aria-label="Slides">
+      <div className="story-carousel-dots mt-2.5 flex justify-center" role="group" aria-label={`${getDisplayName(story)} carousel slides`}>
+        <span className="sr-only" aria-live="polite">Slide {activeSlide + 1} of {slideCount}</span>
         {slides.map((_, slideIndex) => (
           <button
             type="button"
             key={`${story.id}-dot-${slideIndex}`}
-            role="tab"
-            aria-selected={slideIndex === activeSlide}
-            aria-label={`Go to slide ${slideIndex + 1}`}
+            aria-pressed={slideIndex === activeSlide}
+            aria-label={`Show slide ${slideIndex + 1} of ${slideCount}`}
             onClick={() => goToSlide(slideIndex)}
-            className={`story-carousel-dot h-1.5 w-1.5 rounded-full transition-all duration-300 ${slideIndex === activeSlide ? 'scale-125 bg-[#FF2E88]' : 'bg-[#3d1226]/30'}`}
-          />
+            className="story-carousel-dot inline-flex h-11 w-11 items-center justify-center rounded-full"
+          >
+            <span
+              aria-hidden="true"
+              className={`story-carousel-dot-indicator h-1.5 w-1.5 rounded-full transition-all duration-300 ${slideIndex === activeSlide ? 'scale-125 bg-[#FF2E88]' : 'bg-[#3d1226]/30'}`}
+            />
+          </button>
         ))}
       </div>
     )}
@@ -850,33 +986,44 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
 }
 
 
+function normalizeSocialUrl(value: string | undefined) {
+  let candidate = value?.trim() || ''
+  if (/^ttps:\/\//i.test(candidate)) candidate = `h${candidate}`
+  if (/^www\./i.test(candidate)) candidate = `https://${candidate}`
+  if (!candidate) return ''
+  try {
+    const url = new URL(candidate)
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : ''
+  } catch {
+    return ''
+  }
+}
+
 function PostSocialLinks({ story }: { story: CaseStudy }) {
-  const links = socialPlatforms.map((platform) => ({ ...platform, href: story.socialLinks?.[platform.key]?.trim() || '' }))
+  const links = socialPlatforms
+    .map((platform) => ({ ...platform, href: normalizeSocialUrl(story.socialLinks?.[platform.key]) }))
+    .filter((link) => Boolean(link.href))
   const websiteLink = links.find((link) => link.key === 'website')
   const actionLinks = links.filter((link) => link.key !== 'website')
 
   function renderSocialAction({ key, label, href, Icon }: (typeof links)[number], extraClass = '') {
-    const className = `story-social-icon inline-flex h-8 w-8 items-center justify-center text-[#262626] transition hover:scale-[1.15] hover:text-primary ${extraClass}`
-    if (href) {
-      return (
-        <a key={key} href={href} target="_blank" rel="noreferrer" aria-label={label} title={label} className={className}>
-          <Icon size={24} strokeWidth={2.1} />
-        </a>
-      )
-    }
+    const className = `story-social-icon inline-flex h-11 w-11 items-center justify-center text-[#262626] transition hover:scale-[1.15] hover:text-primary ${extraClass}`
     return (
-      <button
+      <a
         key={key}
-        type="button"
-        onClick={() => openBookingModal('social-missing')}
-        aria-label={`${label} link pending - open booking`}
-        title={`${label} link pending`}
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`${getDisplayName(story)} on ${label}`}
+        title={`${getDisplayName(story)} on ${label}`}
         className={className}
       >
-        <Icon size={24} strokeWidth={2.1} />
-      </button>
+        <Icon size={24} strokeWidth={2.1} aria-hidden="true" />
+      </a>
     )
   }
+
+  if (!links.length) return null
 
   return (
     <div className="story-social-row flex w-full items-center gap-4">
@@ -905,14 +1052,21 @@ function InstagramPost({
     <div data-reveal="scale" style={{ '--ri': index } as CSSProperties}>
     <article
       id={story.id}
+      tabIndex={-1}
+      aria-labelledby={`${story.id}-title`}
       className={`story-post w-full max-w-full overflow-hidden rounded-[28px] border bg-white shadow-[0_24px_70px_rgba(219,39,119,0.12)] transition duration-500 ${highlighted ? 'is-highlighted' : ''}`}
     >
       <header className="flex items-center gap-3 border-b border-outline-variant/35 px-4 py-3">
-        <img {...storyAvatarProps(story)} alt={getDisplayName(story)} className="h-11 w-11 rounded-full border border-outline-variant/45 object-contain" loading="lazy" decoding="async" />
+        <img {...storyAvatarProps(story)} alt="" className="h-11 w-11 rounded-full border border-outline-variant/45 object-contain" loading="lazy" decoding="async" />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
-            <p className="truncate text-sm font-extrabold text-on-surface">{getAccountName(story)}</p>
-            {story.verified && <Check size={14} className="rounded-full bg-primary p-0.5 text-white" />}
+            <h2 id={`${story.id}-title`} className="truncate text-sm font-extrabold text-on-surface">{getAccountName(story)}</h2>
+            {story.verified && (
+              <>
+                <Check size={14} className="rounded-full bg-primary p-0.5 text-white" aria-hidden="true" />
+                <span className="sr-only">Verified account</span>
+              </>
+            )}
             <span className="text-xs font-bold text-on-surface-variant">.</span>
             <span className="truncate text-xs font-bold text-on-surface-variant">{story.period}</span>
           </div>
@@ -1026,6 +1180,7 @@ function FinalStoryCta({ label }: { label: string }) {
 
 export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lang?: BrandLang; cmsPage?: CmsPageContent | null; siteSettings?: CmsSiteSettings | null }) {
   const c = compactTheOneByLang[lang]
+  const reducedMotion = useReducedMotionPreference()
   const heroBlock = getLocalizedCmsBlock(cmsPage, 'hero', lang)
   const storiesBlock = getLocalizedCmsBlock(cmsPage, 'stories', lang)
   const storiesOrderKey = JSON.stringify(storiesBlock?.items ?? [])
@@ -1130,7 +1285,10 @@ export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lan
       const id = decodeURIComponent(window.location.hash.slice(1))
       if (!id) return
       window.setTimeout(() => {
-        document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+        const target = document.getElementById(id)
+        const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+        target?.scrollIntoView({ block: 'start', behavior })
+        target?.focus({ preventScroll: true })
         setHighlightedId(id)
         window.setTimeout(() => setHighlightedId(''), 1200)
       }, 120)
@@ -1144,7 +1302,9 @@ export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lan
     window.sessionStorage.setItem(storyStorageKey(story.id), '1')
     setViewedStories((current) => new Set(current).add(story.id))
     window.history.replaceState(null, '', `#${encodeURIComponent(story.id)}`)
-    document.getElementById(story.id)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    const target = document.getElementById(story.id)
+    target?.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'auto' : 'smooth' })
+    target?.focus({ preventScroll: true })
     setHighlightedId(story.id)
     window.setTimeout(() => setHighlightedId(''), 1200)
   }
@@ -1188,7 +1348,7 @@ export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lan
         )}
 
         <section className="mx-auto mt-8 grid w-full max-w-[1180px] min-w-0 grid-cols-[minmax(0,1fr)] gap-8 px-3 sm:px-5 xl:grid-cols-[minmax(0,860px)_280px]">
-          <div className="mx-auto grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] gap-7 sm:max-w-[860px]">
+          <div className="mx-auto grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] gap-7 md:max-w-[640px] lg:max-w-[660px] xl:max-w-[828px]">
             {orderedCaseStudies.map((story, index) => (
               <InstagramPost
                 key={story.id}
@@ -1206,7 +1366,12 @@ export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lan
       </article>
 
       {toast && (
-        <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full bg-on-surface px-4 py-2 text-sm font-bold text-white shadow-xl">
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full bg-on-surface px-4 py-2 text-sm font-bold text-white shadow-xl"
+        >
           {toast}
         </div>
       )}

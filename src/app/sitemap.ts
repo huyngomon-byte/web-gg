@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { contactMeta, servicesMeta, siteUrl } from '../brandContent'
+import { contactMeta, localizedPath, servicesMeta, siteUrl } from '../brandContent'
 import { listServerCmsInsights, listServerCmsPages } from '../cms/serverRepository'
 
 const staticPaths = [
@@ -13,14 +13,13 @@ const staticPaths = [
   '/the-one-system',
   '/the-one-scale',
   '/about',
-  '/ko',
   '/chinh-sach-bao-mat',
   '/dieu-khoan-dich-vu',
 ]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [pages, insights] = await Promise.all([listServerCmsPages(), listServerCmsInsights()])
-  const cmsPaths = pages.map((page) => page.meta.path).filter(Boolean)
+  const cmsPaths = pages.map((page) => localizedPath('en', page.meta.path)).filter(Boolean)
   const insightPaths = insights.map((post) => `/insights/${post.slug}`)
   const paths = Array.from(new Set([...staticPaths, '/insights', ...cmsPaths, ...insightPaths]))
 
@@ -30,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     new Date().toISOString()
 
   return paths.map((path) => {
-    const matchingPage = pages.find((page) => page.meta.path === path)
+    const matchingPage = pages.find((page) => localizedPath('en', page.meta.path) === path)
     const matchingInsight = insights.find((post) => `/insights/${post.slug}` === path)
     const priority =
       path === '/'

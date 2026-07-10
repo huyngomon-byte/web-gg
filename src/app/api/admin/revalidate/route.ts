@@ -1,43 +1,43 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getAdminEmails } from '../../../../cms/firebaseClient'
-import { getFirebaseAdminAuth, isFirebaseAdminConfigured } from '../../../../cms/firebaseAdmin'
+import { authenticateAdminRequest } from '../../../../cms/adminAuth'
+import { checkRateLimit, rateLimitResponse } from '../../../../security/serverRateLimit'
+
+const MAX_REQUEST_BYTES = 8_192
+
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
+}
 
 export async function POST(request: NextRequest) {
-  if (!isFirebaseAdminConfigured()) {
-    return NextResponse.json({ ok: false, error: 'Firebase admin chưa được cấu hình trên server.' }, { status: 503 })
+  const rateLimit = await checkRateLimit(request, { scope: 'admin-revalidate', limit: 30, windowSeconds: 60 })
+  if (!rateLimit.allowed) return rateLimitResponse(rateLimit)
+  const authentication = await authenticateAdminRequest(request)
+  if (!authentication.ok) return authentication.response
+
+  if (!(request.headers.get('content-type') ?? '').includes('application/json')) {
+    return jsonResponse({ ok: false, error: 'Content-Type must be application/json.' }, 415)
   }
 
-  const authHeader = request.headers.get('authorization') ?? ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : ''
-  if (!token) {
-    return NextResponse.json({ ok: false, error: 'Thiếu token đăng nhập.' }, { status: 401 })
+  const contentLength = Number(request.headers.get('content-length') ?? 0)
+  if (contentLength > MAX_REQUEST_BYTES) return jsonResponse({ ok: false, error: 'Request body is too large.' }, 413)
+  const rawBody = await request.text()
+  if (Buffer.byteLength(rawBody, 'utf8') > MAX_REQUEST_BYTES) {
+    return jsonResponse({ ok: false, error: 'Request body is too large.' }, 413)
   }
-
-  const auth = await getFirebaseAdminAuth()
-  if (!auth) {
-    return NextResponse.json({ ok: false, error: 'Firebase admin chưa được cấu hình trên server.' }, { status: 503 })
-  }
-
-  let email = ''
+  let body: { paths?: unknown } = {}
   try {
-    const decoded = await auth.verifyIdToken(token)
-    email = (decoded.email ?? '').toLowerCase()
+    body = JSON.parse(rawBody) as { paths?: unknown }
   } catch {
-    return NextResponse.json({ ok: false, error: 'Token không hợp lệ.' }, { status: 401 })
+    return jsonResponse({ ok: false, error: 'The revalidation request is invalid.' }, 400)
   }
-
-  const adminEmails = getAdminEmails()
-  if (!email || !adminEmails.includes(email)) {
-    return NextResponse.json({ ok: false, error: 'Tài khoản không có quyền admin.' }, { status: 403 })
-  }
-
-  const body = (await request.json().catch(() => ({}))) as { paths?: unknown }
   const paths = Array.isArray(body.paths)
-    ? body.paths.filter((path): path is string => typeof path === 'string' && path.startsWith('/')).slice(0, 80)
+    ? body.paths
+        .filter((path): path is string => typeof path === 'string' && /^\/(?!\/).{0,255}$/.test(path))
+        .slice(0, 40)
     : []
 
   for (const path of paths) revalidatePath(path)
 
-  return NextResponse.json({ ok: true, paths })
+  return jsonResponse({ ok: true, paths })
 }

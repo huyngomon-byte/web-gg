@@ -13,14 +13,20 @@ function isContactHref(href: string) {
   return normalized === '#contact' || normalized === '/contact' || normalized.endsWith('/contact')
 }
 
+function normalizeSocialHref(href: string | undefined) {
+  const trimmed = href?.trim() ?? ''
+  return /^ttps:\/\//i.test(trimmed) ? `h${trimmed}` : trimmed
+}
+
 export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; siteSettings?: CmsSiteSettings | null }) {
-  const footer = getLocalizedSiteSettings(siteSettings, lang).footer
+  const contentLang: BrandLang = lang === 'en' ? lang : 'en'
+  const footer = getLocalizedSiteSettings(siteSettings, contentLang).footer
   const solutionLinks = footer.solutionLinks.filter((item) => item.visible !== false && item.label.trim() && item.href.trim())
   const navLinks = footer.navigationLinks.filter((item) => item.visible !== false && item.label.trim() && item.href.trim())
   const hasLegalLinks =
     Boolean(footer.privacyLabel.trim() && footer.privacyHref.trim()) ||
     Boolean(footer.termsLabel.trim() && footer.termsHref.trim())
-  const linkClass = 'text-sm text-on-surface/70 hover:text-primary transition-colors'
+  const linkClass = 'inline-flex min-h-11 items-center text-sm text-on-surface/75 hover:text-primary transition-colors'
 
   function renderFooterLink(item: { href: string; label: string }) {
     if (isContactHref(item.href)) {
@@ -32,24 +38,20 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
     }
 
     return (
-      <a href={localizedPath(lang, item.href)} className={linkClass}>
+      <a href={localizedPath(contentLang, item.href)} className={linkClass}>
         {item.label}
       </a>
     )
   }
 
   const socials = footer.socials ?? {}
-  const languageLinks = [
-    { code: 'EN', href: '/', active: lang === 'en' },
-    { code: 'VI', href: '/vi', active: lang === 'vi' },
-  ]
   const socialLinks = [
-    { key: 'facebook', href: socials.facebook, label: 'Facebook', icon: <Facebook size={16} /> },
-    { key: 'instagram', href: socials.instagram, label: 'Instagram', icon: <Instagram size={16} /> },
-    { key: 'tiktok', href: socials.tiktok, label: 'TikTok', icon: <Music2 size={16} /> },
-    { key: 'threads', href: socials.threads, label: 'Threads', icon: <AtSign size={16} /> },
-    { key: 'zalo', href: socials.zalo, label: 'Zalo', icon: <ChatIcon app="zalo" size={16} /> },
-  ].filter((item) => item.href?.trim())
+    { key: 'facebook', href: normalizeSocialHref(socials.facebook), label: 'Facebook', icon: <Facebook size={16} /> },
+    { key: 'instagram', href: normalizeSocialHref(socials.instagram), label: 'Instagram', icon: <Instagram size={16} /> },
+    { key: 'tiktok', href: normalizeSocialHref(socials.tiktok), label: 'TikTok', icon: <Music2 size={16} /> },
+    { key: 'threads', href: normalizeSocialHref(socials.threads), label: 'Threads', icon: <AtSign size={16} /> },
+    { key: 'zalo', href: normalizeSocialHref(socials.zalo), label: 'Zalo', icon: <ChatIcon app="zalo" size={16} /> },
+  ].filter((item) => Boolean(item.href))
 
   return (
     <footer className="brand-footer-v2 relative overflow-hidden border-t border-outline-variant/40 bg-[#FFFDFB] before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-gradient-to-r before:from-primary before:via-tertiary before:to-secondary">
@@ -68,23 +70,23 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
               {footer.logoSrc && <img src={footer.logoSrc === '/logo-gg.png' ? '/avatars/logo-gg.png' : footer.logoSrc} alt={footer.logoAlt || footer.brandName} className="h-12 w-auto flex-shrink-0" />}
               <div>
                 {footer.brandName && <div className="font-extrabold text-[15px] text-primary leading-tight">{footer.brandName}</div>}
-                {footer.tagline && <div className="text-[11px] text-primary/60 tracking-wide mt-0.5">{footer.tagline}</div>}
+                {footer.tagline && <div className="text-[11px] text-primary/75 tracking-wide mt-0.5">{footer.tagline}</div>}
               </div>
             </div>
             {footer.description && (
-              <p className="text-[13px] text-on-surface/60 leading-relaxed mb-4 max-w-[320px]">
+              <p className="text-[13px] text-on-surface/75 leading-relaxed mb-4 max-w-[320px]">
                 {footer.description}
               </p>
             )}
 
             <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 md:hidden">
               {footer.email && (
-                <a href={`mailto:${footer.email}`} className="text-xs text-on-surface/60 hover:text-primary transition-colors flex items-center gap-1.5">
+                <a href={`mailto:${footer.email}`} className="flex min-h-11 items-center gap-1.5 text-xs text-on-surface/75 transition-colors hover:text-primary">
                   <span aria-hidden="true">@</span> {footer.email}
                 </a>
               )}
               {footer.chatUrl && (
-                <a href={footer.chatUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-on-surface/60 hover:text-primary transition-colors flex items-center gap-1.5">
+                <a href={footer.chatUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center gap-1.5 text-xs text-on-surface/75 transition-colors hover:text-primary">
                   <ChatIcon app="zalo" size={14} /> {footer.chatLabel}
                 </a>
               )}
@@ -99,22 +101,22 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={item.label}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/15 bg-white text-on-surface/60 transition-colors hover:border-primary hover:text-primary"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/15 bg-white text-on-surface/70 transition-colors hover:border-primary hover:text-primary"
                   >
                     {item.icon}
                   </a>
                 ))}
               </div>
             )}
-            <div className="mb-4 flex items-center gap-3">
-              <img src="/qr-gg99.png" alt="Zalo QR code" className="h-[72px] w-[72px] rounded-lg border border-primary/10 bg-white object-contain" />
-              {footer.qrCaption?.trim() && <p className="max-w-[140px] text-xs font-bold leading-snug text-on-surface/60">{footer.qrCaption}</p>}
+            <div className="mb-4 hidden items-center gap-3 sm:flex">
+              <img src="/qr-gg99.png" alt="Zalo QR code" className="h-24 w-24 rounded-lg border border-primary/10 bg-white object-contain sm:h-20 sm:w-20" />
+              {footer.qrCaption?.trim() && <p className="max-w-[140px] text-xs font-bold leading-snug text-on-surface/75">{footer.qrCaption}</p>}
             </div>
 
             <div className="border-t border-primary/10 pt-4 space-y-1">
               {footer.companyName && <p className="text-xs font-bold text-on-surface/75 leading-snug">{footer.companyName}</p>}
-              {footer.taxCode && <p className="text-xs text-on-surface/50">TAX ID: {footer.taxCode}</p>}
-              {footer.companyAddress && <p className="text-xs text-on-surface/50 leading-relaxed">{footer.companyAddress}</p>}
+              {footer.taxCode && <p className="text-xs text-on-surface/70">TAX ID: {footer.taxCode}</p>}
+              {footer.companyAddress && <p className="text-xs text-on-surface/70 leading-relaxed">{footer.companyAddress}</p>}
             </div>
           </div>
 
@@ -159,20 +161,20 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
             <ul className="space-y-2.5">
               {footer.email && (
                 <li>
-                  <a href={`mailto:${footer.email}`} className="text-sm text-on-surface/70 hover:text-primary transition-colors flex items-center gap-1.5">
+                  <a href={`mailto:${footer.email}`} className="flex min-h-11 items-center gap-1.5 text-sm text-on-surface/75 transition-colors hover:text-primary">
                     <span aria-hidden="true">@</span> {footer.email}
                   </a>
                 </li>
               )}
               {footer.chatUrl && (
                 <li>
-                  <a href={footer.chatUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-on-surface/70 hover:text-primary transition-colors flex items-center gap-1.5">
+                  <a href={footer.chatUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center gap-1.5 text-sm text-on-surface/75 transition-colors hover:text-primary">
                     <ChatIcon app="zalo" size={16} /> {footer.chatLabel}
                   </a>
                 </li>
               )}
               {footer.address && (
-                <li className="text-sm text-on-surface/70 flex items-start gap-1.5">
+                <li className="flex min-h-11 items-start gap-1.5 text-sm text-on-surface/75">
                   <MapPin size={16} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" /> {footer.address}
                 </li>
               )}
@@ -183,34 +185,22 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
 
       <div className="border-t border-primary/10">
         <div data-reveal="soft" style={{ '--ri': 6 } as CSSProperties} className="max-w-6xl mx-auto px-5 lg:px-10 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-          {footer.copyright && <p className="text-[11px] text-on-surface/45">{footer.copyright}</p>}
+          {footer.copyright && <p className="text-[11px] text-on-surface/70">{footer.copyright}</p>}
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             {hasLegalLinks && (
               <>
               {footer.privacyLabel && footer.privacyHref && (
-                <a href={footer.privacyHref} className="text-[11px] text-on-surface/50 hover:text-primary transition-colors">
+                <a href={footer.privacyHref} className="inline-flex min-h-11 items-center text-[11px] text-on-surface/70 transition-colors hover:text-primary">
                   {footer.privacyLabel}
                 </a>
               )}
               {footer.termsLabel && footer.termsHref && (
-                <a href={footer.termsHref} className="text-[11px] text-on-surface/50 hover:text-primary transition-colors">
+                <a href={footer.termsHref} className="inline-flex min-h-11 items-center text-[11px] text-on-surface/70 transition-colors hover:text-primary">
                   {footer.termsLabel}
                 </a>
               )}
               </>
             )}
-            <span className="inline-flex rounded-full border border-primary/15 bg-white/70 p-0.5 shadow-[0_8px_24px_rgba(219,39,119,0.08)]">
-              {languageLinks.map((item) => (
-                <a
-                  key={item.code}
-                  href={item.href}
-                  aria-current={item.active ? 'page' : undefined}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-black transition ${item.active ? 'bg-gradient-to-r from-primary via-tertiary to-secondary text-white' : 'text-on-surface/50 hover:text-primary'}`}
-                >
-                  {item.code}
-                </a>
-              ))}
-            </span>
           </div>
         </div>
       </div>

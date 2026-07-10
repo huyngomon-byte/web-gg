@@ -24,8 +24,6 @@ const runtimeEnv: Record<string, string | undefined> = {
     process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID,
   VITE_FIREBASE_APP_ID:
     process.env.NEXT_PUBLIC_FIREBASE_APP_ID || import.meta.env?.VITE_FIREBASE_APP_ID,
-  VITE_ADMIN_EMAILS:
-    process.env.NEXT_PUBLIC_ADMIN_EMAILS || import.meta.env?.VITE_ADMIN_EMAILS,
 }
 
 const firebaseConfig = {
@@ -43,7 +41,6 @@ export const requiredFirebaseEnv = [
   'VITE_FIREBASE_PROJECT_ID',
   'VITE_FIREBASE_MESSAGING_SENDER_ID',
   'VITE_FIREBASE_APP_ID',
-  'VITE_ADMIN_EMAILS',
 ]
 
 export function getMissingFirebaseEnv() {
@@ -51,14 +48,7 @@ export function getMissingFirebaseEnv() {
 }
 
 export function isFirebaseConfigured() {
-  return getMissingFirebaseEnv().filter((key) => key !== 'VITE_ADMIN_EMAILS').length === 0
-}
-
-export function getAdminEmails() {
-  return String(runtimeEnv.VITE_ADMIN_EMAILS || '')
-    .split(',')
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean)
+  return getMissingFirebaseEnv().length === 0
 }
 
 export function getFirebaseClient() {

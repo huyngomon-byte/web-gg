@@ -97,6 +97,10 @@ export type CmsBlockItem = {
   imageAlt?: string
   avatarImages?: string[]
   thumbnailUrl?: string
+  homepageBannerImageUrl?: string
+  homepageBannerMobileUrl?: string
+  homepageBannerPosition?: string
+  homepageBannerMobilePosition?: string
   homepageGalleryImages?: string[]
   videoUrl?: string
   videoPoster?: string
@@ -155,6 +159,9 @@ export type CmsBlockItem = {
   rightBackgroundUrl?: string
   overlayOpacity?: string
   bannerImageUrl?: string
+  bannerImageMobileUrl?: string
+  bannerImagePosition?: string
+  bannerImageMobilePosition?: string
   showOnHomepage?: boolean
   homepageOrder?: string
   layoutVariant?: string
@@ -175,6 +182,9 @@ export type CmsBlock = {
   imageUrl?: string
   imageAlt?: string
   backgroundImageUrl?: string
+  backgroundImageMobileUrl?: string
+  backgroundImagePosition?: string
+  backgroundImageMobilePosition?: string
   backgroundGradient?: string
   backgroundOverlayOpacity?: string
   backgroundVideoUrl?: string
@@ -182,6 +192,7 @@ export type CmsBlock = {
   backgroundVideoMobileUrl?: string
   backgroundVideoMobileWebmUrl?: string
   backgroundVideoPoster?: string
+  backgroundVideoMobilePoster?: string
   heroTextAlign?: 'center' | 'left'
   subtitle?: string
   textColor?: 'light' | 'dark' | 'gradient'

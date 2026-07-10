@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Menu, X } from 'lucide-react'
 import { BookingModal } from './BookingModal'
 import { BrandFooter } from './BrandFooter'
@@ -27,6 +27,39 @@ function resolveHeaderCtaLabel(label: string) {
     : trimmed
 }
 
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+function lockBodyScroll() {
+  const body = document.body
+  const currentLocks = Number(body.dataset.gg99ScrollLocks ?? '0')
+
+  if (currentLocks === 0) {
+    body.dataset.gg99PreviousOverflow = body.style.overflow
+  }
+
+  body.dataset.gg99ScrollLocks = String(currentLocks + 1)
+  body.style.overflow = 'hidden'
+
+  return () => {
+    const remainingLocks = Math.max(0, Number(body.dataset.gg99ScrollLocks ?? '1') - 1)
+    if (remainingLocks > 0) {
+      body.dataset.gg99ScrollLocks = String(remainingLocks)
+      return
+    }
+
+    body.style.overflow = body.dataset.gg99PreviousOverflow ?? ''
+    delete body.dataset.gg99ScrollLocks
+    delete body.dataset.gg99PreviousOverflow
+  }
+}
+
 export function BrandLayout({
   children,
   lang = 'en',
@@ -45,19 +78,22 @@ export function BrandLayout({
   const [showTop, setShowTop] = useState(false)
   const [showFloatingCta, setShowFloatingCta] = useState(!floatingCtaRevealSelector)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [isDesktop, setIsDesktop] = useState(false)
   const [headerOnHero, setHeaderOnHero] = useState(true)
-  const localizedSettings = getLocalizedSiteSettings(siteSettings, lang)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const mobileMenuRef = useRef<HTMLElement>(null)
+  const restoreMenuFocusRef = useRef(true)
+  const contentLang: BrandLang = lang === 'en' ? lang : 'en'
+  const localizedSettings = getLocalizedSiteSettings(siteSettings, contentLang)
   const header = localizedSettings.header
   const navItems = header.navLinks.filter((item) => item.visible !== false && item.label.trim() && item.href.trim())
-  const homeHref = localizedPath(lang, '/')
+  const homeHref = localizedPath(contentLang, '/')
   const headerCtaLabel = resolveHeaderCtaLabel(header.ctaLabel)
   const showHeaderCopy = Boolean(header.brandName.trim() || header.tagline.trim())
   const showHeaderCta = !hideHeaderCta
 
   function getNavHref(href: string, label: string) {
     const resolved = resolveNavHref?.(href, label) ?? href
-    return localizedPath(lang, resolved)
+    return localizedPath(contentLang, resolved)
   }
 
   useEffect(() => {
@@ -108,8 +144,10 @@ export function BrandLayout({
   useEffect(() => {
     const media = window.matchMedia('(min-width: 1024px)')
     const sync = () => {
-      setIsDesktop(media.matches)
-      if (media.matches) setMenuOpen(false)
+      if (media.matches) {
+        restoreMenuFocusRef.current = false
+        setMenuOpen(false)
+      }
     }
     sync()
     media.addEventListener('change', sync)
@@ -124,16 +162,69 @@ export function BrandLayout({
 
   useEffect(() => {
     if (!menuOpen) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuOpen(false)
+    restoreMenuFocusRef.current = true
+    const unlockBodyScroll = lockBodyScroll()
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const focusFirstMenuControl = () => {
+      const firstMenuControl = mobileMenuRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+      ;(firstMenuControl ?? menuButtonRef.current)?.focus()
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    focusFirstMenuControl()
+    const focusMenu = window.requestAnimationFrame(focusFirstMenuControl)
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setMenuOpen(false)
+        return
+      }
+
+      if (event.key !== 'Tab') return
+      const menuControls = mobileMenuRef.current
+        ? Array.from(mobileMenuRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+        : []
+      const controls = [menuButtonRef.current, ...menuControls].filter(
+        (control): control is HTMLElement => Boolean(control && control.getClientRects().length),
+      )
+
+      if (controls.length === 0) return
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      const active = document.activeElement
+
+      if (event.shiftKey && (active === first || !controls.includes(active as HTMLElement))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (active === last || !controls.includes(active as HTMLElement))) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusMenu)
+      document.removeEventListener('keydown', onKeyDown)
+      unlockBodyScroll()
+      if (restoreMenuFocusRef.current) {
+        const focusTarget = previouslyFocused?.isConnected ? previouslyFocused : menuButtonRef.current
+        focusTarget?.focus()
+        window.requestAnimationFrame(() => {
+          focusTarget?.focus()
+        })
+      }
+    }
   }, [menuOpen])
 
   return (
     <>
-      <BookingModal isOpen={bookingOpen} onClose={() => setBookingOpen(false)} lang={lang === 'vi' ? 'vi' : 'en'} copy={localizedSettings.booking} />
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[120] focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-full focus:bg-white focus:px-5 focus:py-2 focus:text-sm focus:font-extrabold focus:text-primary focus:shadow-xl focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+      >
+        Skip to main content
+      </a>
+
+      <BookingModal isOpen={bookingOpen} onClose={() => setBookingOpen(false)} lang="en" copy={localizedSettings.booking} />
 
       {showHeaderCta && (
         <button
@@ -149,7 +240,7 @@ export function BrandLayout({
           <a href={homeHref} className="flex min-w-0 items-center gap-2.5">
             {header.logoSrc && <img src={header.logoSrc === '/logo-gg.png' ? '/avatars/logo-gg.png' : header.logoSrc} alt={header.logoAlt || header.brandName} className="h-12 w-auto shrink-0" />}
             {showHeaderCopy && (
-              <div className="hidden min-w-0 sm:block">
+              <div className={`${mobileHeaderTitle ? 'hidden md:block' : 'hidden sm:block'} min-w-0`}>
                 {header.brandName && <div className="truncate text-base font-extrabold leading-tight text-primary">{header.brandName}</div>}
                 {header.tagline && (
                   <div className="truncate text-[10px] uppercase tracking-wider text-on-surface-variant opacity-70">
@@ -160,13 +251,12 @@ export function BrandLayout({
             )}
           </a>
           {mobileHeaderTitle && (
-            <div className="pointer-events-none absolute left-1/2 max-w-[calc(100vw-156px)] -translate-x-1/2 sm:hidden">
+            <div className="pointer-events-none absolute left-1/2 max-w-[calc(100vw-156px)] -translate-x-1/2 md:hidden">
               <div className="ig-script-title truncate text-center text-[clamp(26px,8vw,30px)] leading-none text-primary">{mobileHeaderTitle}</div>
             </div>
           )}
 
-          {isDesktop && (
-          <div className="items-center gap-7 lg:flex">
+          <div className="hidden items-center gap-7 lg:flex">
             {navItems.map((item) => (
               <a
                 key={item.href}
@@ -177,25 +267,29 @@ export function BrandLayout({
               </a>
             ))}
           </div>
-          )}
 
           <div className="ml-auto flex items-center gap-2 lg:hidden">
-            {!isDesktop && (
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={() => setMenuOpen((value) => !value)}
               aria-label={menuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={menuOpen}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/45 bg-white text-on-surface shadow-sm transition-colors hover:border-primary hover:text-primary lg:hidden"
+              aria-controls="mobile-navigation"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-outline-variant/45 bg-white text-on-surface shadow-sm transition-colors hover:border-primary hover:text-primary lg:hidden"
             >
               {menuOpen ? <X size={19} /> : <Menu size={19} />}
             </button>
-            )}
           </div>
         </nav>
 
-        {menuOpen && !isDesktop && (
-        <div className="mx-auto mt-2 max-w-[1200px] overflow-hidden rounded-3xl border border-white/70 bg-white/95 shadow-[0_22px_60px_rgba(219,39,119,0.16)] backdrop-blur-xl transition-all duration-300 lg:hidden">
+        {menuOpen && (
+        <nav
+          ref={mobileMenuRef}
+          id="mobile-navigation"
+          aria-label="Primary navigation"
+          className="mx-auto mt-2 max-w-[1200px] overflow-hidden rounded-3xl border border-white/70 bg-white/95 shadow-[0_22px_60px_rgba(219,39,119,0.16)] backdrop-blur-xl transition-all duration-300 lg:hidden"
+        >
           <div className="grid gap-1 p-3">
             {navItems.map((item) => (
               <a
@@ -211,6 +305,8 @@ export function BrandLayout({
               <button
                 type="button"
                 onClick={() => {
+                  menuButtonRef.current?.focus()
+                  restoreMenuFocusRef.current = false
                   setMenuOpen(false)
                   setBookingOpen(true)
                 }}
@@ -220,15 +316,15 @@ export function BrandLayout({
               </button>
             )}
           </div>
-        </div>
+        </nav>
         )}
       </header>
 
-      <main className={`${flushTop ? '' : 'pt-24 '}${transparentBackground ? '' : 'mesh'}`}>{children}</main>
-      <BrandFooter lang={lang} siteSettings={siteSettings} />
+      <main id="main-content" tabIndex={-1} className={`${flushTop ? '' : 'pt-24 '}${transparentBackground ? '' : 'mesh'} focus:outline-none`}>{children}</main>
+      <BrandFooter lang={contentLang} siteSettings={siteSettings} />
 
       <button
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}
         aria-label="Back to top"
         className={[
           'fixed bottom-6 right-5 z-50 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-on-primary shadow-lg transition-all duration-300 gg-btn-primary',

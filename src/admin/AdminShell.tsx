@@ -66,7 +66,7 @@ function LoginScreen() {
 
         {!canUseAdmin && (
           <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs font-semibold text-on-surface-variant">
-            Thiếu <strong>VITE_ADMIN_EMAILS</strong>. Thêm email admin, ví dụ: <code>VITE_ADMIN_EMAILS=you@gg99.vn</code>.
+            Cấu hình Firebase client chưa đầy đủ. Vui lòng liên hệ quản trị hệ thống.
           </div>
         )}
         {error && <div className="mb-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -107,7 +107,7 @@ function NoAccessScreen() {
         <AlertCircle className="mx-auto mb-3 text-primary" size={28} />
         <h1 className="text-xl font-extrabold">Không có quyền admin</h1>
         <p className="mt-2 text-sm text-on-surface-variant">
-          Email <strong>{user?.email}</strong> chưa nằm trong danh sách admin.
+          Tài khoản <strong>{user?.email}</strong> chưa được cấp vai trò quản trị.
         </p>
         <button onClick={handleSignOut} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold">
           <LogOut size={16} /> Đăng xuất

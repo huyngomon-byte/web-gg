@@ -8,6 +8,7 @@ export type HeroVideoSources = {
   mobileMp4?: string
   mobileWebm?: string
   poster?: string
+  mobilePoster?: string
 }
 
 type ActiveSources = {
@@ -26,10 +27,12 @@ function prefersStaticHero() {
 export function HeroBackgroundVideo({ sources }: { sources: HeroVideoSources }) {
   const cleanupRef = useRef<(() => void) | null>(null)
   const [active, setActive] = useState<ActiveSources | null>(null)
+  const [activePoster, setActivePoster] = useState(sources.poster)
 
   useEffect(() => {
-    if (prefersStaticHero()) return
     const mobile = window.matchMedia('(max-width: 767px)').matches
+    setActivePoster((mobile ? sources.mobilePoster : sources.poster) || sources.poster || sources.mobilePoster)
+    if (prefersStaticHero()) return
     setActive(
       mobile
         ? { mp4: sources.mobileMp4 || sources.mp4, webm: sources.mobileWebm || sources.webm }
@@ -80,10 +83,13 @@ export function HeroBackgroundVideo({ sources }: { sources: HeroVideoSources }) 
         maskImage: 'linear-gradient(to bottom, black calc(100% - clamp(140px, 16svh, 220px)), transparent 100%)',
       }}
     >
-      {sources.poster && (
+      {(sources.poster || sources.mobilePoster) && (
         // Poster paints immediately (SSR) and is the permanent fallback for
         // reduced-motion / Data Saver, where the <video> never mounts.
-        <img src={sources.poster} alt="" className="absolute inset-0 h-full w-full object-cover [object-position:center_65%]" />
+        <picture>
+          {sources.mobilePoster && <source media="(max-width: 767px)" srcSet={sources.mobilePoster} />}
+          <img src={sources.poster || sources.mobilePoster} alt="" className="absolute inset-0 h-full w-full object-cover [object-position:center_65%]" />
+        </picture>
       )}
       {active && (
         <video
@@ -93,7 +99,7 @@ export function HeroBackgroundVideo({ sources }: { sources: HeroVideoSources }) 
           loop
           playsInline
           preload="metadata"
-          poster={sources.poster || undefined}
+          poster={activePoster || undefined}
           className="absolute inset-0 h-full w-full object-cover [object-position:center_65%]"
         >
           {active.webm && <source src={active.webm} type="video/webm" />}

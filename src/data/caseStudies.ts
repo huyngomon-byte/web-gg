@@ -41,6 +41,10 @@ export type CaseStudy = {
   videoUrl?: string
   embedUrl?: string
   thumbnailUrl?: string
+  homepageBannerImageUrl?: string
+  homepageBannerMobileUrl?: string
+  homepageBannerPosition?: string
+  homepageBannerMobilePosition?: string
   homepageGalleryImages?: string[]
   backgroundImageUrl?: string
   backgroundImages?: string[]
@@ -181,6 +185,7 @@ export const caseStudies: CaseStudy[] = [
         'The system tracked around 29.8B VND net online revenue, 326K+ orders and 886K+ items sold, while TikTok Shop grew from zero to 6.41B VND annual revenue in 2024.',
     },
     socialLinks: {
+      tiktok: 'https://www.tiktok.com/@inkaholic.vn',
       website: 'https://inkaholic.vn',
     },
     ctaText: 'Read story',

@@ -1,0 +1,100 @@
+import { expect, test, type Page } from '@playwright/test'
+
+const responsiveWidths = [1440, 1280, 1024, 768, 767, 430, 390, 360]
+
+async function openAt(page: Page, path: string, width: number, height = 900) {
+  await page.setViewportSize({ width, height })
+  await page.goto(path, { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('#main-content')).toBeVisible()
+  await page.waitForTimeout(120)
+}
+
+async function expectNoPageOverflow(page: Page, width: number) {
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    client: document.documentElement.clientWidth,
+    document: document.documentElement.scrollWidth,
+  }))
+
+  expect(dimensions.viewport).toBe(width)
+  expect(dimensions.document, `page overflow at ${width}px`).toBeLessThanOrEqual(dimensions.client + 1)
+}
+
+test.describe('responsive UI matrix', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+  })
+
+  test('keeps Homepage and The One Stories inside every supported viewport', async ({ page }) => {
+    test.setTimeout(180_000)
+
+    for (const path of ['/', '/the-one']) {
+      for (const width of responsiveWidths) {
+        await openAt(page, path, width)
+        await expectNoPageOverflow(page, width)
+        await expect(page.locator('h1')).toHaveCount(1)
+      }
+    }
+  })
+
+  test('keeps Homepage mobile content concise and immediately readable', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await openAt(page, '/', 390, 844)
+
+    const heading = page.locator('h1')
+    await expect(heading).toBeVisible()
+    await expect(heading).not.toHaveCSS('opacity', '0')
+    await expect(page.getByText('From 0 VND/month', { exact: true })).toHaveCount(0)
+
+    const packageCards = page.getByTestId('package-card')
+    await expect(packageCards).toHaveCount(3)
+    await expect(page.locator('[data-testid="package-card"][data-selected="true"]')).toHaveCount(1)
+    const collapsedPackageFeatures = page.locator('[data-testid="package-card"][data-selected="false"] .package-card-features')
+    await expect(collapsedPackageFeatures).toHaveCount(2)
+    for (let index = 0; index < await collapsedPackageFeatures.count(); index += 1) {
+      await expect(collapsedPackageFeatures.nth(index)).toBeHidden()
+    }
+
+    const redFlagReplies = page.getByTestId('red-flag-reply')
+    expect(await redFlagReplies.count()).toBeGreaterThan(3)
+    await expect(redFlagReplies.filter({ visible: true })).toHaveCount(3)
+    await expect(page.getByRole('button', { name: /show \d+ more replies/i })).toBeVisible()
+
+    const initialScroll = await page.evaluate(() => window.scrollY)
+    await page.waitForTimeout(8_500)
+    expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll)
+  })
+
+  test('keeps the Stories header, feed and controls usable at boundary widths', async ({ page }) => {
+    for (const width of [1024, 768, 767, 390, 360]) {
+      await openAt(page, '/the-one', width, width <= 390 ? 844 : 900)
+
+      const firstPost = page.locator('article.story-post').first()
+      const postBox = await firstPost.boundingBox()
+      expect(postBox).not.toBeNull()
+      expect(postBox!.width).toBeLessThanOrEqual(width >= 1024 ? 661 : width >= 768 ? 641 : width)
+
+      const firstDot = firstPost.locator('.story-carousel-dot').first()
+      const dotBox = await firstDot.boundingBox()
+      expect(dotBox).not.toBeNull()
+      expect(dotBox!.width).toBeGreaterThanOrEqual(44)
+      expect(dotBox!.height).toBeGreaterThanOrEqual(44)
+
+      if (width <= 767) {
+        await expect(page.locator('header .ig-script-title', { hasText: 'The One Stories' })).toBeVisible()
+      }
+    }
+
+    await openAt(page, '/the-one', 390, 844)
+    const firstPost = page.locator('article.story-post').first()
+    await firstPost.scrollIntoViewIfNeeded()
+    await firstPost.getByRole('button', { name: 'About this story' }).click()
+    const detail = page.getByTestId('story-detail-dialog')
+    await expect(detail).toBeVisible()
+    const detailBox = await detail.boundingBox()
+    expect(detailBox).not.toBeNull()
+    expect(detailBox!.width).toBeLessThanOrEqual(390)
+    expect(detailBox!.y).toBeGreaterThanOrEqual(10)
+    expect(detailBox!.height).toBeLessThanOrEqual(834)
+  })
+})

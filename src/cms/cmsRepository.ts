@@ -5,8 +5,6 @@ import {
   getDocs,
   orderBy,
   query,
-  serverTimestamp,
-  setDoc,
 } from 'firebase/firestore'
 import { getFirebaseClient } from './firebaseClient'
 import { defaultCmsInsights, defaultCmsPages, defaultCmsSiteSettings } from './defaultContent'
@@ -20,6 +18,25 @@ const SITE_SETTINGS_DOC = 'global'
 
 function stripUndefined<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
+}
+
+async function saveThroughAdminApi(action: string, data?: unknown, confirmation?: string) {
+  const { auth } = getFirebaseClient()
+  const token = await auth.currentUser?.getIdToken(true)
+  if (!token) throw new Error('Please sign in to the CMS before saving content.')
+
+  const response = await fetch('/api/admin/content', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ action, data: data === undefined ? undefined : stripUndefined(data), confirmation }),
+  })
+  const payload = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || 'The CMS change could not be saved.')
+  }
 }
 
 export async function listCmsPages() {
@@ -36,12 +53,7 @@ export async function getCmsPage(id: string) {
 }
 
 export async function saveCmsPage(page: CmsPageContent) {
-  const { db } = getFirebaseClient()
-  await setDoc(doc(db, PAGE_COLLECTION, page.id), {
-    ...stripUndefined(page),
-    updatedAt: new Date().toISOString(),
-    updatedAtServer: serverTimestamp(),
-  })
+  await saveThroughAdminApi('save-page', page)
 }
 
 export async function listCmsInsights() {
@@ -60,12 +72,7 @@ export async function getCmsInsight(slug: string) {
 }
 
 export async function saveCmsInsight(post: CmsInsightContent) {
-  const { db } = getFirebaseClient()
-  await setDoc(doc(db, INSIGHT_COLLECTION, post.slug), {
-    ...stripUndefined(post),
-    updatedAt: new Date().toISOString(),
-    updatedAtServer: serverTimestamp(),
-  })
+  await saveThroughAdminApi('save-insight', post)
 }
 
 export async function getCmsSiteSettings() {
@@ -77,18 +84,9 @@ export async function getCmsSiteSettings() {
 }
 
 export async function saveCmsSiteSettings(settings: CmsSiteSettings) {
-  const { db } = getFirebaseClient()
-  await setDoc(doc(db, SITE_SETTINGS_COLLECTION, SITE_SETTINGS_DOC), {
-    ...stripUndefined(mergeCmsSiteSettings(settings)),
-    updatedAt: new Date().toISOString(),
-    updatedAtServer: serverTimestamp(),
-  })
+  await saveThroughAdminApi('save-settings', mergeCmsSiteSettings(settings))
 }
 
-export async function seedDefaultContent() {
-  await Promise.all([
-    ...defaultCmsPages.map((page) => saveCmsPage(page)),
-    ...defaultCmsInsights.map((post) => saveCmsInsight(post)),
-    saveCmsSiteSettings(defaultCmsSiteSettings),
-  ])
+export async function seedDefaultContent(confirmation: string) {
+  await saveThroughAdminApi('seed', undefined, confirmation)
 }

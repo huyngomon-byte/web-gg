@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   ArrowUpRight,
   ChevronDown,
@@ -9,6 +9,8 @@ import {
   Heart,
   Info,
   MessageCircle,
+  Pause,
+  Play,
   Repeat2,
   Send,
 } from 'lucide-react'
@@ -24,6 +26,7 @@ import { getCmsBlock, getLocalizedCmsBlock, getLocalizedPageMeta, splitCmsParagr
 import { mergeHomepageBackground } from '../cms/siteSettings'
 import { cldSrcSet, cldWidth } from '../lib/cloudinaryImage'
 import { buildHomeFaqSchema, getHomeClosingFaqItems } from '../cms/homeFaqSchema'
+import { useReducedMotionPreference } from '../hooks/useReducedMotionPreference'
 import type { CmsBlock, CmsBlockItem, CmsPageContent, CmsSiteSettings } from '../cms/types'
 import { getOrderedCaseStudies } from '../data/caseStudyStories'
 import type { CaseStudy } from '../data/caseStudies'
@@ -36,6 +39,7 @@ const defaultClosingPortalSources: HeroVideoSources = {
   mobileMp4: '/closing/closing-portal-1280.mp4',
   mobileWebm: '/closing/closing-portal-1280.webm',
   poster: '/closing/closing-portal-poster.webp',
+  mobilePoster: '/closing/closing-portal-poster.webp',
 }
 const heroFirstWordDelayMs = 420
 const heroWordStepMs = 90
@@ -56,7 +60,7 @@ const storyLogoById: Record<string, string> = {
 }
 
 function getStoryLogoForHome(story: Pick<CaseStudy, 'id' | 'logoUrl'>) {
-  return story.logoUrl || storyLogoById[story.id] || '/avatars/logo-gg.png'
+  return storyLogoById[story.id] || story.logoUrl || '/avatars/logo-gg.png'
 }
 
 // Round 12 A2.3: word-by-word reveal for big headings/quotes ([data-reveal='words'] CSS)
@@ -210,26 +214,51 @@ function HeroWordTitle({
   )
 }
 
-function cssUrl(value: string) {
-  return `url("${value.replace(/"/g, '%22')}")`
-}
-
-
 function heroBackgroundStyle(block: ReturnType<typeof getCmsBlock>): CSSProperties {
   const gradient = block?.backgroundGradient?.trim() || defaultHeroGradient
-  const imageUrl = block?.backgroundImageUrl?.trim()
+  return { backgroundImage: gradient, backgroundSize: 'cover', backgroundPosition: 'center' }
+}
+
+function normalizeObjectPosition(value: string | undefined, fallback = '50% 50%') {
+  const candidate = value?.trim()
+  return candidate || fallback
+}
+
+function StaticHeroBackground({ block }: { block: ReturnType<typeof getCmsBlock> }) {
+  const desktop = block?.backgroundImageUrl?.trim()
+  const mobile = block?.backgroundImageMobileUrl?.trim() || desktop
+  if (!desktop && !mobile) return null
+
   const overlayValue = Number.parseFloat(block?.backgroundOverlayOpacity ?? '')
   const overlay = Number.isFinite(overlayValue) ? Math.min(0.85, Math.max(0, overlayValue)) : 0
+  const style = {
+    '--hero-image-position': normalizeObjectPosition(block?.backgroundImagePosition),
+    '--hero-image-position-mobile': normalizeObjectPosition(block?.backgroundImageMobilePosition, normalizeObjectPosition(block?.backgroundImagePosition)),
+    '--hero-image-overlay': overlay,
+  } as CSSProperties
 
-  if (!imageUrl) {
-    return { backgroundImage: gradient, backgroundSize: 'cover', backgroundPosition: 'center' }
-  }
-
-  return {
-    backgroundImage: `linear-gradient(rgba(185,20,76,${overlay}), rgba(185,20,76,${overlay})), ${cssUrl(imageUrl)}, ${gradient}`,
-    backgroundSize: 'cover, cover, cover',
-    backgroundPosition: 'center, center, center',
-  }
+  return (
+    <div className="home-static-hero-media" style={style} aria-hidden="true">
+      <picture>
+        {mobile && (
+          <source
+            media="(max-width: 767px)"
+            srcSet={cldSrcSet(mobile, [640, 960, 1280]) || undefined}
+            sizes="100vw"
+          />
+        )}
+        <img
+          src={cldWidth(desktop || mobile, 1600)}
+          srcSet={cldSrcSet(desktop || mobile, [1280, 1600, 2400])}
+          sizes="100vw"
+          alt=""
+          decoding="async"
+          fetchPriority="high"
+        />
+      </picture>
+      <span />
+    </div>
+  )
 }
 
 function getClosingPortalSources(block?: ReturnType<typeof getCmsBlock>): HeroVideoSources {
@@ -239,6 +268,7 @@ function getClosingPortalSources(block?: ReturnType<typeof getCmsBlock>): HeroVi
     mobileMp4: block?.backgroundVideoMobileUrl?.trim() || defaultClosingPortalSources.mobileMp4,
     mobileWebm: block?.backgroundVideoMobileWebmUrl?.trim() || defaultClosingPortalSources.mobileWebm,
     poster: block?.backgroundVideoPoster?.trim() || defaultClosingPortalSources.poster,
+    mobilePoster: block?.backgroundVideoMobilePoster?.trim() || block?.backgroundVideoPoster?.trim() || defaultClosingPortalSources.mobilePoster,
   }
 }
 
@@ -254,20 +284,38 @@ function prefersStaticMedia() {
 }
 
 function ClosingPortalVideo({ sources }: { sources: HeroVideoSources }) {
+  const wrapperRef = useRef<HTMLDivElement | null>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
-  const [active, setActive] = useState<{ mp4?: string; webm?: string } | null>(null)
+  const [active, setActive] = useState<{ mp4?: string; webm?: string; poster?: string } | null>(null)
+  const [nearViewport, setNearViewport] = useState(false)
 
   useEffect(() => {
+    const target = wrapperRef.current
+    if (!target) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        setNearViewport(true)
+        observer.disconnect()
+      },
+      { rootMargin: '600px 0px', threshold: 0.01 },
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!nearViewport) return
     if (prefersStaticMedia()) return
     const mobile = window.matchMedia('(max-width: 767px)').matches
     setActive(
       mobile
-        ? { mp4: sources.mobileMp4 || sources.mp4, webm: sources.mobileWebm || sources.webm }
-        : { mp4: sources.mp4, webm: sources.webm },
+        ? { mp4: sources.mobileMp4 || sources.mp4, webm: sources.mobileWebm || sources.webm, poster: sources.mobilePoster || sources.poster }
+        : { mp4: sources.mp4, webm: sources.webm, poster: sources.poster || sources.mobilePoster },
     )
     // Source choice follows the first viewport load; CMS edits arrive through a new render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [nearViewport, sources.mobileMp4, sources.mobileWebm, sources.mp4, sources.webm])
 
   const attachVideo = useCallback((video: HTMLVideoElement | null) => {
     cleanupRef.current?.()
@@ -298,8 +346,13 @@ function ClosingPortalVideo({ sources }: { sources: HeroVideoSources }) {
   useEffect(() => () => cleanupRef.current?.(), [])
 
   return (
-    <div className="closing-portal-media" aria-hidden="true">
-      {sources.poster && <img src={sources.poster} alt="" className="closing-portal-poster" />}
+    <div ref={wrapperRef} className="closing-portal-media" aria-hidden="true">
+      {(sources.poster || sources.mobilePoster) && (
+        <picture>
+          {sources.mobilePoster && <source media="(max-width: 767px)" srcSet={sources.mobilePoster} />}
+          <img src={sources.poster || sources.mobilePoster} alt="" className="closing-portal-poster" />
+        </picture>
+      )}
       {active && (
         <video
           ref={attachVideo}
@@ -308,7 +361,7 @@ function ClosingPortalVideo({ sources }: { sources: HeroVideoSources }) {
           loop
           playsInline
           preload="metadata"
-          poster={sources.poster || undefined}
+          poster={active.poster || undefined}
           className="closing-portal-video"
         >
           {active.webm && <source src={active.webm} type="video/webm" />}
@@ -332,11 +385,28 @@ function getCaseStudyThumbnail(story: CaseStudy) {
     story.backgroundImageUrl,
     story.backgroundImages?.[0],
     story.screenBackground?.imageUrl,
-    story.logoUrl,
     storyLogoById[story.id],
+    story.logoUrl,
     '/logo-gg.png',
   ])
   return thumbnail || '/logo-gg.png'
+}
+
+function getHomepageBannerMedia(story: CaseStudy) {
+  const thumbnail = getCaseStudyThumbnail(story)
+  const [desktopGallery, mobileGallery] = story.homepageGalleryImages ?? []
+  return {
+    thumbnail,
+    desktop: story.homepageBannerImageUrl || desktopGallery || story.backgroundImageUrl || story.backgroundImages?.[0] || thumbnail,
+    mobile: story.homepageBannerMobileUrl || mobileGallery || story.homepageBannerImageUrl || desktopGallery || story.backgroundImages?.[1] || story.backgroundImageUrl || thumbnail,
+    desktopPosition: normalizeObjectPosition(story.homepageBannerPosition),
+    mobilePosition: normalizeObjectPosition(story.homepageBannerMobilePosition, normalizeObjectPosition(story.homepageBannerPosition)),
+  }
+}
+
+function cyclicDistance(index: number, activeIndex: number, length: number) {
+  const direct = Math.abs(index - activeIndex)
+  return Math.min(direct, Math.max(0, length - direct))
 }
 
 function getCaseStudyGallery(story: CaseStudy) {
@@ -346,8 +416,8 @@ function getCaseStudyGallery(story: CaseStudy) {
     ...(story.backgroundImages ?? []),
     story.backgroundImageUrl,
     story.screenBackground?.imageUrl,
-    story.logoUrl,
     storyLogoById[story.id],
+    story.logoUrl,
     '/logo-gg.png',
   ]).slice(0, 4)
 }
@@ -448,18 +518,19 @@ function CaseStudyPreviewPopover({ story, lang }: { story: CaseStudy; lang: Bran
   const images = getCaseStudyGallery(story)
   const stats = getFeaturedStats(story)
   const [activeImage, setActiveImage] = useState(0)
+  const reducedMotion = useReducedMotionPreference()
   const href = resolveStoryHref(lang, story.id, story.id)
   const theme = getStoryPreviewTheme(story)
   const aboutLabel = lang === 'vi' ? 'Xem câu chuyện' : 'About this one'
 
   useEffect(() => {
     setActiveImage(0)
-    if (images.length < 2) return
+    if (images.length < 2 || reducedMotion) return
     const interval = window.setInterval(() => {
       setActiveImage((index) => (index + 1) % images.length)
-    }, 2200)
+    }, 8000)
     return () => window.clearInterval(interval)
-  }, [story.id, images.length])
+  }, [story.id, images.length, reducedMotion])
 
   return (
     <article
@@ -532,10 +603,14 @@ function CaseStudyPreviewPopover({ story, lang }: { story: CaseStudy; lang: Bran
 
 function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { stories: CaseStudy[]; lang: BrandLang; block?: CmsBlock | null; openingBaseMs?: number }) {
   const railRef = useRef<HTMLDivElement | null>(null)
-  const showcaseStories = getHomepageCaseStudies(stories)
+  const showcaseStories = useMemo(() => getHomepageCaseStudies(stories), [stories])
   const [bannerIndex, setBannerIndex] = useState(0)
   const [previewStory, setPreviewStory] = useState<StoryPreviewState | null>(null)
   const [canHover, setCanHover] = useState(false)
+  const [manuallyPaused, setManuallyPaused] = useState(false)
+  const [interacting, setInteracting] = useState(false)
+  const [pageVisible, setPageVisible] = useState(true)
+  const reducedMotion = useReducedMotionPreference()
   const hoverOpenTimer = useRef<number | null>(null)
   const hoverCloseTimer = useRef<number | null>(null)
   const popupHoverRef = useRef(false)
@@ -546,33 +621,30 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
   }, [])
 
   useEffect(() => {
-    if (showcaseStories.length < 2) return
+    const sync = () => setPageVisible(!document.hidden)
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => document.removeEventListener('visibilitychange', sync)
+  }, [])
+
+  useEffect(() => {
+    if (showcaseStories.length < 2 || reducedMotion || manuallyPaused || interacting || !pageVisible) return
     const interval = window.setInterval(() => {
       if (Date.now() < pauseUntilRef.current) return
       setBannerIndex((index) => (index + 1) % showcaseStories.length)
-    }, 3600)
+    }, 8000)
     return () => window.clearInterval(interval)
-  }, [showcaseStories.length])
+  }, [interacting, manuallyPaused, pageVisible, reducedMotion, showcaseStories.length])
 
   useEffect(() => {
     const rail = railRef.current
-    if (!rail || canHover) return
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (reduced) return
-    let raf = 0
-    let last = performance.now()
-    const tick = (now: number) => {
-      const delta = now - last
-      last = now
-      if (Date.now() >= pauseUntilRef.current) {
-        rail.scrollLeft += (delta / 1000) * 28
-        if (rail.scrollLeft >= rail.scrollWidth - rail.clientWidth - 2) rail.scrollLeft = 0
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [canHover, showcaseStories.length])
+    const activeId = showcaseStories[bannerIndex % Math.max(1, showcaseStories.length)]?.id
+    if (!rail || !activeId) return
+    const activeCard = rail.querySelector<HTMLElement>(`[data-story-id="${CSS.escape(activeId)}"]`)
+    if (!activeCard) return
+    const left = activeCard.offsetLeft - (rail.clientWidth - activeCard.offsetWidth) / 2
+    rail.scrollTo({ left: Math.max(0, left), behavior: reducedMotion ? 'auto' : 'smooth' })
+  }, [bannerIndex, reducedMotion, showcaseStories])
 
   if (!showcaseStories.length) return null
 
@@ -587,7 +659,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
   function moveRail(direction: -1 | 1) {
     const rail = railRef.current
     if (!rail) return
-    rail.scrollBy({ left: direction * Math.max(280, rail.clientWidth * 0.82), behavior: 'smooth' })
+    rail.scrollBy({ left: direction * Math.max(280, rail.clientWidth * 0.82), behavior: reducedMotion ? 'auto' : 'smooth' })
   }
 
   function clearPreviewTimers() {
@@ -623,7 +695,20 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
   }
 
   return (
-    <section id="featured-cases" className="home-section-pad home-section-pad--featured relative overflow-hidden px-5 lg:px-10" onMouseLeave={closePreviewSoon}>
+    <section
+      id="featured-cases"
+      className="home-section-pad home-section-pad--featured relative overflow-hidden px-5 lg:px-10"
+      onMouseEnter={() => setInteracting(true)}
+      onMouseLeave={() => {
+        setInteracting(false)
+        closePreviewSoon()
+      }}
+      onFocusCapture={() => setInteracting(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setInteracting(false)
+      }}
+      onPointerDown={() => pauseAuto(12000)}
+    >
       {/* Round 7 A2.1: warm bridge from the video's bottom tone into the shared wave background */}
       <div
         aria-hidden="true"
@@ -637,19 +722,13 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
         <div className="relative" data-reveal="scale" data-reveal-open style={{ '--rd': `${openingBaseMs}ms` } as CSSProperties}>
           {/* Round 8 A2.1: ambient glow — a blurred copy of the active slide bleeds its colors into the wave */}
           <div aria-hidden="true" className="pointer-events-none absolute -inset-2 md:-inset-4">
-            {showcaseStories.map((story, index) => {
-              const thumbnail = getCaseStudyThumbnail(story)
-              return (
-                <img
-                  key={`${story.id}-glow-${index}`}
-                  src={cldWidth(thumbnail, 640)}
-                  alt=""
-                  className={`absolute inset-0 h-full w-full scale-[1.03] object-cover blur-[32px] saturate-[1.25] transition-opacity duration-700 ${
-                    index === activeBannerIndex ? 'opacity-30' : 'opacity-0'
-                  }`}
-                />
-              )
-            })}
+            <img
+              key={`${activeStory.id}-glow`}
+              src={cldWidth(getHomepageBannerMedia(activeStory).desktop, 640)}
+              alt=""
+              loading="lazy"
+              className="absolute inset-0 h-full w-full scale-[1.03] object-cover opacity-30 blur-[32px] saturate-[1.25] transition-opacity duration-700"
+            />
           </div>
           <a
           href={activeStoryHref}
@@ -661,19 +740,32 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
           {/* Feathered media layer: images + scrim fade at all four edges (no hard card border, Round 8 A2.1) */}
           <div className="featured-banner-media pointer-events-none absolute inset-0">
             {showcaseStories.map((story, index) => {
-              const thumbnail = getCaseStudyThumbnail(story)
+              if (cyclicDistance(index, activeBannerIndex, showcaseStories.length) > 1) return null
+              const media = getHomepageBannerMedia(story)
               return (
-                <img
-                  key={`${story.id}-banner-${index}`}
-                  src={cldWidth(thumbnail, 1600)}
-                  srcSet={cldSrcSet(thumbnail, [1600, 2400])}
-                  sizes="(min-width: 1280px) 1152px, 96vw"
-                  alt={index === activeBannerIndex ? `${story.brandName} case study thumbnail` : ''}
-                  aria-hidden={index === activeBannerIndex ? undefined : true}
-                  className={`absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.025] ${
-                    isLogoLikeImage(thumbnail) ? 'bg-[linear-gradient(135deg,#fff7fb,#ffd8e8)] object-contain p-12 md:p-20' : 'object-cover'
-                  } ${index === activeBannerIndex ? 'opacity-100' : 'opacity-0'}`}
-                />
+                <picture key={`${story.id}-banner-${index}`}>
+                  <source
+                    media="(max-width: 767px)"
+                    srcSet={cldSrcSet(media.mobile, [640, 960, 1280])}
+                    sizes="100vw"
+                  />
+                  <img
+                    src={cldWidth(media.desktop, 1600)}
+                    srcSet={cldSrcSet(media.desktop, [1280, 1600, 2400])}
+                    sizes="(min-width: 1280px) 1152px, 96vw"
+                    alt={index === activeBannerIndex ? `${story.brandName} case study` : ''}
+                    aria-hidden={index === activeBannerIndex ? undefined : true}
+                    loading="lazy"
+                    decoding="async"
+                    className={`featured-banner-role-image absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.025] ${
+                      isLogoLikeImage(media.desktop) ? 'bg-[linear-gradient(135deg,#fff7fb,#ffd8e8)] object-contain p-12 md:p-20' : 'object-cover'
+                    } ${index === activeBannerIndex ? 'opacity-100' : 'opacity-0'}`}
+                    style={{
+                      '--featured-banner-position': media.desktopPosition,
+                      '--featured-banner-position-mobile': media.mobilePosition,
+                    } as CSSProperties}
+                  />
+                </picture>
               )
             })}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/18 to-transparent" aria-hidden="true" />
@@ -702,7 +794,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
               <button
                 type="button"
                 onClick={() => moveRail(-1)}
-                className="absolute left-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
                 aria-label="Previous case studies"
               >
                 <ChevronLeft size={20} strokeWidth={2.6} aria-hidden="true" />
@@ -710,37 +802,39 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
               <button
                 type="button"
                 onClick={() => moveRail(1)}
-                className="absolute right-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
                 aria-label="Next case studies"
               >
                 <ChevronRight size={20} strokeWidth={2.6} aria-hidden="true" />
               </button>
             </>
           )}
-          <div ref={railRef} className="case-study-rail flex snap-x gap-2 overflow-x-auto scroll-smooth pb-2" onPointerDown={() => pauseAuto()} onTouchStart={() => pauseAuto()}>
+          <div ref={railRef} className="case-study-rail flex snap-x gap-2 overflow-x-auto scroll-smooth pb-2" onPointerDown={() => pauseAuto(12000)} onTouchStart={() => pauseAuto(12000)}>
             {showcaseStories.map((story, index) => (
-              <button
+              <a
                 key={`${story.id}-rail`}
-                type="button"
+                href={resolveStoryHref(lang, story.id, story.id)}
+                data-story-id={story.id}
                 data-reveal="tile-in"
                 data-tile-direction={index % 2 ? 'right' : 'bottom'}
                 data-reveal-open
                 style={{ '--ri': index, '--rd': `${openingBaseMs + 320}ms` } as CSSProperties}
-                onMouseEnter={(event) => showPreview(story, event.currentTarget)}
-                onFocus={(event) => showPreview(story, event.currentTarget)}
-                onMouseLeave={closePreviewSoon}
-                onClick={(event) => {
-                  pauseAuto()
+                onMouseEnter={(event) => {
                   setBannerIndex(index)
-                  if (!canHover) window.location.href = resolveStoryHref(lang, story.id, story.id)
-                  else showPreview(story, event.currentTarget)
+                  showPreview(story, event.currentTarget)
                 }}
+                onFocus={(event) => {
+                  setBannerIndex(index)
+                  showPreview(story, event.currentTarget)
+                }}
+                onMouseLeave={closePreviewSoon}
+                onClick={() => pauseAuto(12000)}
                 className={[
                   // Round 7 A2.2: two-tier card — clean 16:9 image on top, glass caption bar below.
                   'group relative shrink-0 basis-[42vw] snap-start rounded-[18px] p-[2px] text-left outline-none transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:basis-[calc((100%_-_8px)/2.25)] md:basis-[calc((100%_-_16px)/3)] lg:basis-[calc((100%_-_24px)/4)]',
                   index === activeBannerIndex ? 'bg-gradient-to-r from-primary via-tertiary to-secondary' : 'bg-transparent',
                 ].join(' ')}
-                aria-label={`Preview ${story.brandName}`}
+                aria-label={`Open ${story.brandName} story`}
               >
                 <span className="flex h-full flex-col overflow-hidden rounded-[16px] shadow-[0_14px_40px_rgba(219,39,119,0.14)]">
                   <span className="relative block aspect-video w-full overflow-hidden bg-[#180b11]">
@@ -765,7 +859,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
                     <p className="line-clamp-1 text-xs font-semibold leading-snug text-on-surface-variant">{story.headline}</p>
                   </span>
                 </span>
-              </button>
+              </a>
             ))}
             <a
               href={allStoriesHref}
@@ -781,7 +875,19 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
               <span className="text-sm font-black text-[#3d1226]">{allStoriesLabel}</span>
             </a>
           </div>
-          <div className="mt-2 flex justify-end">
+          <div className="mt-2 flex items-center justify-between gap-3">
+            {showcaseStories.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setManuallyPaused((paused) => !paused)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/20 bg-white/80 px-4 py-2 text-xs font-black text-[#3d1226] shadow-sm transition hover:border-primary/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                aria-pressed={manuallyPaused}
+                aria-label={manuallyPaused ? 'Play featured case studies' : 'Pause featured case studies'}
+              >
+                {manuallyPaused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}
+                <span>{manuallyPaused ? 'Play' : 'Pause'}</span>
+              </button>
+            )}
             <a href={allStoriesHref} className="inline-flex items-center gap-1.5 text-sm font-black text-primary transition hover:text-primary/70">
               {allStoriesLabel}
               <ArrowUpRight size={15} strokeWidth={2.6} aria-hidden="true" />
@@ -846,7 +952,7 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
   const postText = block.postText?.trim() || 'Tell us the red flags you ran into with your last agency 👇'
   const punchline = block.body?.trim() || "You don't need another agency. You need The One."
   const punchlineIndex = items.length + 2
-  const mobileVisibleCount = 5
+  const mobileVisibleCount = 3
   const hasHiddenMobileReplies = items.length > mobileVisibleCount
 
   return (
@@ -905,6 +1011,7 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
           {items.map((item, index) => (
             <article
               key={`${item.handle || item.title}-${index}`}
+              data-testid="red-flag-reply"
               data-reveal="tile-in"
               data-tile-direction="bottom"
               style={{ '--ri': index + 2 } as CSSProperties}
@@ -991,32 +1098,59 @@ function splitPeopleRoles(value?: string) {
     .slice(0, 6) ?? []
 }
 
+function getPersonInitials(value: string) {
+  const words = value.trim().split(/\s+/).filter(Boolean)
+  if (!words.length) return '01'
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase()
+}
+
 function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<typeof getCmsBlock>; showClosingLines?: boolean }) {
-  const members = (block?.items ?? []).filter((item) => item.published !== false).slice(0, 6)
+  const members = useMemo(() => (block?.items ?? []).filter((item) => item.published !== false).slice(0, 6), [block?.items])
   const railRef = useRef<HTMLDivElement | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const [previewMember, setPreviewMember] = useState<{ member: CmsBlockItem; style: CSSProperties } | null>(null)
   const [canHover, setCanHover] = useState(false)
+  const [manuallyPaused, setManuallyPaused] = useState(false)
+  const [interacting, setInteracting] = useState(false)
+  const [pageVisible, setPageVisible] = useState(true)
+  const reducedMotion = useReducedMotionPreference()
   const hoverOpenTimer = useRef<number | null>(null)
   const hoverCloseTimer = useRef<number | null>(null)
   const popupHoverRef = useRef(false)
   const pauseUntilRef = useRef(0)
   const hasPeople = Boolean(block && members.length)
-  const autoSlideSeconds = Math.max(2.5, Number.parseFloat(block?.autoSlideSeconds ?? '5') || 5)
+  const autoSlideSeconds = Math.max(8, Number.parseFloat(block?.autoSlideSeconds ?? '8') || 8)
 
   useEffect(() => {
     setCanHover(window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false)
   }, [])
 
   useEffect(() => {
-    if (!hasPeople) return
-    if (members.length < 2) return
+    const sync = () => setPageVisible(!document.hidden)
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => document.removeEventListener('visibilitychange', sync)
+  }, [])
+
+  useEffect(() => {
+    if (!hasPeople || members.length < 2 || reducedMotion || manuallyPaused || interacting || !pageVisible) return
     const interval = window.setInterval(() => {
       if (Date.now() < pauseUntilRef.current) return
       setActiveIndex((index) => (index + 1) % members.length)
     }, autoSlideSeconds * 1000)
     return () => window.clearInterval(interval)
-  }, [autoSlideSeconds, hasPeople, members.length])
+  }, [autoSlideSeconds, hasPeople, interacting, manuallyPaused, members.length, pageVisible, reducedMotion])
+
+  useEffect(() => {
+    const rail = railRef.current
+    const member = members[activeIndex % Math.max(1, members.length)]
+    if (!rail || !member) return
+    const activeCard = rail.querySelector<HTMLElement>(`[data-person-index="${activeIndex % members.length}"]`)
+    if (!activeCard) return
+    const left = activeCard.offsetLeft - (rail.clientWidth - activeCard.offsetWidth) / 2
+    rail.scrollTo({ left: Math.max(0, left), behavior: reducedMotion ? 'auto' : 'smooth' })
+  }, [activeIndex, members, reducedMotion])
 
   if (!block || !members.length) return null
 
@@ -1025,6 +1159,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
   const activeMember = members[activeIndex % members.length] ?? members[0]
   const activeRoles = splitPeopleRoles(activeMember.label)
   const activeBanner = activeMember.bannerImageUrl || getPeopleAvatarImages(activeMember)[0] || '/logo-gg.png'
+  const activeMobileBanner = activeMember.bannerImageMobileUrl || activeMember.bannerImageUrl || getPeopleAvatarImages(activeMember)[0] || activeBanner
   const activeBannerIsPlaceholder = isLogoLikeImage(activeBanner)
 
   function pauseAuto(ms = 5000) {
@@ -1035,7 +1170,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
     const rail = railRef.current
     if (!rail) return
     pauseAuto()
-    rail.scrollBy({ left: direction * Math.max(220, rail.clientWidth * 0.8), behavior: 'smooth' })
+    rail.scrollBy({ left: direction * Math.max(220, rail.clientWidth * 0.8), behavior: reducedMotion ? 'auto' : 'smooth' })
     setActiveIndex((index) => (index + direction + members.length) % members.length)
   }
 
@@ -1066,7 +1201,19 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
   }
 
   return (
-    <section className="home-section-pad px-5 lg:px-10" onMouseLeave={closeMemberPreviewSoon}>
+    <section
+      className="home-section-pad px-5 lg:px-10"
+      onMouseEnter={() => setInteracting(true)}
+      onMouseLeave={() => {
+        setInteracting(false)
+        closeMemberPreviewSoon()
+      }}
+      onFocusCapture={() => setInteracting(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setInteracting(false)
+      }}
+      onPointerDown={() => pauseAuto(12000)}
+    >
       <div className="mx-auto max-w-6xl">
         {/* Round 12 A5: the CMS body ("Teamwork makes the dream work.") renders as an editorial pull-quote */}
         <SectionHeader
@@ -1075,20 +1222,27 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
           align="left"
           perWord
         />
-        <div data-reveal="scale" className="group relative aspect-[16/8] overflow-hidden rounded-[24px] bg-[#190b12] text-white shadow-[0_24px_70px_rgba(80,20,50,0.16)] ring-1 ring-white/70 md:aspect-[16/6]">
+        <div data-reveal="scale" className="people-feature-banner group relative aspect-[16/8] overflow-hidden rounded-[24px] bg-[#190b12] text-white shadow-[0_24px_70px_rgba(80,20,50,0.16)] ring-1 ring-white/70 md:aspect-[16/6]">
           {activeBannerIsPlaceholder ? (
-            <div className="people-typographic-banner absolute inset-0 flex items-center justify-center px-8 text-center">
-              <span>{activeMember.title}</span>
+            <div className="people-typographic-banner absolute inset-0 flex items-center justify-center px-8 text-center" aria-hidden="true">
+              <span>{getPersonInitials(activeMember.title)}</span>
             </div>
           ) : (
-            <img
-              src={cldWidth(activeBanner, 1280)}
-              srcSet={cldSrcSet(activeBanner, [1280, 2400])}
-              sizes="(min-width: 1280px) 1152px, 96vw"
-              decoding="async"
-              alt={`${activeMember.title} banner`}
-              className="absolute inset-0 h-full w-full object-cover transition duration-700"
-            />
+            <picture>
+              <source media="(max-width: 767px)" srcSet={cldSrcSet(activeMobileBanner, [640, 960, 1280])} sizes="100vw" />
+              <img
+                src={cldWidth(activeBanner, 1280)}
+                srcSet={cldSrcSet(activeBanner, [1280, 2400])}
+                sizes="(min-width: 1280px) 1152px, 96vw"
+                decoding="async"
+                alt={`${activeMember.title} banner`}
+                className="people-banner-image absolute inset-0 h-full w-full object-cover transition duration-700"
+                style={{
+                  '--people-banner-position': normalizeObjectPosition(activeMember.bannerImagePosition),
+                  '--people-banner-position-mobile': normalizeObjectPosition(activeMember.bannerImageMobilePosition, normalizeObjectPosition(activeMember.bannerImagePosition)),
+                } as CSSProperties}
+              />
+            </picture>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/20 to-transparent" aria-hidden="true" />
           <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
@@ -1112,7 +1266,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
               <button
                 type="button"
                 onClick={() => moveRail(-1)}
-                className="absolute left-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
                 aria-label="Previous people"
               >
                 <ChevronLeft size={20} strokeWidth={2.6} aria-hidden="true" />
@@ -1120,14 +1274,14 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
               <button
                 type="button"
                 onClick={() => moveRail(1)}
-                className="absolute right-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
                 aria-label="Next people"
               >
                 <ChevronRight size={20} strokeWidth={2.6} aria-hidden="true" />
               </button>
             </>
           )}
-          <div ref={railRef} className="case-study-rail flex snap-x gap-2 overflow-x-auto scroll-smooth pb-2" onPointerDown={() => pauseAuto()} onTouchStart={() => pauseAuto()}>
+          <div ref={railRef} className="case-study-rail flex snap-x gap-2 overflow-x-auto scroll-smooth pb-2" onPointerDown={() => pauseAuto(12000)} onTouchStart={() => pauseAuto(12000)}>
           {members.map((member, index) => {
             const avatarImages = getPeopleAvatarImages(member)
             const thumbnail = member.thumbnailUrl || avatarImages[0] || '/logo-gg.png'
@@ -1135,13 +1289,14 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
             return (
               <button
                 key={`${member.title}-${index}`}
+                data-person-index={index}
                 data-reveal="people-card"
                 type="button"
                 onMouseEnter={(event) => showMemberPreview(member, event.currentTarget)}
                 onMouseLeave={closeMemberPreviewSoon}
                 onFocus={(event) => showMemberPreview(member, event.currentTarget)}
                 onClick={() => {
-                  pauseAuto()
+                  pauseAuto(12000)
                   setActiveIndex(index)
                 }}
                 style={{ '--ri': index } as CSSProperties}
@@ -1151,8 +1306,8 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
                 ].join(' ')}
               >
                 {isLogoLikeImage(thumbnail) ? (
-                  <span className="people-typographic-card absolute inset-0 flex items-center justify-center px-4 text-center transition duration-500 group-hover:scale-[1.04]">
-                    {member.title}
+                  <span className="people-typographic-card absolute inset-0 flex items-center justify-center px-4 text-center transition duration-500 group-hover:scale-[1.04]" aria-hidden="true">
+                    <span>{getPersonInitials(member.title)}</span>
                   </span>
                 ) : (
                   <img
@@ -1174,6 +1329,20 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
             )
           })}
           </div>
+          {members.length > 1 && (
+            <div className="mt-2 flex justify-start">
+              <button
+                type="button"
+                onClick={() => setManuallyPaused((paused) => !paused)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/20 bg-white/80 px-4 py-2 text-xs font-black text-[#3d1226] shadow-sm transition hover:border-primary/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                aria-pressed={manuallyPaused}
+                aria-label={manuallyPaused ? 'Play people carousel' : 'Pause people carousel'}
+              >
+                {manuallyPaused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}
+                <span>{manuallyPaused ? 'Play' : 'Pause'}</span>
+              </button>
+            </div>
+          )}
         </div>
         {previewMember && canHover && (
           <div
@@ -1272,6 +1441,8 @@ function ClosingBanner({
             <div className="closing-faq grid gap-3 text-left">
               {faqItems.map((item, index) => {
                 const open = openFaqIndex === index
+                const buttonId = `home-faq-button-${index}`
+                const panelId = `home-faq-panel-${index}`
                 return (
                   <div
                     key={`${item.question}-${index}`}
@@ -1283,11 +1454,19 @@ function ClosingBanner({
                       onClick={() => setOpenFaqIndex(open ? -1 : index)}
                       className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left text-[15px] font-bold leading-snug md:text-[16px]"
                       aria-expanded={open}
+                      aria-controls={panelId}
+                      id={buttonId}
                     >
                       <span>{item.question}</span>
-                      <span className={`closing-faq-plus flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#3d1226]/10 text-xl leading-none transition-transform ${open ? 'rotate-45' : ''}`}>+</span>
+                      <span className={`closing-faq-plus flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#3d1226]/10 text-xl leading-none transition-transform ${open ? 'rotate-45' : ''}`} aria-hidden="true">+</span>
                     </button>
-                    <div className={`closing-faq-answer grid transition-[grid-template-rows] duration-300 ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                    <div
+                      id={panelId}
+                      role="region"
+                      aria-labelledby={buttonId}
+                      aria-hidden={!open}
+                      className={`closing-faq-answer grid transition-[grid-template-rows] duration-300 ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+                    >
                       <div className="overflow-hidden">
                         <p className="px-4 pb-4 text-sm font-semibold leading-relaxed text-[#3d1226]/75">{item.answer}</p>
                       </div>
@@ -1338,6 +1517,7 @@ export default function BrandHomePage({
 }) {
   const [heroReady, setHeroReady] = useState(false)
   const [heroCueHidden, setHeroCueHidden] = useState(false)
+  const reducedMotion = useReducedMotionPreference()
 
   const c = compactHomeByLang[lang]
   const homeBackground = mergeHomepageBackground(siteSettings?.homepageBackground)
@@ -1361,11 +1541,12 @@ export default function BrandHomePage({
     mobileMp4: heroBlock?.backgroundVideoMobileUrl?.trim() || undefined,
     mobileWebm: heroBlock?.backgroundVideoMobileWebmUrl?.trim() || undefined,
     poster: heroBlock?.backgroundVideoPoster?.trim() || undefined,
+    mobilePoster: heroBlock?.backgroundVideoMobilePoster?.trim() || heroBlock?.backgroundVideoPoster?.trim() || undefined,
   }
   const heroHasVideo = Boolean(heroVideoSources.mp4 || heroVideoSources.webm)
   const heroTextAlign = heroBlock?.heroTextAlign === 'center' ? 'center' : 'left'
   const heroAlignLeft = heroTextAlign === 'left'
-  const heroHasOwnBackground = !heroHasVideo && (!flowWaveActive || Boolean(heroBlock?.backgroundImageUrl?.trim()))
+  const heroHasOwnBackground = !heroHasVideo && (!flowWaveActive || Boolean(heroBlock?.backgroundImageUrl?.trim() || heroBlock?.backgroundImageMobileUrl?.trim()))
   const rawHeroTextMode = heroBlock?.textColor ?? 'light'
   // "light" was chosen for opaque hero backgrounds (gradient/video); on the transparent aurora canvas it is unreadable.
   const heroTextMode = !heroHasOwnBackground && !heroHasVideo && rawHeroTextMode === 'light' ? 'dark' : rawHeroTextMode
@@ -1388,8 +1569,12 @@ export default function BrandHomePage({
     }))
 
   useEffect(() => {
+    if (reducedMotion) {
+      setHeroReady(true)
+      return
+    }
     whenIntroGone(() => setHeroReady(true))
-  }, [])
+  }, [reducedMotion])
 
   useEffect(() => {
     const storageKey = 'gg99:hero-scroll-cue-hidden'
@@ -1420,7 +1605,7 @@ export default function BrandHomePage({
     } catch {
       // no-op
     }
-    document.getElementById('featured-cases')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.getElementById('featured-cases')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' })
   }
 
   return (
@@ -1441,6 +1626,7 @@ export default function BrandHomePage({
         } ${heroReady ? 'is-ready' : ''}`}
         style={heroHasOwnBackground ? heroBackgroundStyle(heroBlock) : undefined}
       >
+        {!heroHasVideo && <StaticHeroBackground block={heroBlock} />}
         {heroHasVideo && <HeroBackgroundVideo sources={heroVideoSources} />}
         {heroHasVideo && (
           // Round 7 A1.5: soft radial scrim right behind the text cluster only —
@@ -1503,7 +1689,14 @@ export default function BrandHomePage({
               className={`home-hero-item home-hero-stat-chips mt-5 flex flex-wrap gap-2 ${heroAlignLeft ? 'justify-start' : 'justify-center'}`}
             >
               {heroStatChips.map((chip) => (
-                <span key={`${chip.value}-${chip.label}`} className="home-hero-stat-chip rounded-full border border-white/40 bg-white/[0.12] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_10px_26px_rgba(0,0,0,0.1)] backdrop-blur-md">
+                <span
+                  key={`${chip.value}-${chip.label}`}
+                  className={`home-hero-stat-chip rounded-full px-3 py-1.5 text-xs font-semibold shadow-[0_10px_26px_rgba(0,0,0,0.1)] backdrop-blur-md ${
+                    heroTextMode === 'dark'
+                      ? 'border border-[#3d1226]/20 bg-white/75 text-[#3d1226]'
+                      : 'border border-white/40 bg-black/20 text-white'
+                  }`}
+                >
                   {chip.value}{chip.label ? ` ${chip.label}` : ''}
                 </span>
               ))}
@@ -1513,7 +1706,7 @@ export default function BrandHomePage({
         <button
           type="button"
           onClick={scrollToFeaturedCases}
-          className={`hero-scroll-cue ${heroCueHidden ? 'is-hidden' : ''}`}
+          className={`hero-scroll-cue ${heroTextMode === 'dark' ? 'is-dark' : ''} ${heroCueHidden ? 'is-hidden' : ''}`}
           aria-label={lang === 'vi' ? 'Cuộn xuống case nổi bật' : 'Scroll to featured cases'}
         >
           <ChevronDown size={26} strokeWidth={1.9} aria-hidden="true" />

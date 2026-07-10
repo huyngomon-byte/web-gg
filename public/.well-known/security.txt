@@ -1,0 +1,5 @@
+Contact: mailto:smooth@gg99.vn
+Canonical: https://www.gg99.vn/.well-known/security.txt
+Preferred-Languages: vi, en
+Policy: https://www.gg99.vn/chinh-sach-bao-mat
+Expires: 2027-07-10T00:00:00.000Z

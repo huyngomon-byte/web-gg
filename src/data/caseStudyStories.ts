@@ -13,6 +13,7 @@ export function storyFromCmsItem(item: CmsBlockItem) {
     const fallback = caseStudiesById.get(candidate) ?? caseStudiesByBrandName.get(candidate)
     if (fallback) {
       const services = (item.services ?? []).map((service) => service.trim()).filter(Boolean)
+      const hasCmsMetrics = Array.isArray(item.keyMetrics)
       const cmsMetrics = (item.keyMetrics ?? []).slice(0, 10).map((metric) => ({
         value: metric.value ?? '',
         label: metric.label ?? '',
@@ -20,6 +21,7 @@ export function storyFromCmsItem(item: CmsBlockItem) {
         featured: metric.featured,
         slide: metric.slide,
         display: metric.display,
+        tileAnchor: metric.tileAnchor,
         from: metric.from,
         to: metric.to,
         benchmarkLabel: metric.benchmarkLabel,
@@ -28,11 +30,11 @@ export function storyFromCmsItem(item: CmsBlockItem) {
         series: metric.series,
         chartCaption: metric.chartCaption,
       }))
-      const keyMetrics = Array.from({ length: 10 }, (_, index) => {
-        const metric = cmsMetrics[index]
-        if (metric && (metric.value || metric.label)) return metric
-        return fallback.keyMetrics[index] ?? { value: '', label: '' }
-      })
+      // Once the CMS supplies the metric collection it is authoritative, including
+      // an intentionally empty collection. Do not resurrect deleted fallback KPIs.
+      const keyMetrics = hasCmsMetrics
+        ? cmsMetrics.filter((metric) => metric.value.trim() || metric.label.trim())
+        : fallback.keyMetrics
 
       return {
         ...fallback,
@@ -58,6 +60,10 @@ export function storyFromCmsItem(item: CmsBlockItem) {
         videoUrl: item.videoUrl || fallback.videoUrl,
         embedUrl: item.embedUrl || fallback.embedUrl,
         thumbnailUrl: item.thumbnailUrl || fallback.thumbnailUrl,
+        homepageBannerImageUrl: item.homepageBannerImageUrl || fallback.homepageBannerImageUrl,
+        homepageBannerMobileUrl: item.homepageBannerMobileUrl || fallback.homepageBannerMobileUrl,
+        homepageBannerPosition: item.homepageBannerPosition || fallback.homepageBannerPosition,
+        homepageBannerMobilePosition: item.homepageBannerMobilePosition || fallback.homepageBannerMobilePosition,
         homepageGalleryImages: (item.homepageGalleryImages?.length ? item.homepageGalleryImages : fallback.homepageGalleryImages) ?? [],
         backgroundImageUrl: item.backgroundImageUrl || item.imageUrl || fallback.backgroundImageUrl,
         backgroundImages: (item.backgroundImages?.length ? item.backgroundImages : fallback.backgroundImages) ?? [],
@@ -87,9 +93,9 @@ export function storyFromCmsItem(item: CmsBlockItem) {
 }
 
 export function getOrderedCaseStudies(storiesBlock: CmsBlock | undefined) {
-  const ordered = (storiesBlock?.items ?? []).map(storyFromCmsItem).filter(Boolean) as CaseStudy[]
-  const orderedIds = new Set(ordered.map((story) => story.id))
-  const missingStories = caseStudies.filter((story) => !orderedIds.has(story.id))
+  if (!storiesBlock?.items) return caseStudies
 
-  return [...ordered, ...missingStories]
+  const ordered = (storiesBlock?.items ?? []).map(storyFromCmsItem).filter(Boolean) as CaseStudy[]
+  // The CMS order is also the CMS inclusion list. A removed story must stay removed.
+  return ordered
 }

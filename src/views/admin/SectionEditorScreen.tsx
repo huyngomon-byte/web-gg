@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type DragEvent } from 'react'
+import { useEffect, useState, type CSSProperties, type DragEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronLeft, ChevronRight, ImageIcon, Plus, Save, Trash2, UploadCloud } from 'lucide-react'
 import { useAdminData } from '../../admin/AdminDataContext'
@@ -30,6 +30,29 @@ type ItemTextKey = Exclude<keyof CmsLocalizedBlockItemFields, 'services' | 'feat
 
 const storyMetricSlots = Array.from({ length: 10 }, (_, index) => index)
 const packageDetailPageIds = new Set(['the-one-start', 'the-one-system', 'the-one-scale'])
+
+function SafeCropPreview({
+  url,
+  alt,
+  aspectClassName,
+  label,
+  position,
+}: {
+  url?: string
+  alt: string
+  aspectClassName: string
+  label: string
+  position?: string
+}) {
+  if (!url) return null
+  return (
+    <div className={`relative overflow-hidden rounded-xl border border-outline-variant/45 bg-surface-container-low ${aspectClassName}`}>
+      <img src={url} alt={alt} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: position?.trim() || '50% 50%' } as CSSProperties} />
+      <div className="pointer-events-none absolute inset-[9%] rounded-lg border border-dashed border-white/90 shadow-[0_0_0_999px_rgba(20,8,16,0.12)]" aria-hidden="true" />
+      <span className="absolute left-2 top-2 rounded-full bg-black/65 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">{label}</span>
+    </div>
+  )
+}
 
 function listToText(items: string[] | undefined) {
   return (items ?? []).join('\n')
@@ -359,6 +382,41 @@ function PeopleItemEditor({
                   onUploaded={(url) => updateBlockItem(pageId, blockId, index, { bannerImageUrl: url })}
                   onError={onUploadError}
                   label={item.bannerImageUrl ? 'Thay banner' : 'Upload banner'}
+                />
+                <TextInput
+                  value={item.bannerImagePosition ?? ''}
+                  onChange={(value) => updateBlockItem(pageId, blockId, index, { bannerImagePosition: value })}
+                  placeholder="Desktop focal point, e.g. 50% 40%"
+                />
+                <SafeCropPreview
+                  url={item.bannerImageUrl}
+                  alt={`${item.title || 'Person'} desktop People banner preview`}
+                  aspectClassName="aspect-[8/3]"
+                  label="Desktop safe crop"
+                  position={item.bannerImagePosition}
+                />
+              </div>
+            </Field>
+            <Field label="Mobile banner image URL" hint="Recommended 1200x900 portrait-safe crop.">
+              <div className="grid gap-2">
+                <TextInput value={item.bannerImageMobileUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { bannerImageMobileUrl: value })} />
+                <ImageUploadButton
+                  folder={`cms/pages/${pageId}/${blockId}/people/${index + 1}/banner-mobile`}
+                  onUploaded={(url) => updateBlockItem(pageId, blockId, index, { bannerImageMobileUrl: url })}
+                  onError={onUploadError}
+                  label={item.bannerImageMobileUrl ? 'Replace mobile banner' : 'Upload mobile banner'}
+                />
+                <TextInput
+                  value={item.bannerImageMobilePosition ?? ''}
+                  onChange={(value) => updateBlockItem(pageId, blockId, index, { bannerImageMobilePosition: value })}
+                  placeholder="Mobile focal point, e.g. 50% 35%"
+                />
+                <SafeCropPreview
+                  url={item.bannerImageMobileUrl || item.bannerImageUrl}
+                  alt={`${item.title || 'Person'} mobile People banner preview`}
+                  aspectClassName="aspect-[4/3]"
+                  label="Mobile safe crop"
+                  position={item.bannerImageMobilePosition || item.bannerImagePosition}
                 />
               </div>
             </Field>
@@ -1204,7 +1262,7 @@ function StoryItemEditor({
             />
             Show on homepage
           </label>
-          <Field label="Homepage thumbnail URL" hint="Main 16:9 thumbnail for the homepage top banner and case rail.">
+          <Field label="Homepage thumbnail URL" hint="16:9 thumbnail used only in the compact homepage case rail.">
             <div className="grid gap-2">
               <TextInput value={item.thumbnailUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { thumbnailUrl: value })} />
               <ImageUploadButton
@@ -1215,8 +1273,54 @@ function StoryItemEditor({
               />
             </div>
           </Field>
+          <Field label="Homepage banner - desktop" hint="Recommended 2400x1000 (about 12:5). Keep the subject inside the center safe area.">
+            <div className="grid gap-2">
+              <TextInput value={item.homepageBannerImageUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageBannerImageUrl: value })} />
+              <ImageUploadButton
+                folder={`cms/pages/${pageId}/${blockId}/homepage-banner-desktop`}
+                onUploaded={(url) => updateBlockItem(pageId, blockId, index, { homepageBannerImageUrl: url })}
+                onError={onUploadError}
+                label={item.homepageBannerImageUrl ? 'Replace desktop banner' : 'Upload desktop banner'}
+              />
+              <TextInput
+                value={item.homepageBannerPosition ?? ''}
+                onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageBannerPosition: value })}
+                placeholder="Focal point, e.g. 50% 40%"
+              />
+              <SafeCropPreview
+                url={item.homepageBannerImageUrl}
+                alt={`${item.title || 'Story'} desktop homepage banner preview`}
+                aspectClassName="aspect-[12/5]"
+                label="Desktop safe crop"
+                position={item.homepageBannerPosition}
+              />
+            </div>
+          </Field>
+          <Field label="Homepage banner - mobile" hint="Recommended 1200x900 (4:3), composed independently from desktop.">
+            <div className="grid gap-2">
+              <TextInput value={item.homepageBannerMobileUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageBannerMobileUrl: value })} />
+              <ImageUploadButton
+                folder={`cms/pages/${pageId}/${blockId}/homepage-banner-mobile`}
+                onUploaded={(url) => updateBlockItem(pageId, blockId, index, { homepageBannerMobileUrl: url })}
+                onError={onUploadError}
+                label={item.homepageBannerMobileUrl ? 'Replace mobile banner' : 'Upload mobile banner'}
+              />
+              <TextInput
+                value={item.homepageBannerMobilePosition ?? ''}
+                onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageBannerMobilePosition: value })}
+                placeholder="Mobile focal point, e.g. 50% 35%"
+              />
+              <SafeCropPreview
+                url={item.homepageBannerMobileUrl || item.homepageBannerImageUrl}
+                alt={`${item.title || 'Story'} mobile homepage banner preview`}
+                aspectClassName="aspect-[4/3]"
+                label="Mobile safe crop"
+                position={item.homepageBannerMobilePosition || item.homepageBannerPosition}
+              />
+            </div>
+          </Field>
           <div className="md:col-span-2">
-            <Field label="Homepage gallery images" hint="Upload 3 rectangular images for the homepage hover popup. The thumbnail above is used as image 1.">
+            <Field label="Homepage hover gallery" hint="Upload up to 3 rectangular images used only in the desktop hover preview.">
               <BackgroundCarouselUploader
                 urls={item.homepageGalleryImages ?? []}
                 onChange={updateHomepageGalleryImages}
@@ -1645,6 +1749,41 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                     onError={setUploadError}
                     label={block.backgroundImageUrl ? 'Thay background' : 'Upload background'}
                   />
+                  <TextInput
+                    value={block.backgroundImagePosition ?? ''}
+                    onChange={(value) => updateBlock(pageId, blockId, { backgroundImagePosition: value })}
+                    placeholder="Desktop focal point, e.g. 50% 50%"
+                  />
+                  <SafeCropPreview
+                    url={block.backgroundImageUrl}
+                    alt="Desktop hero background preview"
+                    aspectClassName="aspect-[16/9]"
+                    label="Desktop safe crop"
+                    position={block.backgroundImagePosition}
+                  />
+                </div>
+              </Field>
+              <Field label="Background image - mobile" hint="Portrait/mobile crop used below 768px.">
+                <div className="grid gap-2">
+                  <TextInput value={block.backgroundImageMobileUrl ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundImageMobileUrl: value })} placeholder="Mobile background image URL" />
+                  <ImageUploadButton
+                    folder={`cms/pages/${pageId}/${blockId}/background-mobile`}
+                    onUploaded={(url) => updateBlock(pageId, blockId, { backgroundImageMobileUrl: url })}
+                    onError={setUploadError}
+                    label={block.backgroundImageMobileUrl ? 'Replace mobile background' : 'Upload mobile background'}
+                  />
+                  <TextInput
+                    value={block.backgroundImageMobilePosition ?? ''}
+                    onChange={(value) => updateBlock(pageId, blockId, { backgroundImageMobilePosition: value })}
+                    placeholder="Mobile focal point, e.g. 50% 40%"
+                  />
+                  <SafeCropPreview
+                    url={block.backgroundImageMobileUrl || block.backgroundImageUrl}
+                    alt="Mobile hero background preview"
+                    aspectClassName="aspect-[3/4]"
+                    label="Mobile safe crop"
+                    position={block.backgroundImageMobilePosition || block.backgroundImagePosition}
+                  />
                 </div>
               </Field>
               <Field label="Background gradient">
@@ -1692,6 +1831,17 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                         onUploaded={(url) => updateBlock(pageId, blockId, { backgroundVideoPoster: url })}
                         onError={setUploadError}
                         label={block.backgroundVideoPoster ? 'Replace poster' : 'Upload poster'}
+                      />
+                    </div>
+                  </Field>
+                  <Field label="Video poster - mobile" hint="Portrait-safe poster used below 768px.">
+                    <div className="grid gap-2">
+                      <TextInput value={block.backgroundVideoMobilePoster ?? ''} onChange={(value) => updateBlock(pageId, blockId, { backgroundVideoMobilePoster: value })} placeholder="https://res.cloudinary.com/.../poster-mobile.webp" />
+                      <ImageUploadButton
+                        folder={`cms/pages/${pageId}/${blockId}/video-mobile`}
+                        onUploaded={(url) => updateBlock(pageId, blockId, { backgroundVideoMobilePoster: url })}
+                        onError={setUploadError}
+                        label={block.backgroundVideoMobilePoster ? 'Replace mobile poster' : 'Upload mobile poster'}
                       />
                     </div>
                   </Field>

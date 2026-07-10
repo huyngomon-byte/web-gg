@@ -5,14 +5,13 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
   type FormEvent,
   type ReactNode,
 } from 'react'
-import { onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut, type User } from 'firebase/auth'
+import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut, type User } from 'firebase/auth'
 import { defaultCmsInsights, defaultCmsPages, defaultCmsSiteSettings } from '../cms/defaultContent'
-import { getAdminEmails, getFirebaseClient, isFirebaseConfigured } from '../cms/firebaseClient'
+import { getFirebaseClient, isFirebaseConfigured } from '../cms/firebaseClient'
 import { mergeCmsBlockWithTemplate } from '../cms/mergeDefaults'
 import { mergeCmsSiteSettings } from '../cms/siteSettings'
 import { getCmsSiteSettings, listCmsInsights, listCmsPages, saveCmsInsight, saveCmsPage, saveCmsSiteSettings, seedDefaultContent } from '../cms/cmsRepository'
@@ -234,8 +233,8 @@ const AdminDataCtx = createContext<AdminDataValue | null>(null)
 
 export function AdminDataProvider({ children }: { children: ReactNode }) {
   const configured = isFirebaseConfigured()
-  const adminEmails = useMemo(() => getAdminEmails(), [])
   const [user, setUser] = useState<User | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [authLoading, setAuthLoading] = useState(configured)
   const [contentLoading, setContentLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -248,15 +247,27 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
   const [loginPassword, setLoginPassword] = useState('')
   const [signingIn, setSigningIn] = useState(false)
 
-  const canUseAdmin = configured && adminEmails.length > 0
-  const isAdmin = !!user?.email && adminEmails.includes(user.email.toLowerCase())
+  const canUseAdmin = configured
 
   useEffect(() => {
     if (!configured) return
     const { auth } = getFirebaseClient()
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser)
-      setAuthLoading(false)
+      setIsAdmin(false)
+      if (!nextUser) {
+        setAuthLoading(false)
+        return
+      }
+
+      setAuthLoading(true)
+      void getIdTokenResult(nextUser, true)
+        .then((token) => {
+          const role = token.claims.role
+          setIsAdmin(role === 'admin' || role === 'superadmin')
+        })
+        .catch(() => setIsAdmin(false))
+        .finally(() => setAuthLoading(false))
     })
   }, [configured])
 
@@ -523,10 +534,15 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
   }
 
   async function seed() {
+    const confirmation = window.prompt('Type SEED GG99 to replace all CMS content with the code defaults.')
+    if (confirmation !== 'SEED GG99') {
+      setError('Seed cancelled. The confirmation phrase did not match.')
+      return
+    }
     clearFeedback()
     setSaving(true)
     try {
-      await seedDefaultContent()
+      await seedDefaultContent(confirmation)
       const [nextPages, nextInsights, nextSiteSettings] = await Promise.all([listCmsPages(), listCmsInsights(), getCmsSiteSettings()])
       setPages(normalizePages(nextPages))
       setInsights(nextInsights)

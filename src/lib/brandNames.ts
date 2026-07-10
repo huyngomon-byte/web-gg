@@ -9,3 +9,9 @@ export function normalizePhinoiText(value: string) {
     match === match.toLowerCase() ? match : PHINOI_DISPLAY_NAME
   ))
 }
+
+export function brandDisplayFontClass(value: string | undefined) {
+  return value && normalizePhinoiText(value).includes(PHINOI_DISPLAY_NAME)
+    ? 'font-brand-vietnamese'
+    : ''
+}

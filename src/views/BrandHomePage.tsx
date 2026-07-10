@@ -29,6 +29,7 @@ import { useReducedMotionPreference } from '../hooks/useReducedMotionPreference'
 import type { CmsBlock, CmsBlockItem, CmsPageContent, CmsSiteSettings } from '../cms/types'
 import { getOrderedCaseStudies } from '../data/caseStudyStories'
 import type { CaseStudy } from '../data/caseStudies'
+import { brandDisplayFontClass } from '../lib/brandNames'
 
 const primaryBookingCtaLabel = 'Schedule Our Date'
 const defaultHeroGradient = 'linear-gradient(180deg,#FF7AA8 0%,#FF4D7D 45%,#FFB199 100%)'
@@ -125,14 +126,18 @@ function getStoryLogoForHome(story: Pick<CaseStudy, 'id' | 'logoUrl'>) {
 }
 
 // Round 12 A2.3: word-by-word reveal for big headings/quotes ([data-reveal='words'] CSS)
-function RevealWords({ text }: { text: string }) {
+function RevealWords({ text, includeScreenReaderText = true }: { text: string; includeScreenReaderText?: boolean }) {
   const words = splitWords(text)
   return (
     <>
-      <span className="sr-only">{text}</span>
-      <span aria-hidden="true">
+      {includeScreenReaderText && <span className="sr-only">{text}</span>}
+      <span aria-hidden="true" style={{ '--rw-count': words.length } as CSSProperties}>
         {words.map((word, index) => (
-          <span key={`${word}-${index}`} className="rw-word" style={{ '--wi': index } as CSSProperties}>
+          <span
+            key={`${word}-${index}`}
+            className="rw-word"
+            style={{ '--wi': index, '--rwi': words.length - index - 1 } as CSSProperties}
+          >
             {word}
             {index < words.length - 1 ? ' ' : ''}
           </span>
@@ -162,15 +167,22 @@ function SectionHeader({
   const followDelayMs = perWord ? titleWordCount * 70 + 240 : 130
   return (
     <div className={`mb-8 max-w-3xl ${centered ? 'mx-auto text-center' : ''}`}>
-      <h2 data-reveal={perWord ? 'words' : 'true'} className={`text-[28px] md:text-[36px] font-extrabold leading-tight ${dark ? 'text-white' : 'text-on-surface'}`}>
+      <h2 data-reveal={perWord ? 'words' : 'true'} data-reveal-phase="0" className={`text-[28px] md:text-[36px] font-extrabold leading-tight ${dark ? 'text-white' : 'text-on-surface'}`}>
         {perWord ? <RevealWords text={title} /> : title}
       </h2>
-      <div data-reveal="line" className={`home-gradient-underline mt-3 ${centered ? 'mx-auto' : ''}`} aria-hidden="true" />
+      <div
+        data-reveal="line"
+        data-reveal-phase="1"
+        style={{ '--rd': `${followDelayMs}ms` } as CSSProperties}
+        className={`home-gradient-underline mt-3 ${centered ? 'mx-auto' : ''}`}
+        aria-hidden="true"
+      />
       {intro && (
         <p
           data-reveal="soft"
+          data-reveal-phase="1"
           style={{ '--rd': `${followDelayMs}ms` } as CSSProperties}
-          className={`mt-4 text-[15px] md:text-base leading-relaxed ${dark ? 'text-white/65' : 'text-on-surface-variant'}`}
+          className={`mt-4 text-[15px] md:text-base leading-relaxed ${dark ? 'text-white/75' : 'text-on-surface-variant'}`}
         >
           {intro}
         </p>
@@ -178,9 +190,9 @@ function SectionHeader({
       {quote && (
         // Round 12 A5: editorial pull-quote — oversized gradient quote mark behind-left,
         // hero-family serif italic, thin gradient underline. Text stays a CMS field.
-        <div className="people-quote mt-6" data-reveal="words" style={{ '--rd': `${followDelayMs}ms` } as CSSProperties}>
+        <div className="people-quote mt-6" data-reveal="words" data-reveal-phase="1" style={{ '--rd': `${followDelayMs}ms` } as CSSProperties}>
           <span className="people-quote-mark" aria-hidden="true">&ldquo;</span>
-          <p className="people-quote-text text-[19px] italic leading-snug text-[#3d1226] md:text-[24px]">
+          <p className={`people-quote-text text-[19px] italic leading-snug md:text-[24px] ${dark ? 'text-[#fff1f7]' : 'text-[#3d1226]'}`}>
             <RevealWords text={quote} />
           </p>
           <div className="people-quote-underline" aria-hidden="true" />
@@ -224,6 +236,7 @@ function StaggeredText({
   nowrap: boolean
 }) {
   const words = splitWords(text)
+  const totalCharacters = countStaggerCharacters(text)
   let characterIndex = 0
 
   return (
@@ -236,7 +249,11 @@ function StaggeredText({
               const currentIndex = characterIndex
               characterIndex += 1
               return (
-                <span key={`${word}-${index}-${character}`} className={`stagger-char ${charClassName}`} style={{ '--ci': currentIndex } as CSSProperties}>
+                <span
+                  key={`${word}-${index}-${character}`}
+                  className={`stagger-char ${charClassName}`}
+                  style={{ '--ci': currentIndex, '--rci': totalCharacters - currentIndex - 1 } as CSSProperties}
+                >
                   {character}
                 </span>
               )
@@ -265,7 +282,14 @@ function HeroWordTitle({
       <span className="sr-only">{text}</span>
       <span aria-hidden="true" className={nowrap ? 'inline-block whitespace-nowrap' : 'inline'}>
         {words.map((word, index) => (
-          <span key={`${word}-${index}`} className="stagger-word hero-stagger-word" style={{ '--hero-word-delay': `${heroFirstWordDelayMs + index * heroWordStepMs}ms` } as CSSProperties}>
+          <span
+            key={`${word}-${index}`}
+            className="stagger-word hero-stagger-word"
+            style={{
+              '--hero-word-delay': `${heroFirstWordDelayMs + index * heroWordStepMs}ms`,
+              '--hero-word-delay-up': `${(words.length - index - 1) * heroWordStepMs}ms`,
+            } as CSSProperties}
+          >
             {word}
             {index < words.length - 1 ? <span className="stagger-space" aria-hidden="true">&nbsp;</span> : null}
           </span>
@@ -632,20 +656,20 @@ function CaseStudyPreviewPopover({ story, lang }: { story: CaseStudy; lang: Bran
             } ${activeImage === index ? 'scale-100 opacity-100' : 'scale-[1.03] opacity-0'}`}
           />
         ))}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-white/18" aria-hidden="true" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-white/[0.18]" aria-hidden="true" />
         {images.length > 1 && (
           <div className="absolute bottom-3 left-4 flex gap-1.5" aria-hidden="true">
             {images.map((imageUrl, index) => (
-              <span key={`${story.id}-dot-${imageUrl}-${index}`} className={`h-1.5 rounded-full transition-all ${activeImage === index ? 'w-5 bg-white' : 'w-1.5 bg-white/55'}`} />
+              <span key={`${story.id}-dot-${imageUrl}-${index}`} className={`h-1.5 rounded-full transition-all ${activeImage === index ? 'w-5 bg-white' : 'w-1.5 bg-white/[0.55]'}`} />
             ))}
           </div>
         )}
       </div>
-      <div className="relative m-3 mt-0 flex min-h-0 flex-1 flex-col rounded-[18px] border border-white/65 bg-white/[0.88] p-4 shadow-[0_18px_44px_rgba(43,23,33,0.12)]">
+      <div className="relative m-3 mt-0 flex min-h-0 flex-1 flex-col rounded-[18px] border border-white/[0.65] bg-white/[0.88] p-4 shadow-[0_18px_44px_rgba(43,23,33,0.12)]">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: theme.accent }}>{story.category}</p>
-            <h3 className="mt-2 line-clamp-2 text-[22px] font-extrabold leading-tight text-on-surface">{story.brandName}</h3>
+            <h3 className={`mt-2 line-clamp-2 text-[22px] font-extrabold leading-tight text-on-surface ${brandDisplayFontClass(story.brandName)}`}>{story.brandName}</h3>
           </div>
           <img src={getStoryLogoForHome(story)} alt="" aria-hidden="true" className="h-11 w-11 shrink-0 rounded-full border border-white bg-white object-contain p-1.5 shadow-[0_10px_28px_rgba(43,23,33,0.14)]" />
         </div>
@@ -653,7 +677,7 @@ function CaseStudyPreviewPopover({ story, lang }: { story: CaseStudy; lang: Bran
         {stats.length > 0 && (
           <div className="mt-4 grid gap-1.5">
             {stats.map((stat) => (
-              <span key={`${story.id}-preview-stat-${stat.value}-${stat.label}`} className="rounded-full bg-gradient-to-r from-primary/12 via-tertiary/10 to-secondary/12 px-3 py-1.5 text-xs font-black text-primary">
+              <span key={`${story.id}-preview-stat-${stat.value}-${stat.label}`} className="rounded-full bg-gradient-to-r from-primary/[0.12] via-tertiary/10 to-secondary/[0.12] px-3 py-1.5 text-xs font-black text-primary">
                 <strong>{stat.value}</strong>{stat.label ? ` ${stat.label}` : ''}
               </span>
             ))}
@@ -670,7 +694,7 @@ function CaseStudyPreviewPopover({ story, lang }: { story: CaseStudy; lang: Bran
         </div>
         <a
           href={href}
-          className="mt-auto inline-flex w-fit items-center justify-center gap-2 rounded-full border border-[#3d1226]/12 bg-white/70 px-3.5 py-2 text-sm font-extrabold text-[#3d1226] shadow-[0_10px_24px_rgba(43,23,33,0.1)] transition hover:-translate-y-0.5 hover:bg-white"
+          className="mt-auto inline-flex w-fit items-center justify-center gap-2 rounded-full border border-[#3d1226]/[0.12] bg-white/70 px-3.5 py-2 text-sm font-extrabold text-[#3d1226] shadow-[0_10px_24px_rgba(43,23,33,0.1)] transition hover:-translate-y-0.5 hover:bg-white"
         >
           {aboutLabel}
           <ArrowUpRight size={15} strokeWidth={2.5} aria-hidden="true" />
@@ -733,6 +757,11 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
   const allStoriesHref = localizedPath(lang, '/the-one')
   const featuredContextLabel = block?.subtitle?.trim() || (lang === 'vi' ? 'Khach hang dang dong hanh cung The One' : 'Clients growing with The One')
   const allStoriesLabel = lang === 'vi' ? 'Xem tất cả stories' : 'View all stories'
+  const featuredCopyBaseMs = openingBaseMs + 320
+  const featuredTitleDoneMs = featuredCopyBaseMs + 160 + Math.max(0, countStaggerWords(activeStory.brandName) - 1) * 70 + 420
+  const featuredCaptionMs = featuredTitleDoneMs + 70
+  const featuredStatsMs = featuredCaptionMs + 130
+  const featuredRailMs = featuredStatsMs + activeStats.length * 80 + 180
 
   function moveRail(direction: -1 | 1) {
     const rail = railRef.current
@@ -775,7 +804,9 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
   return (
     <section
       id="featured-cases"
-      className="home-section-pad home-section-pad--featured relative overflow-hidden px-5 lg:px-10"
+      data-reveal-scene
+      data-home-tone="light"
+      className="home-tone-zone home-section-pad home-section-pad--featured relative overflow-hidden px-5 lg:px-10"
       onMouseEnter={() => setInteracting(true)}
       onMouseLeave={() => {
         setInteracting(false)
@@ -797,7 +828,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
         {/* Round 12 A2.2: the banner + thumbnail strip join the hero opening cascade —
             banner +200ms after the CTA, then tiles left→right (80ms/tile). useScrollReveal
             strips --rd outside the opening window (reload mid-page, scroll back). */}
-        <div className="relative" data-reveal="scale" data-reveal-open style={{ '--rd': `${openingBaseMs}ms` } as CSSProperties}>
+        <div className="relative">
           {/* Round 8 A2.1: ambient glow — a blurred copy of the active slide bleeds its colors into the wave */}
           <div aria-hidden="true" className="pointer-events-none absolute -inset-2 md:-inset-4">
             <img
@@ -805,7 +836,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
               src={cldWidth(getHomepageBannerMedia(activeStory).desktop, 640)}
               alt=""
               loading="lazy"
-              className="absolute inset-0 h-full w-full scale-[1.03] object-cover opacity-30 blur-[32px] saturate-[1.25] transition-opacity duration-700"
+              className="featured-banner-ambient absolute inset-0 h-full w-full scale-[1.03] object-cover saturate-[1.2] transition-opacity duration-700"
             />
           </div>
           <a
@@ -816,7 +847,13 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
           aria-label={`Open ${activeStory.brandName} story`}
         >
           {/* Feathered media layer: images + scrim fade at all four edges (no hard card border, Round 8 A2.1) */}
-          <div className="featured-banner-media pointer-events-none absolute inset-0">
+          <div
+            className="featured-banner-media pointer-events-none absolute inset-0"
+            data-reveal="scale"
+            data-reveal-phase="0"
+            data-reveal-open
+            style={{ '--rd': `${openingBaseMs}ms` } as CSSProperties}
+          >
             {showcaseStories.map((story, index) => {
               if (cyclicDistance(index, activeBannerIndex, showcaseStories.length) > 1) return null
               const media = getHomepageBannerMedia(story)
@@ -846,17 +883,19 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
                 </picture>
               )
             })}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/18 to-transparent" aria-hidden="true" />
+            <div className="featured-banner-scrim absolute inset-0" aria-hidden="true" />
           </div>
           <div className="featured-banner-copy pointer-events-none absolute inset-x-0 bottom-0 text-white">
-            <p className="featured-banner-context mb-2 inline-flex rounded-full border border-white/20 bg-white/14 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-white/78 backdrop-blur-md">{featuredContextLabel}</p>
-            <p className="featured-banner-kicker font-extrabold uppercase text-white/68">Featured case</p>
-            <h2 className="featured-banner-title mt-2 max-w-2xl font-extrabold leading-tight">{activeStory.brandName}</h2>
-            <p className="featured-banner-caption mt-2 max-w-2xl font-semibold leading-relaxed text-white/76">{activeStory.caption || activeStory.shortDescription}</p>
+            <p data-reveal="soft" data-reveal-phase="1" data-reveal-open style={{ '--rd': `${featuredCopyBaseMs}ms` } as CSSProperties} className="featured-banner-context mb-2 inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em]">{featuredContextLabel}</p>
+            <p data-reveal="soft" data-reveal-phase="1" data-reveal-open style={{ '--rd': `${featuredCopyBaseMs + 80}ms` } as CSSProperties} className="featured-banner-kicker font-extrabold uppercase">Featured case</p>
+            <h2 key={`${activeStory.id}-featured-title`} aria-label={activeStory.brandName} data-reveal="words" data-reveal-phase="1" data-reveal-open style={{ '--rd': `${featuredCopyBaseMs + 160}ms` } as CSSProperties} className={`featured-banner-title mt-2 max-w-2xl font-extrabold leading-tight ${brandDisplayFontClass(activeStory.brandName)}`}>
+              <RevealWords text={activeStory.brandName} includeScreenReaderText={false} />
+            </h2>
+            <p data-reveal="soft" data-reveal-phase="1" data-reveal-open style={{ '--rd': `${featuredCaptionMs}ms` } as CSSProperties} className="featured-banner-caption mt-2 max-w-2xl font-semibold leading-relaxed">{activeStory.caption || activeStory.shortDescription}</p>
             {activeStats.length > 0 && (
               <div className="featured-banner-stats mt-4 flex flex-wrap gap-2">
-                {activeStats.map((stat) => (
-                  <span key={`${activeStory.id}-banner-stat-${stat.value}-${stat.label}`} className="featured-banner-stat rounded-full border border-white/24 bg-white/18 px-3 py-1.5 text-xs font-black text-white shadow-[0_10px_26px_rgba(0,0,0,0.16)] backdrop-blur-md">
+                {activeStats.map((stat, statIndex) => (
+                  <span key={`${activeStory.id}-banner-stat-${stat.value}-${stat.label}`} data-reveal="soft" data-reveal-phase="1" data-reveal-open style={{ '--ri': statIndex, '--rd': `${featuredStatsMs + statIndex * 80}ms` } as CSSProperties} className="featured-banner-stat rounded-full px-3 py-1.5 text-xs font-black shadow-[0_10px_26px_rgba(0,0,0,0.16)]">
                     {stat.value}{stat.label ? ` ${stat.label}` : ''}
                   </span>
                 ))}
@@ -872,7 +911,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
               <button
                 type="button"
                 onClick={() => moveRail(-1)}
-                className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/[0.92] text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
                 aria-label="Previous case studies"
               >
                 <ChevronLeft size={20} strokeWidth={2.6} aria-hidden="true" />
@@ -880,7 +919,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
               <button
                 type="button"
                 onClick={() => moveRail(1)}
-                className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/[0.92] text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
                 aria-label="Next case studies"
               >
                 <ChevronRight size={20} strokeWidth={2.6} aria-hidden="true" />
@@ -894,9 +933,10 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
                 href={resolveStoryHref(lang, story.id, story.id)}
                 data-story-id={story.id}
                 data-reveal="tile-in"
+                data-reveal-phase="2"
                 data-tile-direction={index % 2 ? 'right' : 'bottom'}
                 data-reveal-open
-                style={{ '--ri': index, '--rd': `${openingBaseMs + 320}ms` } as CSSProperties}
+                style={{ '--ri': index, '--rd': `${featuredRailMs}ms` } as CSSProperties}
                 onMouseEnter={(event) => {
                   setBannerIndex(index)
                   showPreview(story, event.currentTarget)
@@ -932,7 +972,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
                     })()}
                   </span>
                   <span className="glass-panel glass-panel--strong flex h-[58px] flex-col justify-center rounded-none border-x-0 border-b-0 px-3.5 py-2">
-                    <h3 className="line-clamp-1 text-[14px] font-extrabold leading-tight text-[#3d1226] md:text-[15px]">{story.brandName}</h3>
+                    <h3 className={`line-clamp-1 text-[14px] font-extrabold leading-tight text-[#3d1226] md:text-[15px] ${brandDisplayFontClass(story.brandName)}`}>{story.brandName}</h3>
                     <p className="line-clamp-1 text-xs font-semibold leading-snug text-on-surface-variant">{story.headline}</p>
                   </span>
                 </span>
@@ -941,9 +981,10 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
             <a
               href={allStoriesHref}
               data-reveal="tile-in"
+              data-reveal-phase="3"
               data-tile-direction="right"
               data-reveal-open
-              style={{ '--ri': showcaseStories.length, '--rd': `${openingBaseMs + 320}ms` } as CSSProperties}
+              style={{ '--ri': showcaseStories.length, '--rd': `${featuredRailMs}ms` } as CSSProperties}
               className="group featured-ghost-card glass-panel glass-panel--strong relative flex shrink-0 basis-[42vw] snap-start flex-col items-center justify-center gap-3 rounded-[18px] p-5 text-center outline-none transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:basis-[calc((100%_-_8px)/2.25)] md:basis-[calc((100%_-_16px)/3)] lg:basis-[calc((100%_-_24px)/4)]"
             >
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary text-white shadow-[0_14px_30px_rgba(219,39,119,0.22)] transition-transform group-hover:translate-x-1">
@@ -953,7 +994,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
             </a>
           </div>
           <div className="mt-2 flex items-center justify-end gap-3">
-            <a href={allStoriesHref} className="inline-flex items-center gap-1.5 text-sm font-black text-primary transition hover:text-primary/70">
+            <a href={allStoriesHref} data-reveal="soft" data-reveal-phase="3" data-reveal-open style={{ '--rd': `${featuredRailMs + 180}ms` } as CSSProperties} className="inline-flex items-center gap-1.5 text-sm font-black text-primary transition hover:text-primary/70">
               {allStoriesLabel}
               <ArrowUpRight size={15} strokeWidth={2.6} aria-hidden="true" />
             </a>
@@ -1019,43 +1060,46 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
   const punchlineIndex = items.length + 2
   const mobileVisibleCount = 3
   const hasHiddenMobileReplies = items.length > mobileVisibleCount
+  const headingRevealDelay = countStaggerWords(block.heading || 'Sounds familiar?') * 70 + 240
 
   return (
-    <section className="home-section-pad px-5 lg:px-10">
+    <section data-reveal-scene data-home-tone="rose" className="home-tone-zone home-section-pad px-5 lg:px-10">
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.4fr_0.6fr] lg:items-start lg:gap-12">
         <div className="lg:sticky lg:top-28">
-          <p data-reveal className="text-[11px] font-black uppercase tracking-[0.2em] text-[#3d1226]/55">Red flags</p>
-          <h2 data-reveal className="mt-3 font-serif text-[38px] font-normal leading-[0.98] text-[#3d1226] md:text-[52px]">
-            {block.heading || 'Sounds familiar?'}
+          <p data-reveal="soft" data-reveal-phase="0" className="text-[11px] font-black uppercase tracking-[0.2em] text-[#3d1226]/[0.55]">Red flags</p>
+          <h2 data-reveal="words" data-reveal-phase="0" className="mt-3 font-serif text-[38px] font-normal leading-[0.98] text-[#3d1226] md:text-[52px]">
+            <RevealWords text={block.heading || 'Sounds familiar?'} />
           </h2>
           {/* Desktop only: punchline + CTA live here; on mobile they close the feed below. */}
           <div className="hidden lg:block">
-            <p data-reveal className="mt-6 max-w-sm bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-[26px] font-black leading-tight text-transparent xl:text-[32px]">
-              {punchline}
+            <p data-reveal="words" data-reveal-phase="3" style={{ '--rd': `${headingRevealDelay + 360}ms` } as CSSProperties} className="mt-6 max-w-sm bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-[26px] font-black leading-tight text-transparent xl:text-[32px]">
+              <RevealWords text={punchline} />
             </p>
-            <button
-              type="button"
-              onClick={openBookingModal}
-              className="btn-shine cta-idle mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_14px_30px_rgba(219,39,119,0.22)] hover:opacity-95"
-            >
-              {block.ctaLabel?.trim() || 'Schedule Our Date'}
-            </button>
+            <div data-reveal="soft" data-reveal-phase="3" style={{ '--rd': `${headingRevealDelay + 520}ms` } as CSSProperties}>
+              <button
+                type="button"
+                onClick={openBookingModal}
+                className="btn-shine cta-idle mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_14px_30px_rgba(219,39,119,0.22)] hover:opacity-95"
+              >
+                {block.ctaLabel?.trim() || 'Schedule Our Date'}
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="glass-panel quiet-zone relative w-full p-5 md:p-6">
           <div className="thread-line" aria-hidden="true" style={{ left: 39, top: 64 }} />
 
-          <article data-reveal="tile-in" data-tile-direction="bottom" style={{ '--ri': 0 } as CSSProperties} className="relative grid grid-cols-[40px_1fr] gap-3">
+          <article data-reveal="tile-in" data-reveal-phase="1" data-tile-direction="bottom" style={{ '--ri': 0, '--rd': `${headingRevealDelay}ms` } as CSSProperties} className="relative grid grid-cols-[40px_1fr] gap-3">
             <img src="/avatars/logo-gg.png" alt="" aria-hidden="true" className="relative z-10 h-10 w-10 rounded-full border border-white/80 bg-white object-contain p-1 shadow-sm" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[14px] font-extrabold text-[#3d1226]">{postHandle}</span>
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary">{postTopic}</span>
-                <span className="text-xs font-semibold text-[#3d1226]/45">17h</span>
+                <span className="text-xs font-semibold text-[#3d1226]/[0.45]">17h</span>
               </div>
               <p className="mt-1.5 text-[15px] font-semibold leading-relaxed text-[#3d1226]">{postText}</p>
-              <div className="mt-3 flex items-center gap-5 text-[#3d1226]/55" aria-hidden="true">
+              <div className="mt-3 flex items-center gap-5 text-[#3d1226]/[0.55]" aria-hidden="true">
                 <span className="flex items-center gap-1.5 text-xs font-bold"><Heart size={17} strokeWidth={2.2} /> 512</span>
                 <span className="flex items-center gap-1.5 text-xs font-bold"><MessageCircle size={17} strokeWidth={2.2} /> {items.length}</span>
                 <Repeat2 size={17} strokeWidth={2.2} />
@@ -1064,7 +1108,7 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
             </div>
           </article>
 
-          <div data-reveal="tile-in" data-tile-direction="bottom" style={{ '--ri': 1 } as CSSProperties} className="relative mt-5 grid grid-cols-[40px_1fr] gap-3" aria-hidden="true">
+          <div data-reveal="tile-in" data-reveal-phase="2" data-tile-direction="bottom" style={{ '--ri': 1, '--rd': `${headingRevealDelay + 160}ms` } as CSSProperties} className="relative mt-5 grid grid-cols-[40px_1fr] gap-3" aria-hidden="true">
             <span />
             <span className="flex h-6 items-center gap-1">
               <span className="thread-typing-dot" />
@@ -1078,8 +1122,9 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
               key={`${item.handle || item.title}-${index}`}
               data-testid="red-flag-reply"
               data-reveal="tile-in"
+              data-reveal-phase="2"
               data-tile-direction="bottom"
-              style={{ '--ri': index + 2 } as CSSProperties}
+              style={{ '--ri': index + 2, '--rd': `${headingRevealDelay + 220}ms` } as CSSProperties}
               className={`relative mt-5 grid-cols-[40px_1fr] gap-3 ${
                 index >= mobileVisibleCount && !showAllReplies ? 'hidden lg:grid' : 'grid'
               }`}
@@ -1089,11 +1134,11 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[14px] font-extrabold text-[#3d1226]">{item.handle?.trim() || item.title}</span>
                   {item.roleLabel?.trim() && <span className="text-xs font-semibold text-[#3d1226]/50">· {item.roleLabel}</span>}
-                  <span className="text-xs font-semibold text-[#3d1226]/45">{Math.max(1, 16 - index * 2)}h</span>
+                  <span className="text-xs font-semibold text-[#3d1226]/[0.45]">{Math.max(1, 16 - index * 2)}h</span>
                 </div>
                 <p className="mt-1.5 text-[15px] font-semibold leading-relaxed text-[#3d1226]/90">{item.body?.trim() || item.title}</p>
                 {item.likes?.trim() && (
-                  <span className="mt-2 flex w-fit items-center gap-1.5 text-xs font-bold text-[#3d1226]/55" aria-hidden="true">
+                  <span className="mt-2 flex w-fit items-center gap-1.5 text-xs font-bold text-[#3d1226]/[0.55]" aria-hidden="true">
                     <Heart size={15} strokeWidth={2.2} /> {item.likes}
                   </span>
                 )}
@@ -1112,12 +1157,12 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
           )}
 
           {/* Mobile only: the punchline closes the feed (desktop shows it in the left column). */}
-          <article data-reveal="tile-in" data-tile-direction="bottom" style={{ '--ri': punchlineIndex } as CSSProperties} className="relative mt-6 grid grid-cols-[40px_1fr] gap-3 lg:hidden">
+          <article data-reveal="tile-in" data-reveal-phase="3" data-tile-direction="bottom" style={{ '--ri': punchlineIndex, '--rd': `${headingRevealDelay + 360}ms` } as CSSProperties} className="relative mt-6 grid grid-cols-[40px_1fr] gap-3 lg:hidden">
             <img src="/avatars/logo-gg.png" alt="" aria-hidden="true" className="relative z-10 h-10 w-10 rounded-full border border-white/80 bg-white object-contain p-1 shadow-sm" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[14px] font-extrabold text-[#3d1226]">{postHandle}</span>
-                <span className="text-xs font-semibold text-[#3d1226]/45">now</span>
+                <span className="text-xs font-semibold text-[#3d1226]/[0.45]">now</span>
               </div>
               <p className="mt-2 bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-[22px] font-black leading-tight text-transparent md:text-[30px]">
                 {punchline}
@@ -1225,6 +1270,11 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
   const activeBanner = activeMember.bannerImageUrl || getPeopleAvatarImages(activeMember)[0] || '/logo-gg.png'
   const activeMobileBanner = activeMember.bannerImageMobileUrl || activeMember.bannerImageUrl || getPeopleAvatarImages(activeMember)[0] || activeBanner
   const activeBannerIsPlaceholder = isLogoLikeImage(activeBanner)
+  const peopleTitle = block.heading || 'The One People'
+  const peopleQuote = block.body?.trim().replace(/^["“‘']+/, '').replace(/["”’']+$/, '')
+  const peopleHeaderDelay = countStaggerWords(peopleTitle) * 70 + 240
+  const peopleQuoteDelay = peopleQuote ? countStaggerWords(peopleQuote) * 70 + 320 : 0
+  const peopleBannerDelay = peopleHeaderDelay + peopleQuoteDelay
 
   function pauseAuto(ms = 5000) {
     pauseUntilRef.current = Date.now() + ms
@@ -1266,7 +1316,9 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
 
   return (
     <section
-      className="home-section-pad px-5 lg:px-10"
+      data-reveal-scene
+      data-home-tone="dark"
+      className="home-tone-zone home-section-pad px-5 lg:px-10"
       onMouseEnter={() => setInteracting(true)}
       onMouseLeave={() => {
         setInteracting(false)
@@ -1281,47 +1333,52 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
       <div className="mx-auto max-w-6xl">
         {/* Round 12 A5: the CMS body ("Teamwork makes the dream work.") renders as an editorial pull-quote */}
         <SectionHeader
-          title={block.heading || 'The One People'}
-          quote={block.body?.trim().replace(/^["“‘']+/, '').replace(/["”’']+$/, '')}
+          title={peopleTitle}
+          quote={peopleQuote}
           align="left"
           perWord
+          dark
         />
-        <div data-reveal="scale" className="people-feature-banner group relative aspect-[16/8] overflow-hidden rounded-[24px] bg-[#190b12] text-white shadow-[0_24px_70px_rgba(80,20,50,0.16)] ring-1 ring-white/70 md:aspect-[16/6]">
-          {activeBannerIsPlaceholder ? (
-            <div className="people-typographic-banner absolute inset-0 flex items-center justify-center px-8 text-center" aria-hidden="true">
-              <span>{getPersonInitials(activeMember.title)}</span>
-            </div>
-          ) : (
-            <picture>
-              <source media="(max-width: 767px)" srcSet={cldResponsiveSrcSet(activeMobileBanner, 'mobile', 'best')} sizes="100vw" />
-              <img
-                src={cldWidth(activeBanner, 1920, 'best')}
-                srcSet={cldResponsiveSrcSet(activeBanner, 'full', 'best')}
-                sizes="(min-width: 1280px) 1152px, 96vw"
-                decoding="async"
-                alt={`${activeMember.title} banner`}
-                className="people-banner-image absolute inset-0 h-full w-full object-cover transition duration-700"
-                style={{
-                  '--people-banner-position': normalizeObjectPosition(activeMember.bannerImagePosition),
-                  '--people-banner-position-mobile': normalizeObjectPosition(activeMember.bannerImageMobilePosition, normalizeObjectPosition(activeMember.bannerImagePosition)),
-                } as CSSProperties}
-              />
-            </picture>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/20 to-transparent" aria-hidden="true" />
-          <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/68">The One People</p>
-            <h3 className="mt-2 max-w-2xl text-[30px] font-extrabold leading-tight md:text-[48px]">{activeMember.title}</h3>
+        <div className="people-feature-banner group relative aspect-[16/8] overflow-hidden rounded-[24px] bg-[#190b12] text-white shadow-[0_24px_70px_rgba(80,20,50,0.16)] ring-1 ring-white/70 md:aspect-[16/6]">
+          <div data-reveal="scale" data-reveal-phase="1" style={{ '--rd': `${peopleBannerDelay}ms` } as CSSProperties} className="absolute inset-0">
+            {activeBannerIsPlaceholder ? (
+              <div className="people-typographic-banner absolute inset-0 flex items-center justify-center px-8 text-center" aria-hidden="true">
+                <span>{getPersonInitials(activeMember.title)}</span>
+              </div>
+            ) : (
+              <picture>
+                <source media="(max-width: 767px)" srcSet={cldResponsiveSrcSet(activeMobileBanner, 'mobile', 'best')} sizes="100vw" />
+                <img
+                  src={cldWidth(activeBanner, 1920, 'best')}
+                  srcSet={cldResponsiveSrcSet(activeBanner, 'full', 'best')}
+                  sizes="(min-width: 1280px) 1152px, 96vw"
+                  decoding="async"
+                  alt={`${activeMember.title} banner`}
+                  className="people-banner-image absolute inset-0 h-full w-full object-cover transition duration-700"
+                  style={{
+                    '--people-banner-position': normalizeObjectPosition(activeMember.bannerImagePosition),
+                    '--people-banner-position-mobile': normalizeObjectPosition(activeMember.bannerImageMobilePosition, normalizeObjectPosition(activeMember.bannerImagePosition)),
+                  } as CSSProperties}
+                />
+              </picture>
+            )}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/[0.72] via-black/20 to-transparent" aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 p-5 md:p-8" style={{ '--rd': `${peopleBannerDelay + 360}ms` } as CSSProperties}>
+            <p data-reveal="soft" data-reveal-phase="1" className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/[0.68]">The One People</p>
+            <h3 key={`${activeMember.title}-people-title`} aria-label={activeMember.title} data-reveal="words" data-reveal-phase="1" className="mt-2 max-w-2xl text-[30px] font-extrabold leading-tight md:text-[48px]">
+              <RevealWords text={activeMember.title} includeScreenReaderText={false} />
+            </h3>
             {activeRoles.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {activeRoles.slice(0, 4).map((role) => (
-                  <span key={`${activeMember.title}-${role}`} className="rounded-full border border-white/24 bg-white/18 px-3 py-1.5 text-xs font-black text-white backdrop-blur-md">
+                  <span key={`${activeMember.title}-${role}`} data-reveal="soft" data-reveal-phase="1" className="rounded-full border border-white/30 bg-black/[0.35] px-3 py-1.5 text-xs font-black text-white">
                     {role}
                   </span>
                 ))}
               </div>
             )}
-            {activeMember.body && <p className="mt-3 max-w-2xl text-sm font-semibold italic leading-relaxed text-white/80 md:text-base">{formatPeopleQuote(activeMember.body)}</p>}
+            {activeMember.body && <p data-reveal="soft" data-reveal-phase="1" className="mt-3 max-w-2xl text-sm font-semibold italic leading-relaxed text-white/80 md:text-base">{formatPeopleQuote(activeMember.body)}</p>}
           </div>
         </div>
         <div className="relative mt-3">
@@ -1330,7 +1387,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
               <button
                 type="button"
                 onClick={() => moveRail(-1)}
-                className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/[0.92] text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
                 aria-label="Previous people"
               >
                 <ChevronLeft size={20} strokeWidth={2.6} aria-hidden="true" />
@@ -1338,7 +1395,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
               <button
                 type="button"
                 onClick={() => moveRail(1)}
-                className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
+                className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/[0.92] text-on-surface shadow-[0_16px_36px_rgba(80,20,50,0.2)] transition hover:bg-primary hover:text-white md:inline-flex"
                 aria-label="Next people"
               >
                 <ChevronRight size={20} strokeWidth={2.6} aria-hidden="true" />
@@ -1355,6 +1412,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
                 key={`${member.title}-${index}`}
                 data-person-index={index}
                 data-reveal="people-card"
+                data-reveal-phase="2"
                 type="button"
                 onMouseEnter={(event) => showMemberPreview(member, event.currentTarget)}
                 onMouseLeave={closeMemberPreviewSoon}
@@ -1363,7 +1421,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
                   pauseAuto(12000)
                   setActiveIndex(index)
                 }}
-                style={{ '--ri': index } as CSSProperties}
+                style={{ '--ri': index, '--rd': `${peopleBannerDelay + 900}ms` } as CSSProperties}
                 className={[
                   'group relative aspect-[16/10] shrink-0 basis-[42vw] snap-start overflow-hidden rounded-[16px] bg-[#180b11] text-left shadow-[0_14px_40px_rgba(80,20,50,0.13)] outline-none ring-1 transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:basis-[calc((100%_-_8px)/2.25)] md:basis-[calc((100%_-_16px)/3)] lg:basis-[calc((100%_-_24px)/4)]',
                   active ? 'ring-primary/80' : 'ring-white/70',
@@ -1385,7 +1443,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
                     className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.06]"
                   />
                 )}
-                <div className={`absolute inset-0 bg-gradient-to-t ${active ? 'from-black/82 via-black/18 to-transparent' : 'from-white/88 via-white/46 to-white/12 group-hover:from-black/76 group-hover:via-black/12 group-hover:to-transparent'}`} aria-hidden="true" />
+                <div className={`absolute inset-0 bg-gradient-to-t ${active ? 'from-black/[0.82] via-black/[0.18] to-transparent' : 'from-white/[0.88] via-white/[0.46] to-white/[0.12] group-hover:from-black/[0.76] group-hover:via-black/[0.12] group-hover:to-transparent'}`} aria-hidden="true" />
                 <div className="absolute inset-x-0 bottom-0 p-4">
                   <h3 className={`line-clamp-1 text-[17px] font-extrabold leading-tight ${active ? 'text-white' : 'text-on-surface group-hover:text-white'}`}>{member.title}</h3>
                 </div>
@@ -1416,7 +1474,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
                   <div className="m-3 aspect-video max-h-[180px] shrink-0 overflow-hidden rounded-[18px] bg-surface-container-low">
                     <img src={cldWidth(image, 420)} srcSet={cldSrcSet(image, [420, 840])} sizes="380px" decoding="async" alt={`${member.title} preview`} className={`h-full w-full ${isLogoLikeImage(image) ? 'object-contain p-10' : 'object-cover'}`} />
                   </div>
-                  <div className="m-3 mt-0 rounded-[18px] border border-primary/10 bg-white/88 p-4">
+                  <div className="m-3 mt-0 rounded-[18px] border border-primary/10 bg-white/[0.88] p-4">
                     <h3 className="text-[22px] font-extrabold leading-tight text-on-surface">{member.title}</h3>
                     {roles.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -1434,9 +1492,9 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
           </div>
         )}
         {showClosingLines && (
-          <div className="mx-auto mt-16 max-w-3xl text-center">
-            <p data-reveal="soft" className="home-people-closing-one text-[24px] italic leading-tight text-on-surface/85 md:text-[28px]">{closingLine1}</p>
-            <p data-reveal="soft" style={{ '--ri': 1 } as CSSProperties} className="home-people-closing-two mt-3 bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-[28px] font-semibold leading-tight text-transparent md:text-[44px]">
+          <div className="mx-auto mt-10 max-w-3xl text-center">
+            <p data-reveal="soft" data-reveal-phase="3" style={{ '--rd': `${peopleBannerDelay + 620}ms` } as CSSProperties} className="home-people-closing-one text-[24px] italic leading-tight text-white/[0.85] md:text-[28px]">{closingLine1}</p>
+            <p data-reveal="soft" data-reveal-phase="3" style={{ '--ri': 1, '--rd': `${peopleBannerDelay + 720}ms` } as CSSProperties} className="home-people-closing-two mt-3 bg-gradient-to-r from-[#ffd6e6] via-[#ff9dbd] to-[#ffbd78] bg-clip-text text-[28px] font-semibold leading-tight text-transparent md:text-[44px]">
               {closingLine2}
             </p>
           </div>
@@ -1473,8 +1531,16 @@ function ClosingBanner({
   // directly on the shared aurora + wave background.
   return (
     <>
-      <section className="closing-section home-section-pad px-5 lg:px-10">
-        <div className="closing-content quiet-zone quiet-zone--faq relative mx-auto w-full max-w-[880px]" data-reveal="closing-content">
+      <section data-reveal-scene data-home-tone="night" className="home-tone-zone closing-section home-section-pad px-5 lg:px-10">
+        <div
+          className="closing-content quiet-zone quiet-zone--faq relative mx-auto w-full max-w-[880px]"
+          data-reveal="closing-content"
+          data-reveal-phase="0"
+          style={{
+            '--closing-follow-up-delay': `${faqItems.length * 80 + 100}ms`,
+            '--closing-heading-up-delay': `${faqItems.length * 80 + 200}ms`,
+          } as CSSProperties}
+        >
           {/* Round 8 A5.2: left-aligned, lined up with the other zone headings */}
           <div className="mb-7 text-left">
             <h2 className="text-[30px] font-black leading-tight text-[#3d1226] md:text-[42px]">
@@ -1497,7 +1563,11 @@ function ClosingBanner({
                   <div
                     key={`${item.question}-${index}`}
                     className={`closing-faq-item glass-panel overflow-hidden !rounded-2xl text-[#3d1226] ${open ? 'glass-panel--strong' : ''}`}
-                    style={{ '--ri': index, '--closing-delay': `${closingFollowDelay + 140 + index * 80}ms` } as CSSProperties}
+                    style={{
+                      '--ri': index,
+                      '--closing-delay': `${closingFollowDelay + 140 + index * 80}ms`,
+                      '--closing-delay-up': `${(faqItems.length - index - 1) * 80}ms`,
+                    } as CSSProperties}
                   >
                     <button
                       type="button"
@@ -1529,16 +1599,18 @@ function ClosingBanner({
         </div>
       </section>
       {hasPortalVideo && (
-        <section className="closing-portal-section" data-reveal="closing-portal">
-          <ClosingPortalVideo sources={portalSources} />
-          <div className="closing-portal-scrim" aria-hidden="true" />
+        <section className="closing-portal-section" data-reveal-scene data-home-tone="night">
+          <div className="closing-portal-media-stage" data-reveal="closing-portal" data-reveal-phase="0">
+            <ClosingPortalVideo sources={portalSources} />
+            <div className="closing-portal-scrim" aria-hidden="true" />
+          </div>
           <div className="closing-portal-copy">
-            <p className="closing-portal-line-one">{line1}</p>
-            <h2 className="closing-portal-line-two" data-reveal="words">
+            <p className="closing-portal-line-one" data-reveal="soft" data-reveal-phase="1">{line1}</p>
+            <h2 className="closing-portal-line-two" data-reveal="words" data-reveal-phase="1">
               <RevealWords text={line2} />
             </h2>
           </div>
-          <div className="closing-portal-cta" data-reveal="soft" style={{ '--rd': '520ms' } as CSSProperties}>
+          <div className="closing-portal-cta" data-reveal="soft" data-reveal-phase="2" style={{ '--rd': '520ms' } as CSSProperties}>
             <p>{prefooterLine}</p>
             <button
               type="button"
@@ -1605,6 +1677,8 @@ export default function BrandHomePage({
   const showHeroStatChips = heroBlock?.showStatChips !== false && heroStatChips.length > 0
   const closingPortalSources = getClosingPortalSources(closingBlock)
   const closingHasPortal = hasVideoSource(closingPortalSources)
+  const packagesTitle = packagesBlock?.heading || 'The One Packages'
+  const packagesHeaderDelay = countStaggerWords(packagesTitle) * 70 + 240
   const closingFaqItems = getHomeClosingFaqItems(cmsPage, lang)
   const homeSchemas = [organizationSchema, websiteSchema, homeWebPageSchema, buildHomeFaqSchema(cmsPage, lang)].filter(Boolean)
   const packageItems: CmsBlockItem[] = packagesBlock?.items?.length
@@ -1669,6 +1743,8 @@ export default function BrandHomePage({
       {flowWaveActive && <FlowWaveBackground settings={homeBackground} />}
 
       <section
+        data-reveal-scene
+        data-home-tone="hero"
         className={`home-hero relative flex overflow-hidden ${
           heroHasVideo ? 'home-hero--video items-center' : 'home-hero--static items-center'
         } ${heroReady ? 'is-ready' : ''}`}
@@ -1698,6 +1774,9 @@ export default function BrandHomePage({
           }`}
         >
           <h1
+            data-reveal="hero-words"
+            data-reveal-phase="0"
+            data-reveal-open
             className={[
               'hero-word-title home-hero-title-serif text-[clamp(30px,9vw,48px)] font-normal not-italic leading-[0.98] md:text-[clamp(54px,6vw,86px)]',
               heroTextMode === 'gradient' ? 'gg-grad-text' : heroTextMode === 'dark' ? 'text-on-surface' : 'text-white',
@@ -1707,13 +1786,19 @@ export default function BrandHomePage({
           </h1>
           {showHeroDivider && (
             <div
-              className={`home-hero-divider mt-5 h-px ${heroTextMode === 'dark' ? 'bg-on-surface/25' : 'bg-white/45'}`}
-              style={{ '--hero-delay': `${heroDelays.divider}ms` } as CSSProperties}
+              data-reveal="line"
+              data-reveal-phase="1"
+              data-reveal-open
+              className={`home-hero-divider mt-5 h-px ${heroTextMode === 'dark' ? 'bg-on-surface/25' : 'bg-white/[0.45]'}`}
+              style={{ '--hero-delay': `${heroDelays.divider}ms`, '--rd': `${heroDelays.divider}ms` } as CSSProperties}
               aria-hidden="true"
             />
           )}
           <p
-            style={{ '--hero-delay': `${heroDelays.subline}ms` } as CSSProperties}
+            data-reveal="soft"
+            data-reveal-phase="2"
+            data-reveal-open
+            style={{ '--hero-delay': `${heroDelays.subline}ms`, '--rd': `${heroDelays.subline}ms` } as CSSProperties}
             className={[
               'home-hero-item mt-6 max-w-2xl text-[15px] font-medium leading-relaxed md:text-[20px]',
               heroTextMode === 'dark' ? 'text-on-surface-variant' : 'text-white/90',
@@ -1725,21 +1810,28 @@ export default function BrandHomePage({
             type="button"
             onClick={openBookingModal}
             data-floating-cta-threshold="hero"
-            style={{ '--hero-delay': `${heroDelays.cta}ms` } as CSSProperties}
+            data-reveal="soft"
+            data-reveal-phase="3"
+            data-reveal-open
+            style={{ '--hero-delay': `${heroDelays.cta}ms`, '--rd': `${heroDelays.cta}ms` } as CSSProperties}
             className="home-hero-item btn-shine cta-idle mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary px-7 py-3.5 font-bold text-white shadow-[0_16px_36px_rgba(219,39,119,0.28)] hover:opacity-95"
           >
             {resolvePrimaryBookingCtaLabel(heroBlock?.ctaLabel)}
           </button>
           {/* Round 8 A1: ctaSubtext slot removed from the DOM entirely (field stays dormant in CMS). */}
           {showHeroStatChips && (
-            <div
-              style={{ '--hero-delay': `${heroDelays.cta + 230}ms` } as CSSProperties}
-              className="home-hero-item home-hero-stat-chips mt-5 flex flex-wrap justify-center gap-2"
-            >
-              {heroStatChips.map((chip) => (
+            <div className="home-hero-stat-chips mt-5 flex flex-wrap justify-center gap-2">
+              {heroStatChips.map((chip, chipIndex) => (
                 <span
                   key={`${chip.value}-${chip.label}`}
-                  className={`home-hero-stat-chip rounded-full px-3 py-1.5 text-xs font-semibold shadow-[0_10px_26px_rgba(0,0,0,0.1)] backdrop-blur-md ${
+                  data-reveal="soft"
+                  data-reveal-phase="4"
+                  data-reveal-open
+                  style={{
+                    '--hero-delay': `${heroDelays.cta + 230 + chipIndex * 90}ms`,
+                    '--rd': `${heroDelays.cta + 230 + chipIndex * 90}ms`,
+                  } as CSSProperties}
+                  className={`home-hero-item home-hero-stat-chip rounded-full px-3 py-1.5 text-xs font-semibold shadow-[0_10px_26px_rgba(0,0,0,0.1)] backdrop-blur-md ${
                     heroTextMode === 'dark'
                       ? 'border border-[#3d1226]/20 bg-white/75 text-[#3d1226]'
                       : 'border border-white/40 bg-black/20 text-white'
@@ -1764,21 +1856,25 @@ export default function BrandHomePage({
       <CaseStudyShowcase stories={storyTargets} lang={lang} block={showcaseBlock} openingBaseMs={heroDelays.cta + 200} />
       <RedFlagsSection block={redFlagsBlock} />
 
-      <section id="packages" className="home-section-pad px-5 lg:px-10">
+      <section id="packages" data-reveal-scene data-home-tone="mid" className="home-tone-zone home-section-pad px-5 lg:px-10">
         <div className="quiet-zone quiet-zone--strong max-w-6xl mx-auto">
           <SectionHeader
-            title={packagesBlock?.heading || 'The One Packages'}
+            title={packagesTitle}
             intro={packagesBlock?.body || (lang === 'vi' ? 'Chọn nhịp tăng trưởng phù hợp với giai đoạn của bạn.' : 'Choose the growth system that fits your stage.')}
             align="center"
             perWord
           />
-          <PackageCards items={packageItems} lang={lang} layout={packagesBlock?.layout === 'cards' ? 'cards' : 'horizontal'} />
+          <div style={{ '--rd': `${packagesHeaderDelay + 260}ms` } as CSSProperties}>
+            <PackageCards items={packageItems} lang={lang} layout={packagesBlock?.layout === 'cards' ? 'cards' : 'horizontal'} />
+          </div>
           {(packagesBlock?.packagesNote?.trim() || packagesBlock?.pricingNote?.trim() || packagesBlock?.disclaimer?.trim()) && (
             // Round 12 A4.2: the single merged note (Round 8 rule) moves onto a dense glass
             // card so it stays legible over the drifting wave blobs.
             <div
               data-reveal="soft"
-              className="quiet-zone mx-auto mt-8 flex max-w-[760px] items-start gap-2.5 rounded-[14px] border border-primary/[0.12] bg-white/85 px-6 py-[18px] shadow-[0_12px_34px_rgba(219,39,119,0.08)] backdrop-blur-[12px]"
+              data-reveal-phase="3"
+              style={{ '--rd': `${packagesHeaderDelay + 540}ms` } as CSSProperties}
+              className="quiet-zone mx-auto mt-8 flex max-w-[760px] items-start gap-2.5 rounded-[14px] border border-primary/[0.12] bg-white/[0.85] px-6 py-[18px] shadow-[0_12px_34px_rgba(219,39,119,0.08)] backdrop-blur-[12px]"
             >
               <Info size={15} strokeWidth={2.5} className="mt-0.5 shrink-0 text-[#B3124B]" aria-hidden="true" />
               <p className="whitespace-pre-line text-left text-[13px] italic leading-[1.6] text-[#6b4a58]">

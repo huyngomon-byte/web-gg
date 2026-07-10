@@ -334,7 +334,7 @@
   opacity: 1;
   animation: rv-up 0.62s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   /* Round 12 A2: --rd = orchestration base delay (opening cascade), --ri = stagger index */
-  animation-delay: calc(var(--rd, 0ms) + var(--ri, 0) * 65ms);
+  animation-delay: calc(var(--rd, 0ms) + var(--reveal-delay, calc(var(--ri, 0) * 65ms)));
 }
 [data-reveal='left'].is-visible,
 [data-reveal='left'][data-revealed]   { animation-name: rv-left; }
@@ -357,7 +357,7 @@
 [data-reveal='tile-in'].is-visible,
 [data-reveal='tile-in'][data-revealed] {
   animation: rv-tile-in 0.44s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  animation-delay: calc(var(--rd, 120ms) + (var(--ri, 0) * 80ms));
+  animation-delay: calc(var(--rd, 120ms) + var(--reveal-delay, calc(var(--ri, 0) * 80ms)));
 }
 [data-reveal='tile-in'][data-tile-direction='right'].is-visible,
 [data-reveal='tile-in'][data-tile-direction='right'][data-revealed] { animation-name: rv-tile-right; }
@@ -366,12 +366,12 @@
 [data-reveal='photo-drop'].is-visible,
 [data-reveal='photo-drop'][data-revealed] {
   animation: rv-photo-drop 0.52s cubic-bezier(0.18, 1.2, 0.34, 1) backwards;
-  animation-delay: calc(var(--ri, 0) * 80ms);
+  animation-delay: var(--reveal-delay, calc(var(--ri, 0) * 80ms));
 }
 [data-reveal='vortex'].is-visible,
 [data-reveal='vortex'][data-revealed] {
   animation: rv-vortex 0.72s cubic-bezier(0.2, 1.28, 0.4, 1) backwards;
-  animation-delay: calc(var(--ri, 0) * 80ms);
+  animation-delay: var(--reveal-delay, calc(var(--ri, 0) * 80ms));
 }
 /* transform-origin cho lật */
 [data-reveal='flip']   { transform-origin: 50% 85%; }
@@ -910,7 +910,8 @@
 }
 [data-reveal='line'].is-visible,
 [data-reveal='line'][data-revealed] {
-  animation: glowLine 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s forwards;
+  animation: glowLine 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--rd, 0ms) + var(--reveal-delay, 0ms) + 150ms);
 }
 @keyframes glowLine {
   0%   { transform: scaleX(0); opacity: 0; }
@@ -949,7 +950,7 @@
   [data-reveal].is-visible,
   [data-reveal][data-revealed] {
     animation-duration: 0.5s;
-    animation-delay: calc(var(--rd, 0ms) + var(--ri, 0) * 55ms);
+    animation-delay: calc(var(--rd, 0ms) + var(--reveal-delay, calc(var(--ri, 0) * 55ms)));
   }
 }
 @media (hover: none) {
@@ -1448,7 +1449,7 @@
   transition:
     opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-  transition-delay: calc(var(--ri, 0) * 75ms);
+  transition-delay: calc(var(--rd, 0ms) + var(--reveal-delay, calc(var(--ri, 0) * 75ms)));
 }
 
 [data-reveal='people-card'].is-visible,
@@ -1543,6 +1544,12 @@
 }
 
 .closing-portal-media {
+  z-index: 0;
+}
+
+.closing-portal-media-stage {
+  position: absolute;
+  inset: 0;
   z-index: 0;
 }
 
@@ -1715,6 +1722,11 @@
   animation-delay: calc(var(--ci, 0) * 18ms);
 }
 
+[data-reveal='closing-content'][data-reveal-direction='up'].is-visible .closing-char {
+  transform: translateY(-16px);
+  animation-delay: calc(var(--closing-heading-up-delay, 0ms) + var(--rci, 0) * 18ms);
+}
+
 .closing-follow,
 .closing-faq-item {
   opacity: 0;
@@ -1731,6 +1743,19 @@
     opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: var(--closing-delay, calc(var(--ri, 0) * 80ms));
+}
+
+[data-reveal='closing-content'][data-reveal-direction='up']:not(.is-visible) .closing-follow,
+[data-reveal='closing-content'][data-reveal-direction='up']:not(.is-visible) .closing-faq-item {
+  transform: translateY(-14px);
+}
+
+[data-reveal='closing-content'][data-reveal-direction='up'].is-visible .closing-follow {
+  transition-delay: var(--closing-follow-up-delay, 0ms);
+}
+
+[data-reveal='closing-content'][data-reveal-direction='up'].is-visible .closing-faq-item {
+  transition-delay: var(--closing-delay-up, 0ms);
 }
 
 @keyframes closingLogoMarquee {
@@ -3006,7 +3031,7 @@
 [data-reveal='soft'].is-visible,
 [data-reveal='soft'][data-revealed] {
   animation: rv-soft 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  animation-delay: calc(var(--rd, 0ms) + var(--ri, 0) * 90ms);
+  animation-delay: calc(var(--rd, 0ms) + var(--reveal-delay, calc(var(--ri, 0) * 90ms)));
 }
 
 /* A2.3/A5: per-word reveal for big section headings and the People pull-quote.
@@ -3025,7 +3050,7 @@
 [data-reveal='words'].is-visible .rw-word,
 [data-reveal='words'][data-revealed] .rw-word {
   animation: heroWordIn 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: calc(var(--rd, 0ms) + var(--wi, 0) * 70ms);
+  animation-delay: calc(var(--rd, 0ms) + var(--reveal-delay, 0ms) + var(--wi, 0) * 70ms);
 }
 
 /* A3: package cards — outer stagger Start → System → Scale (150ms/card) */
@@ -3033,7 +3058,7 @@
 [data-reveal='pkg-card'][data-revealed] {
   opacity: 1;
   animation: rv-pkg 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  animation-delay: calc(var(--rd, 0ms) + var(--ri, 0) * 150ms);
+  animation-delay: calc(var(--rd, 0ms) + var(--reveal-delay, calc(var(--ri, 0) * 150ms)));
 }
 @keyframes rv-pkg {
   from { opacity: 0; transform: translate3d(0, 26px, 0) scale(0.97); }
@@ -3060,7 +3085,7 @@
   transition:
     opacity 380ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
-  transition-delay: calc(var(--ri, 0) * 150ms + 180ms + var(--pi, 0) * 60ms);
+  transition-delay: calc(var(--rd, 0ms) + var(--reveal-delay, 0ms) + 180ms + var(--pi, 0) * 60ms);
 }
 [data-reveal='pkg-card'].is-visible .pkg-rv,
 [data-reveal='pkg-card'][data-revealed] .pkg-rv {
@@ -3819,17 +3844,6 @@ header.is-on-hero .site-nav-pill .text-on-surface-variant {
   background: rgba(185, 20, 76, var(--hero-image-overlay, 0));
 }
 
-.home-hero-item,
-.hero-stagger-word {
-  opacity: 1;
-  transform: none;
-  filter: none;
-}
-
-.home-hero.is-ready .hero-stagger-word {
-  animation: none;
-}
-
 .home-hero-copy--video {
   text-shadow: 0 2px 18px rgba(24, 6, 16, 0.42);
 }
@@ -4082,4 +4096,336 @@ header.is-on-hero .site-nav-pill .text-on-surface-variant {
 .home-hero-copy--centered h1,
 .home-hero-copy--centered p {
   text-wrap: balance;
+}
+
+/* ============================================================
+   Round 16 — directional story rhythm + dusk atmosphere
+   ============================================================ */
+
+/* PHINƠI must use one Vietnamese-complete face for the entire word. Sora does
+   not contain U+01A0, so a normal fallback stack mixes five Sora glyphs with
+   one system glyph and visibly shifts the Ơ. */
+.font-brand-vietnamese {
+  font-family: var(--font-body), 'Inter', system-ui, sans-serif !important;
+  font-feature-settings: 'kern' 1;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em;
+}
+
+/* Scene replay: upward entrances arrive from above and run in the reverse
+   order calculated by useScrollReveal. */
+@keyframes rv-down {
+  from { opacity: 0; transform: translate3d(0, -26px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes rv-tile-top {
+  from { opacity: 0; transform: translateY(-28px) scale(0.95); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes rv-soft-up {
+  from { opacity: 0; transform: translate3d(0, -12px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes rv-pkg-up {
+  from { opacity: 0; transform: translate3d(0, -24px, 0) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Forward-only orchestration bases are ignored once a scene is replayed from
+   below. The runtime order (`--reveal-delay`) remains the single source of
+   truth for the upward sequence. */
+[data-reveal-scene] [data-reveal][data-reveal-direction='up'],
+[data-reveal-scene][data-reveal][data-reveal-direction='up'] {
+  --rd: 0ms !important;
+}
+
+[data-reveal-scene] [data-reveal][data-reveal-direction='up'].is-visible:not([data-reveal='scale']):not([data-reveal='words']):not([data-reveal='line']):not([data-reveal='pkg-card']):not([data-reveal='tile-in']):not([data-reveal='soft']):not([data-reveal='closing-content']),
+[data-reveal-scene][data-reveal][data-reveal-direction='up'].is-visible:not([data-reveal='scale']):not([data-reveal='words']):not([data-reveal='line']):not([data-reveal='closing-portal']) {
+  animation-name: rv-down;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal-scene] [data-reveal='tile-in'][data-reveal-direction='up'].is-visible {
+  animation-name: rv-tile-top;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal-scene] [data-reveal='soft'][data-reveal-direction='up'].is-visible {
+  animation-name: rv-soft-up;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal-scene] [data-reveal='scale'][data-reveal-direction='up'].is-visible {
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal-scene] [data-reveal='pkg-card'][data-reveal-direction='up'].is-visible,
+[data-reveal-scene] [data-reveal='pkg-card'].pkg-card-spring[data-reveal-direction='up'].is-visible {
+  animation-name: rv-pkg-up;
+  animation-duration: 0.58s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal-scene] [data-reveal='line'][data-reveal-direction='up'] {
+  transform-origin: right center;
+}
+
+[data-reveal-scene] [data-reveal='line'].is-visible {
+  animation-delay: calc(var(--rd, 0ms) + var(--reveal-delay, 0ms));
+}
+
+[data-reveal-scene] [data-reveal='line'][data-reveal-direction='up'].is-visible {
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal-scene] [data-reveal='words'][data-reveal-direction='up'] .rw-word {
+  transform: translateY(-14px);
+}
+
+[data-reveal-scene] [data-reveal='words'][data-reveal-direction='up'].is-visible .rw-word {
+  animation-delay: calc(var(--reveal-delay, 0ms) + var(--rwi, 0) * 70ms);
+}
+
+[data-reveal='people-card'][data-reveal-direction='up']:not(.is-visible) {
+  transform: translateY(-18px);
+}
+
+[data-reveal='people-card'][data-reveal-direction='up'] {
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* The hero keeps its cinematic first-load word cascade, then re-arms as a
+   normal scene. Returning upward replays the copy only; the background video
+   is never restarted. */
+[data-reveal='hero-words'].is-visible,
+[data-reveal='hero-words'][data-revealed] {
+  opacity: 1;
+  animation: none !important;
+}
+
+.home-hero[data-reveal-scene] .hero-stagger-word {
+  opacity: 0;
+  transform: translateY(20px) scale(0.98);
+  filter: blur(8px);
+  animation: none;
+}
+
+.home-hero[data-reveal-scene].is-ready [data-reveal='hero-words'].is-visible .hero-stagger-word {
+  animation: heroWordIn 430ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--hero-word-delay, 0ms);
+}
+
+.home-hero[data-reveal-scene] [data-reveal='hero-words'][data-reveal-direction='up'] .hero-stagger-word {
+  transform: translateY(-20px) scale(0.98);
+}
+
+.home-hero[data-reveal-scene].is-ready [data-reveal='hero-words'][data-reveal-direction='up'].is-visible .hero-stagger-word {
+  animation-delay: calc(var(--reveal-delay, 0ms) + var(--hero-word-delay-up, 0ms));
+}
+
+.home-hero[data-reveal-scene] [data-reveal].home-hero-item {
+  transition-delay: 0ms;
+}
+
+.home-hero[data-reveal-scene] [data-reveal].home-hero-item:not(.is-visible),
+.home-hero[data-reveal-scene] .home-hero-divider[data-reveal]:not(.is-visible) {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+.home-hero[data-reveal-scene] [data-reveal][data-reveal-direction='up'].home-hero-item:not(.is-visible),
+.home-hero[data-reveal-scene] .home-hero-divider[data-reveal-direction='up']:not(.is-visible) {
+  transform: translateY(-16px);
+}
+
+/* Compact section rhythm: adjacent sections no longer add two oversized pads. */
+.home-section-pad {
+  padding-block: clamp(1.75rem, 2.6vw, 2.5rem);
+}
+
+.home-section-pad--featured {
+  padding-top: clamp(1rem, 2vw, 1.5rem);
+  padding-bottom: clamp(1.75rem, 2.6vw, 2.5rem);
+}
+
+.home-tone-zone {
+  position: relative;
+  isolation: isolate;
+}
+
+.flow-wave-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.flow-wave-light {
+  z-index: -30;
+}
+
+.flow-wave-dark {
+  z-index: -20;
+  background:
+    radial-gradient(78% 62% at 12% 18%, rgba(173, 66, 107, 0.48), transparent 67%),
+    radial-gradient(72% 58% at 88% 28%, rgba(232, 132, 88, 0.24), transparent 66%),
+    radial-gradient(86% 72% at 52% 92%, rgba(42, 9, 29, 0.82), transparent 72%),
+    linear-gradient(165deg, #8c4965 0%, #59243f 48%, #2b0d1d 78%, #150613 100%);
+  opacity: 0;
+  will-change: opacity;
+}
+
+/* The surface haze follows the tone instead of making disconnected white
+   islands over the gradually darkening atmosphere. */
+.quiet-zone::before {
+  background: rgba(255, 248, 250, 0.32);
+  filter: blur(42px);
+}
+
+.quiet-zone--strong::before {
+  background: rgba(255, 248, 250, 0.44);
+}
+
+[data-home-tone='mid'] .quiet-zone--strong::before {
+  background: rgba(255, 229, 239, 0.34);
+}
+
+[data-home-tone='dark'] .quiet-zone::before,
+[data-home-tone='night'] .quiet-zone::before {
+  background: rgba(31, 8, 23, 0.42);
+}
+
+/* Featured media stays sharp. Contrast comes from a localized, non-blurring
+   scrim under copy rather than feathering or backdrop-filtering the photo. */
+.featured-banner {
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(71, 20, 46, 0.2);
+}
+
+.featured-banner-media {
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+
+.featured-banner-role-image {
+  filter: none !important;
+  image-rendering: auto;
+}
+
+.featured-banner-ambient {
+  opacity: 0.16;
+  filter: blur(28px);
+}
+
+.featured-banner-scrim {
+  background:
+    linear-gradient(90deg, rgba(17, 5, 13, 0.64) 0%, rgba(17, 5, 13, 0.28) 48%, transparent 82%),
+    linear-gradient(0deg, rgba(14, 4, 11, 0.78) 0%, rgba(14, 4, 11, 0.18) 58%, transparent 88%);
+}
+
+.featured-banner-copy {
+  isolation: isolate;
+  text-shadow: 0 2px 16px rgba(8, 2, 6, 0.5);
+}
+
+.featured-banner-copy::before {
+  position: absolute;
+  inset: -20px -18px -18px;
+  z-index: -1;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 14% 86%, rgba(13, 4, 10, 0.52), transparent 72%);
+  content: '';
+  pointer-events: none;
+}
+
+.featured-banner-context,
+.featured-banner-stat {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(25, 7, 18, 0.62);
+  color: rgba(255, 255, 255, 0.96);
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.featured-banner-kicker {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.featured-banner-caption {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* People and FAQ sit in the twilight/night end of the journey. */
+[data-home-tone='dark'] .people-quote-mark {
+  opacity: 0.66;
+}
+
+[data-home-tone='night'] .closing-content h2 {
+  color: #fff7fb !important;
+}
+
+[data-home-tone='night'] .closing-follow {
+  color: rgba(255, 247, 251, 0.76) !important;
+}
+
+[data-home-tone='night'] .closing-faq-item,
+[data-home-tone='night'] .closing-faq-item.glass-panel--strong {
+  border-color: rgba(255, 220, 234, 0.2);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 16px 38px rgba(8, 2, 6, 0.16);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+  backdrop-filter: blur(14px) saturate(125%);
+}
+
+[data-home-tone='night'] .closing-faq-item button {
+  color: #fff7fb;
+}
+
+[data-home-tone='night'] .closing-faq-item .closing-faq-answer p {
+  color: rgba(255, 247, 251, 0.74);
+}
+
+[data-home-tone='night'] .closing-faq-plus {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffd6e6;
+}
+
+.closing-portal-section::before {
+  background: linear-gradient(180deg, rgba(43, 13, 29, 0.96), rgba(43, 13, 29, 0.42) 48%, transparent);
+}
+
+.closing-portal-section::after {
+  opacity: 0.42;
+}
+
+.brand-footer-wave {
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  .home-section-pad {
+    padding-block: clamp(1.25rem, 4vw, 1.5rem);
+  }
+
+  .home-section-pad--featured {
+    padding-top: 1rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .featured-banner-ambient {
+    display: none;
+  }
+
+  .featured-banner-scrim {
+    background: linear-gradient(0deg, rgba(14, 4, 11, 0.82) 0%, rgba(14, 4, 11, 0.2) 62%, transparent 90%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-wave-dark {
+    will-change: auto;
+  }
 }

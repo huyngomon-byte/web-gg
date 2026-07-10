@@ -245,6 +245,7 @@ export function PackageCards({
             <div
               key={`${item.title}-${index}-horizontal`}
               data-reveal="pkg-card"
+              data-reveal-phase="2"
               data-testid="package-card"
               data-package-id={id}
               data-selected={selected ? 'true' : 'false'}
@@ -388,12 +389,14 @@ export function PackageCards({
         return (
           <div
             key={`${item.title}-${index}`}
-            data-reveal="scale"
+            data-reveal="pkg-card"
+            data-reveal-phase="2"
             data-testid="package-card"
             data-package-id={id}
             data-selected={selected ? 'true' : 'false'}
             data-system-package={system ? 'true' : 'false'}
             style={{ '--ri': index } as CSSProperties}
+            className={system ? 'pkg-card-spring' : undefined}
           >
           <article
             id={id}
@@ -409,15 +412,15 @@ export function PackageCards({
                 {item.label || 'Most Popular'}
               </span>
             )}
-            <span className="icon-chip mb-5 h-12 w-12">
+            <span className="pkg-rv icon-chip mb-5 h-12 w-12" style={{ '--pi': 0 } as CSSProperties}>
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt={item.imageAlt || item.title} className="h-7 w-7 object-contain" />
               ) : (
                 <CmsIcon name={item.icon} fallback={Icon} size={22} />
               )}
             </span>
-            <h3 className="text-xl font-extrabold text-on-surface">{item.title}</h3>
-            {subtitle && <p className="mt-3 text-sm font-semibold leading-relaxed text-on-surface-variant">{subtitle}</p>}
+            <h3 className="pkg-rv text-xl font-extrabold text-on-surface" style={{ '--pi': 1 } as CSSProperties}>{item.title}</h3>
+            {subtitle && <p className="pkg-rv mt-3 text-sm font-semibold leading-relaxed text-on-surface-variant" style={{ '--pi': 2 } as CSSProperties}>{subtitle}</p>}
             <PackageSelectionControl
               checked={selected}
               name={radioGroupName}
@@ -428,7 +431,7 @@ export function PackageCards({
             {features.length > 0 && (
               <div className="mt-4 grid gap-2">
                 {features.map((feature, featureIndex) => (
-                  <div key={`${item.title}-feature-${featureIndex}-${feature.label}`} className="group/task rounded-2xl border border-outline-variant/45 bg-white/60 p-3 transition hover:border-primary/30 hover:bg-primary/5">
+                  <div key={`${item.title}-feature-${featureIndex}-${feature.label}`} className="pkg-rv group/task rounded-2xl border border-outline-variant/45 bg-white/60 p-3 transition hover:border-primary/30 hover:bg-primary/5" style={{ '--pi': 3 + featureIndex } as CSSProperties}>
                     <p className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">{feature.label}</p>
                     <p className="mt-1 text-[12px] font-semibold leading-relaxed text-on-surface-variant">{feature.text}</p>
                   </div>
@@ -436,14 +439,14 @@ export function PackageCards({
               </div>
             )}
             {priceValue && (
-              <div className="mt-5 rounded-2xl border border-primary/20 bg-gradient-to-r from-white via-primary/5 to-secondary/10 p-3">
+              <div className="pkg-rv mt-5 rounded-2xl border border-primary/20 bg-gradient-to-r from-white via-primary/5 to-secondary/10 p-3" style={{ '--pi': 4 + features.length } as CSSProperties}>
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface-variant">{priceLabel}</p>
                 <p className="home-price-shimmer mt-1 text-lg font-black text-primary">
                   {priceValue}
                 </p>
               </div>
             )}
-            <div className="mt-auto flex flex-col gap-2 pt-5">
+            <div className="pkg-rv mt-auto flex flex-col gap-2 pt-5" style={{ '--pi': 5 + features.length } as CSSProperties}>
               <button
                 type="button"
                 onClick={openBookingModal}

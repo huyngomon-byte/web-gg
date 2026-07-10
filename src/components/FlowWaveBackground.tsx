@@ -10,7 +10,7 @@ import type { CmsHomepageBackground } from '../cms/types'
 const CAM_START_Y = 7
 const CAM_START_Z = 16
 const CAM_END_Y = 0.8
-const CAM_END_Z = -2
+const CAM_END_Z = 3
 const LOOK_START_Z = 2
 const LOOK_END_Z = -16
 const PARALLAX = 1.0
@@ -88,7 +88,7 @@ void main() {
 }`
 
 const ATMO_VERTEX = `
-attribute float size; attribute float seed; uniform float uTime; uniform vec2 uRes;
+attribute float size; attribute float seed; uniform float uTime; uniform float uSizeScale; uniform vec2 uRes;
 varying float vA;
 vec3 warp(vec3 p, float t){ float c=0.9,a=1.9,b=0.02,s=0.05; p*=2.;
   p.x+=c*sin(s*t+a*p.y)+t*b; p.y+=c*cos(s*t+a*p.x); p.y+=c*sin(s*t+a*p.z)+t*b;
@@ -99,14 +99,14 @@ void main(){
   vec4 mv = modelViewMatrix * vec4(v, 1.0);
   float r = length(v); float farF = 1.0 - smoothstep(5.0, 6.5, r); float nearF = smoothstep(0.0, 0.5, -mv.z);
   vA = farF * nearF;
-  gl_PointSize = size * uRes.y / 900.0 / -mv.z; gl_PointSize = max(gl_PointSize, 1.0);
+  gl_PointSize = size * uSizeScale * uRes.y / 900.0 / -mv.z; gl_PointSize = max(gl_PointSize, 1.0);
   gl_Position = projectionMatrix * mv;
 }`
 
 const ATMO_FRAGMENT = `
-uniform vec3 uColor; varying float vA;
+uniform vec3 uColor; uniform float uOpacity; varying float vA;
 void main(){ vec2 p = gl_PointCoord - 0.5; float l = length(p); if (l > 0.5) discard;
-  float tex = smoothstep(0.5, 0.0, l); gl_FragColor = vec4(uColor, tex * vA * 0.35); }`
+  float tex = smoothstep(0.5, 0.0, l); gl_FragColor = vec4(uColor, tex * vA * 0.35 * uOpacity); }`
 
 type TunableConfig = {
   colorLow: string
@@ -127,6 +127,57 @@ function lerp(a: number, b: number, t: number) {
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
+}
+
+function smoothstep01(value: number) {
+  const t = clamp(value, 0, 1)
+  return t * t * (3 - 2 * t)
+}
+
+const HOME_TONE_VALUES: Record<string, number> = {
+  light: 0,
+  rose: 0.24,
+  mid: 0.5,
+  dark: 0.74,
+  night: 1,
+}
+
+/**
+ * Resolve the atmosphere from actual Homepage section markers. The focus sits
+ * slightly below centre so the next zone starts influencing the background
+ * just before it becomes the reader's main focus.
+ */
+function readHomepageToneProgress() {
+  const markers = Array.from(document.querySelectorAll<HTMLElement>('[data-home-tone]'))
+    .map((element) => {
+      const value = HOME_TONE_VALUES[element.dataset.homeTone ?? '']
+      if (value === undefined) return null
+      const rect = element.getBoundingClientRect()
+      return {
+        position: rect.top + window.scrollY + Math.min(rect.height * 0.18, window.innerHeight * 0.2),
+        value,
+      }
+    })
+    .filter((marker): marker is { position: number; value: number } => marker !== null)
+    .sort((a, b) => a.position - b.position)
+
+  if (!markers.length) {
+    const max = document.documentElement.scrollHeight - window.innerHeight
+    return max > 0 ? clamp(window.scrollY / max, 0, 1) : 0
+  }
+
+  const focus = window.scrollY + window.innerHeight * 0.56
+  if (focus <= markers[0].position) return markers[0].value
+
+  for (let index = 1; index < markers.length; index++) {
+    const previous = markers[index - 1]
+    const current = markers[index]
+    if (focus > current.position) continue
+    const distance = Math.max(1, current.position - previous.position)
+    return lerp(previous.value, current.value, clamp((focus - previous.position) / distance, 0, 1))
+  }
+
+  return markers[markers.length - 1].value
 }
 
 function isWeakDevice() {
@@ -155,10 +206,46 @@ function buildAuroraBackground(blobs: CmsHomepageBackground['blobs']) {
 
 export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackground }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const darkBackdropRef = useRef<HTMLDivElement | null>(null)
+  const toneProgressRef = useRef(0)
   const tunablesRef = useRef<TunableConfig>(settings)
   tunablesRef.current = settings
 
   const auroraBackground = useMemo(() => buildAuroraBackground(settings.blobs), [settings.blobs])
+
+  // Keep the light-to-dark CSS atmosphere working even if WebGL is
+  // unavailable or intentionally skipped on a weak device.
+  useEffect(() => {
+    let rafId = 0
+    let disposed = false
+
+    const updateTone = () => {
+      rafId = 0
+      if (disposed) return
+      const progress = smoothstep01(readHomepageToneProgress())
+      toneProgressRef.current = progress
+      if (darkBackdropRef.current) darkBackdropRef.current.style.opacity = String(progress)
+    }
+
+    const scheduleToneUpdate = () => {
+      if (disposed || rafId) return
+      rafId = window.requestAnimationFrame(updateTone)
+    }
+
+    window.addEventListener('scroll', scheduleToneUpdate, { passive: true })
+    window.addEventListener('resize', scheduleToneUpdate)
+    window.addEventListener('load', scheduleToneUpdate)
+    scheduleToneUpdate()
+    void document.fonts?.ready.then(scheduleToneUpdate)
+
+    return () => {
+      disposed = true
+      window.cancelAnimationFrame(rafId)
+      window.removeEventListener('scroll', scheduleToneUpdate)
+      window.removeEventListener('resize', scheduleToneUpdate)
+      window.removeEventListener('load', scheduleToneUpdate)
+    }
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -199,7 +286,7 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       try {
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
       } catch {
-        // WebGL unavailable — the aurora CSS gradient behind the canvas is the fallback.
+        // WebGL unavailable — the layered CSS atmosphere is the fallback.
         return
       }
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap))
@@ -209,6 +296,9 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
         const n = Number.parseInt(hex.replace('#', ''), 16)
         return new THREE.Vector3(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255)
       }
+      const darkColorLow = hexToVec3('#673047')
+      const darkColorHigh = hexToVec3('#E8A35A')
+      const darkAtmoColor = hexToVec3('#D74A7C')
 
       const scene = new THREE.Scene()
       const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 400)
@@ -229,7 +319,7 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
         uColLow: { value: hexToVec3(cfg.colorLow) },
         uColHigh: { value: hexToVec3(cfg.colorHigh) },
         uOpacity: { value: cfg.opacity },
-        uSize: { value: (cfg.pointSize || POINT_SIZE) * (mobile ? 1.25 : 1) },
+        uSize: { value: (cfg.pointSize || POINT_SIZE) * (mobile ? 0.9 : 1) },
         uWaveHeight: { value: cfg.waveHeight },
         uFlow: { value: cfg.flow },
         uScale: { value: SCALE },
@@ -250,7 +340,7 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       pts.frustumCulled = false
       group.add(pts)
 
-      const atmoN = mobile ? Math.round(Math.min(110, settings.atmoCount) * geometryDensity) : Math.round(settings.atmoCount * geometryDensity)
+      const atmoN = mobile ? Math.round(Math.min(72, settings.atmoCount) * geometryDensity) : Math.round(settings.atmoCount * geometryDensity)
       const atmoPositions = new Float32Array(atmoN * 3)
       const atmoSizes = new Float32Array(atmoN)
       const atmoSeeds = new Float32Array(atmoN)
@@ -273,6 +363,8 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
         uniforms: {
           uTime: { value: 0 },
           uColor: { value: hexToVec3(cfg.atmoColor) },
+          uOpacity: { value: 1 },
+          uSizeScale: { value: mobile ? 0.9 : 1 },
           uRes: { value: new THREE.Vector2(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio) },
         },
         vertexShader: ATMO_VERTEX,
@@ -280,8 +372,10 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       })
       const atmoPts = new THREE.Points(atmoGeo, atmoMat)
       atmoPts.frustumCulled = false
+      let toneCurrent = toneProgressRef.current
       atmoPts.onBeforeRender = () => {
-        atmoMat.uniforms.uTime.value = (performance.now() / 1000) * ATMO_SPEED * 8.0
+        const speedScale = lerp(1, 0.6, toneCurrent)
+        atmoMat.uniforms.uTime.value = reducedMotion ? 40 : (performance.now() / 1000) * ATMO_SPEED * speedScale * 8.0
         atmoPts.position.copy(camera.position)
       }
       scene.add(atmoPts)
@@ -293,7 +387,16 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
         const max = document.documentElement.scrollHeight - window.innerHeight
         scrollTarget = max > 0 ? clamp(window.scrollY / max, 0, 1) : 0
       }
-      const onScroll = () => readScroll()
+      let staticFrameRaf = 0
+      const onScroll = () => {
+        readScroll()
+        if (reducedMotion && !staticFrameRaf) {
+          staticFrameRaf = window.requestAnimationFrame(() => {
+            staticFrameRaf = 0
+            renderStaticFrame()
+          })
+        }
+      }
 
       const mouseTarget = { x: 0, y: 0 }
       const mouse = { x: 0, y: 0 }
@@ -328,23 +431,38 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       }
 
       const state = { stream: 0, t0: performance.now() / 1000, appearStart: performance.now() }
-      function renderScene(scroll: number, m: { x: number; y: number }) {
+      function applyTone(tone: number, scroll: number) {
         const live = tunablesRef.current
+        const opacityScale = lerp(1, 0.67, tone)
+        const pointScale = lerp(1, 0.78, tone)
+        const motionScale = lerp(1, 0.6, tone)
+
+        uniforms.uColLow.value.copy(hexToVec3(live.colorLow)).lerp(darkColorLow, tone)
+        uniforms.uColHigh.value.copy(hexToVec3(live.colorHigh)).lerp(darkColorHigh, tone)
+        uniforms.uOpacity.value = live.opacity * opacityScale
+        uniforms.uSize.value = (live.pointSize || POINT_SIZE) * (mobile ? 0.9 : 1) * pointScale
+        uniforms.uFlow.value = live.flow * motionScale
+        uniforms.uRepelStrength.value = mobile ? 0 : live.pointerStrength * lerp(1, 0.5, tone)
+        uniforms.uWaveHeight.value = live.waveHeight * pointScale * (1 + scroll * (live.scrollRise ?? SCROLL_RISE))
+
+        atmoMat.uniforms.uColor.value.copy(hexToVec3(live.atmoColor)).lerp(darkAtmoColor, tone)
+        atmoMat.uniforms.uOpacity.value = opacityScale
+        atmoMat.uniforms.uSizeScale.value = (mobile ? 0.9 : 1) * pointScale
+
+        return motionScale
+      }
+
+      function renderScene(scroll: number, m: { x: number; y: number }) {
         const t = performance.now() / 1000
         const dt = Math.min(0.05, t - state.t0)
         state.t0 = t
         uniforms.uTime.value = t
-        uniforms.uColLow.value.copy(hexToVec3(live.colorLow))
-        uniforms.uColHigh.value.copy(hexToVec3(live.colorHigh))
-        uniforms.uOpacity.value = live.opacity
-        uniforms.uSize.value = (live.pointSize || POINT_SIZE) * (mobile ? 1.25 : 1)
-        uniforms.uFlow.value = live.flow
-        uniforms.uRepelStrength.value = mobile ? 0 : live.pointerStrength
-        atmoMat.uniforms.uColor.value.copy(hexToVec3(live.atmoColor))
-        state.stream += dt * (live.flow * 2.0) * 4.0
+        toneCurrent = lerp(toneCurrent, toneProgressRef.current, 0.055)
+        const motionScale = applyTone(toneCurrent, scroll)
+        const live = tunablesRef.current
+        state.stream += dt * (live.flow * 2.0) * 4.0 * motionScale
         uniforms.uStream.value = state.stream
-        uniforms.uWaveHeight.value = live.waveHeight * (1 + scroll * (live.scrollRise ?? SCROLL_RISE))
-        const ea = Math.min(scroll / 0.35, 1.0)
+        const ea = Math.min(scroll / 0.75, 1.0)
         const e = ea * ea * (3 - 2 * ea)
         camera.position.set(m.x * PARALLAX, lerp(CAM_START_Y, CAM_END_Y, e) + m.y * PARALLAX * 0.3, lerp(CAM_START_Z, CAM_END_Z, e))
         camera.lookAt(m.x * PARALLAX * 0.5, lerp(0.0, 0.6, e), lerp(LOOK_START_Z, LOOK_END_Z, e))
@@ -392,10 +510,12 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
 
       function renderStaticFrame() {
         // prefers-reduced-motion: one fixed frame, no dive, no loop.
+        toneProgressRef.current = smoothstep01(readHomepageToneProgress())
+        toneCurrent = toneProgressRef.current
+        applyTone(toneCurrent, scrollTarget)
         uniforms.uAppear.value = 1
         uniforms.uTime.value = 40
         uniforms.uStream.value = 60
-        uniforms.uWaveHeight.value = tunablesRef.current.waveHeight
         camera.position.set(0, CAM_START_Y, CAM_START_Z)
         camera.lookAt(0, 0, LOOK_START_Z)
         renderer.render(scene, camera)
@@ -408,12 +528,12 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       }
 
       window.addEventListener('resize', resize)
+      window.addEventListener('scroll', onScroll, { passive: true })
       resize()
 
       if (reducedMotion) {
         renderStaticFrame()
       } else {
-        window.addEventListener('scroll', onScroll, { passive: true })
         if (!mobile) {
           window.addEventListener('mousemove', onMouseMove, { passive: true })
           window.addEventListener('mouseout', onMouseOut)
@@ -424,6 +544,7 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
 
       cleanupScene = () => {
         stopLoop()
+        window.cancelAnimationFrame(staticFrameRaf)
         window.removeEventListener('resize', resize)
         window.removeEventListener('scroll', onScroll)
         window.removeEventListener('mousemove', onMouseMove)
@@ -451,7 +572,8 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
 
   return (
     <>
-      <div aria-hidden="true" className="fixed inset-0 -z-20" style={{ background: auroraBackground }} />
+      <div aria-hidden="true" className="flow-wave-layer flow-wave-light" style={{ background: auroraBackground }} />
+      <div ref={darkBackdropRef} aria-hidden="true" className="flow-wave-layer flow-wave-dark" />
       <canvas ref={canvasRef} aria-hidden="true" className="fixed inset-0 -z-10 h-full w-full" style={{ pointerEvents: 'none' }} />
     </>
   )

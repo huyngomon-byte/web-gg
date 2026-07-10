@@ -27,6 +27,7 @@ import type { CaseStudy, CaseStudyMetric } from '../data/caseStudies'
 import { BigStatTile, StoryMetricChart } from '../components/StoryMetricCharts'
 import { cldResponsiveSrcSet, cldSrcSet, cldWidth } from '../lib/cloudinaryImage'
 import { useReducedMotionPreference } from '../hooks/useReducedMotionPreference'
+import { brandDisplayFontClass } from '../lib/brandNames'
 
 type SocialKey = 'facebook' | 'instagram' | 'tiktok' | 'website'
 type MetricLayoutSlot = {
@@ -295,7 +296,7 @@ function StoryRing({
         </span>
       </span>
       {!compact && (
-        <span className="mt-2 block truncate text-[11px] font-bold text-on-surface-variant group-hover:text-primary">
+        <span className={`mt-2 block truncate text-[11px] font-bold text-on-surface-variant group-hover:text-primary ${brandDisplayFontClass(getDisplayName(story))}`}>
           {getDisplayName(story)}
         </span>
       )}
@@ -800,7 +801,7 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
               <X size={22} aria-hidden="true" />
             </button>
             <span className="story-summary-sheet-kicker">{story.category}</span>
-            <h3 id={`${summarySheetId}-title`} className="story-detail-title pr-12 text-2xl font-extrabold leading-tight">
+            <h3 id={`${summarySheetId}-title`} className={`story-detail-title pr-12 text-2xl font-extrabold leading-tight ${brandDisplayFontClass(getDisplayName(story))}`}>
               {getDisplayName(story)} case study
             </h3>
             <p id={`${summarySheetId}-description`} className="mt-3">{story.shortDescription}</p>
@@ -1050,7 +1051,7 @@ function StickyStoryRail({
               <button key={story.id} type="button" onClick={() => onStoryClick(story)} className="flex w-full items-center gap-3 text-left">
                 <img {...storyAvatarProps(story)} alt="" className="h-10 w-10 rounded-full border border-outline-variant/35 object-contain" loading="lazy" decoding="async" />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-extrabold text-on-surface">{getDisplayName(story)}</span>
+                  <span className={`block truncate text-sm font-extrabold text-on-surface ${brandDisplayFontClass(getDisplayName(story))}`}>{getDisplayName(story)}</span>
                   <span className="block truncate text-xs font-semibold text-on-surface-variant">{story.category}</span>
                 </span>
               </button>

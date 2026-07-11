@@ -856,13 +856,15 @@ function StoryItemEditor({
   }).length
   const featuredMetricCount = storyMetricSlots.filter((metricIndex) => Boolean(getMetricFrom(keyMetrics, metricIndex).featured)).length
   const metricWarning = filledMetricCount !== 10 || featuredMetricCount !== 2
-  // Round 13: chart slides should stay roomy — max 3 tiles per slide, 4 background images.
+  // Two featured metrics form the hero slide; the remaining eight metrics
+  // fill four chart slides at two tiles each. Media therefore has five slots.
   const filledMetrics = storyMetricSlots
     .map((metricIndex) => getMetricFrom(keyMetrics, metricIndex))
     .filter((metric) => metric.value.trim() || metric.label.trim())
   const metricsWithoutSlide = filledMetrics.filter((metric) => !metric.featured && !metric.slide).length
-  const slideTileCounts = [2, 3, 4].map((slide) => filledMetrics.filter((metric) => metric.slide === slide).length)
-  const slideBalanceWarning = slideTileCounts.some((count) => count > 0 && (count < 2 || count > 3))
+  const chartSlideNumbers = [2, 3, 4, 5]
+  const slideTileCounts = chartSlideNumbers.map((slide) => filledMetrics.filter((metric) => metric.slide === slide).length)
+  const slideBalanceWarning = slideTileCounts.some((count) => count > 0 && count !== 2)
   const backgroundImageCount = (item.backgroundImages ?? []).filter((url) => url.trim()).length
 
   function updateText(patch: CmsLocalizedBlockItemFields) {
@@ -1074,12 +1076,12 @@ function StoryItemEditor({
           )}
           {slideBalanceWarning && (
             <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold leading-relaxed text-amber-800">
-              Moi slide 2-4 nen co 2-3 tile. Hien tai: slide 2 = {slideTileCounts[0]}, slide 3 = {slideTileCounts[1]}, slide 4 = {slideTileCounts[2]}.
+              Moi slide 2-5 nen co 2 tile. Hien tai: {chartSlideNumbers.map((slide, slideIndex) => `slide ${slide} = ${slideTileCounts[slideIndex]}`).join(', ')}.
             </p>
           )}
-          {backgroundImageCount < 4 && (
+          {backgroundImageCount < 5 && (
             <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold leading-relaxed text-amber-800">
-              Carousel co 4 slide nhung story chi co {backgroundImageCount} anh nen — anh cuoi se lap lai. Nen upload du 4 anh (muc Background images).
+              Carousel co 5 slide nhung story chi co {backgroundImageCount} anh nen — anh cuoi se lap lai. Nen upload du 5 anh (muc Background images).
             </p>
           )}
         </div>
@@ -1118,7 +1120,7 @@ function StoryItemEditor({
                         className="h-10 w-full rounded-lg border border-outline-variant bg-surface px-3 text-sm font-semibold text-on-surface"
                       >
                         <option value="">Auto</option>
-                        {[1, 2, 3, 4].map((slide) => (
+                        {[1, 2, 3, 4, 5].map((slide) => (
                           <option key={slide} value={slide}>Slide {slide}{slide === 1 ? ' (hero)' : ''}</option>
                         ))}
                       </select>
@@ -1388,12 +1390,13 @@ function StoryItemEditor({
               />
             </div>
           </Field>
-          <Field label="Background carousel images" hint="Upload 1080x1350 images. Max 5. Drag thumbnails to reorder.">
+          <Field label="Background carousel images" hint="Upload five 4:5 portrait masters at 3072×3840. The site serves responsive 1080-class mobile and Retina desktop variants. Drag thumbnails to reorder.">
             <BackgroundCarouselUploader
               urls={item.backgroundImages ?? []}
               onChange={updateBackgroundImages}
               folder={`cms/pages/${pageId}/${blockId}/background-carousel`}
               onUploadError={onUploadError}
+              hint="Five 3072×3840 (4:5) masters. Existing landscape assets use the sharp contain fallback until replaced."
             />
           </Field>
         </div>

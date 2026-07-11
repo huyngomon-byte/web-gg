@@ -57,6 +57,37 @@ test.describe('The One Stories', () => {
     await expect(page.locator(`#${targetId}`)).toBeFocused()
   })
 
+  test('uses a dark network stage while keeping logos, client media, and live data crisp', async ({ page }) => {
+    await expect(page.getByRole('banner')).toHaveClass(/is-dark-page/)
+    await expect(page.locator('.stories-dark-stage')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(page.locator('.flow-wave-dark--stories')).toHaveCSS('opacity', '1')
+    await expect(page.locator('.flow-wave-canvas--stories')).toHaveCount(1)
+
+    const firstRing = page.locator('.ig-story-ring').nth(1)
+    const firstLogo = firstRing.locator('.story-brand-logo')
+    await expect(firstLogo).toHaveAttribute('src', /\/story-logos\/phinoi\.webp$/)
+    await expect(firstRing.locator('.ig-story-ring-inner')).not.toHaveCSS('background-color', 'rgb(255, 255, 255)')
+    expect(await firstLogo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThanOrEqual(384)
+
+    const firstPost = page.locator('article.story-post').first()
+    await firstPost.scrollIntoViewIfNeeded()
+    const postSurface = await firstPost.evaluate((element) => getComputedStyle(element).backgroundColor)
+    expect(postSurface).toMatch(/^rgba?\(255, 25[0-5], 25[0-5]/)
+
+    const frame = firstPost.locator('.story-media-frame')
+    const track = firstPost.locator('.story-slide-track')
+    const image = firstPost.locator('.story-slide-image').first()
+    const dataTile = firstPost.locator('.story-glass-tile').first()
+    await expect(frame).toHaveCSS('transform', 'none')
+    await expect(track).toHaveCSS('transform', 'none')
+    await expect(image).toHaveCSS('object-fit', 'contain')
+    await expect(image).toHaveCSS('filter', 'none')
+    await expect(image).toHaveAttribute('sizes', /828px/)
+    await expect(dataTile).toHaveCSS('backdrop-filter', 'none')
+    await expect(dataTile).toHaveCSS('transform', 'none')
+    await expect(dataTile.locator('.story-chart-bignum-value')).toHaveCSS('font-weight', '800')
+  })
+
   test('keeps every metric, limits slides to two tiles, and uses manual navigation only', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     const firstPost = page.locator('article.story-post').first()

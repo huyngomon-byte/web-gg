@@ -18,6 +18,11 @@ export const CLOUDINARY_RESPONSIVE_WIDTHS = {
   full: [360, 540, 720, 900, 1080, 1440, 1920, 2560, 3200, 3840],
 } as const
 
+// Story cards top out at 828 CSS pixels. These candidates cover a 3x phone
+// and a Retina desktop card without shipping a wasteful 3840px derivative.
+// The original 3072×3840 master remains untouched in Cloudinary.
+export const CLOUDINARY_STORY_MEDIA_WIDTHS = [360, 540, 720, 900, 1080, 1280, 1440, 1720, 1920, 2160, 2560] as const
+
 export type CloudinaryImageQuality = 'good' | 'best'
 export type CloudinaryResponsiveProfile = keyof typeof CLOUDINARY_RESPONSIVE_WIDTHS
 
@@ -73,6 +78,24 @@ export function cldResponsiveSrcSet(
   quality: CloudinaryImageQuality = 'good',
 ) {
   return cldSrcSet(url, CLOUDINARY_RESPONSIVE_WIDTHS[profile], quality)
+}
+
+export function cldStoryMediaWidth(url: string | undefined, width: number) {
+  const value = (url ?? '').trim()
+  const safeWidth = normalizeWidth(width)
+  if (!value || !safeWidth || !isTransformableCloudinaryUrl(value)) return value
+  return value.replace(
+    '/upload/',
+    `/upload/c_limit,w_${safeWidth}/e_sharpen:30/f_auto,q_auto:good/`,
+  )
+}
+
+export function cldStoryMediaSrcSet(url: string | undefined) {
+  const value = (url ?? '').trim()
+  if (!value || !isTransformableCloudinaryUrl(value)) return undefined
+  return CLOUDINARY_STORY_MEDIA_WIDTHS
+    .map((width) => `${cldStoryMediaWidth(value, width)} ${width}w`)
+    .join(', ')
 }
 
 export function cldResponsiveImage(

@@ -121,6 +121,15 @@ type TunableConfig = {
   pointerStrength: number
 }
 
+type FlowWaveVariant = 'home' | 'stories'
+
+const STORIES_AURORA_BACKGROUND = [
+  'radial-gradient(78% 58% at 10% 12%, rgba(219,39,119,0.22), transparent 68%)',
+  'radial-gradient(66% 52% at 92% 24%, rgba(232,132,88,0.11), transparent 70%)',
+  'radial-gradient(82% 68% at 50% 88%, rgba(74,18,46,0.32), transparent 74%)',
+  'linear-gradient(165deg, #1A0714 0%, #2B0D1D 52%, #13040F 100%)',
+].join(',')
+
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
 }
@@ -132,6 +141,24 @@ function clamp(v: number, lo: number, hi: number) {
 function smoothstep01(value: number) {
   const t = clamp(value, 0, 1)
   return t * t * (3 - 2 * t)
+}
+
+function settingsForVariant(settings: CmsHomepageBackground, variant: FlowWaveVariant): CmsHomepageBackground {
+  if (variant === 'home') return settings
+
+  // Stories already renders several large client images and active glass data
+  // tiles. Keep the shared network language, but spend substantially less GPU
+  // and visual attention than the narrative Homepage atmosphere.
+  return {
+    ...settings,
+    atmoCount: Math.min(settings.atmoCount, 72),
+    opacity: clamp(settings.opacity * 0.75, 0.16, 0.22),
+    pointSize: clamp(settings.pointSize * 0.82, 2.4, 3),
+    density: clamp(settings.density * 0.65, 0.4, 0.56),
+    flow: clamp(settings.flow * 0.55, 0.2, 0.34),
+    waveHeight: clamp(settings.waveHeight * 0.7, 1.4, 1.9),
+    pointerStrength: 0,
+  }
 }
 
 const HOME_TONE_VALUES: Record<string, number> = {
@@ -182,7 +209,9 @@ function readHomepageToneProgress() {
 
 function isWeakDevice() {
   const cores = navigator.hardwareConcurrency ?? 8
-  return cores <= 4 && window.devicePixelRatio >= 3
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
+  const reducedData = window.matchMedia?.('(prefers-reduced-data: reduce)').matches ?? false
+  return Boolean(connection?.saveData || reducedData || (cores <= 4 && window.devicePixelRatio >= 3))
 }
 
 function isMobileViewport() {
@@ -204,14 +233,25 @@ function buildAuroraBackground(blobs: CmsHomepageBackground['blobs']) {
   ].join(',')
 }
 
-export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackground }) {
+export function FlowWaveBackground({
+  settings,
+  variant = 'home',
+}: {
+  settings: CmsHomepageBackground
+  variant?: FlowWaveVariant
+}) {
+  const variantSettings = settingsForVariant(settings, variant)
+  const storiesVariant = variant === 'stories'
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const darkBackdropRef = useRef<HTMLDivElement | null>(null)
-  const toneProgressRef = useRef(0)
-  const tunablesRef = useRef<TunableConfig>(settings)
-  tunablesRef.current = settings
+  const toneProgressRef = useRef(storiesVariant ? 1 : 0)
+  const tunablesRef = useRef<TunableConfig>(variantSettings)
+  tunablesRef.current = variantSettings
 
-  const auroraBackground = useMemo(() => buildAuroraBackground(settings.blobs), [settings.blobs])
+  const auroraBackground = useMemo(
+    () => (storiesVariant ? STORIES_AURORA_BACKGROUND : buildAuroraBackground(settings.blobs)),
+    [settings.blobs, storiesVariant],
+  )
 
   // Keep the light-to-dark CSS atmosphere working even if WebGL is
   // unavailable or intentionally skipped on a weak device.
@@ -222,7 +262,7 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
     const updateTone = () => {
       rafId = 0
       if (disposed) return
-      const progress = smoothstep01(readHomepageToneProgress())
+      const progress = storiesVariant ? 1 : smoothstep01(readHomepageToneProgress())
       toneProgressRef.current = progress
       if (darkBackdropRef.current) darkBackdropRef.current.style.opacity = String(progress)
     }
@@ -245,7 +285,7 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       window.removeEventListener('resize', scheduleToneUpdate)
       window.removeEventListener('load', scheduleToneUpdate)
     }
-  }, [])
+  }, [storiesVariant])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -279,7 +319,7 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       if (disposed || !canvas) return
 
       const mobile = isMobileViewport()
-      const dprCap = mobile ? 1.5 : 1.75
+      const dprCap = storiesVariant ? (mobile ? 1 : 1.35) : (mobile ? 1.5 : 1.75)
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
       let renderer: import('three').WebGLRenderer
@@ -340,7 +380,10 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       pts.frustumCulled = false
       group.add(pts)
 
-      const atmoN = mobile ? Math.round(Math.min(72, settings.atmoCount) * geometryDensity) : Math.round(settings.atmoCount * geometryDensity)
+      const atmoLimit = mobile
+        ? Math.min(storiesVariant ? 48 : 72, variantSettings.atmoCount)
+        : variantSettings.atmoCount
+      const atmoN = Math.round(atmoLimit * geometryDensity)
       const atmoPositions = new Float32Array(atmoN * 3)
       const atmoSizes = new Float32Array(atmoN)
       const atmoSeeds = new Float32Array(atmoN)
@@ -375,7 +418,10 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       let toneCurrent = toneProgressRef.current
       atmoPts.onBeforeRender = () => {
         const speedScale = lerp(1, 0.6, toneCurrent)
-        atmoMat.uniforms.uTime.value = reducedMotion ? 40 : (performance.now() / 1000) * ATMO_SPEED * speedScale * 8.0
+        const variantSpeedScale = storiesVariant ? 0.55 : 1
+        atmoMat.uniforms.uTime.value = reducedMotion
+          ? 40
+          : (performance.now() / 1000) * ATMO_SPEED * speedScale * variantSpeedScale * 8.0
         atmoPts.position.copy(camera.position)
       }
       scene.add(atmoPts)
@@ -446,7 +492,7 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
         uniforms.uWaveHeight.value = live.waveHeight * pointScale * (1 + scroll * (live.scrollRise ?? SCROLL_RISE))
 
         atmoMat.uniforms.uColor.value.copy(hexToVec3(live.atmoColor)).lerp(darkAtmoColor, tone)
-        atmoMat.uniforms.uOpacity.value = opacityScale
+        atmoMat.uniforms.uOpacity.value = opacityScale * (storiesVariant ? 0.58 : 1)
         atmoMat.uniforms.uSizeScale.value = (mobile ? 0.9 : 1) * pointScale
 
         return motionScale
@@ -462,22 +508,32 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
         const live = tunablesRef.current
         state.stream += dt * (live.flow * 2.0) * 4.0 * motionScale
         uniforms.uStream.value = state.stream
-        const ea = Math.min(scroll / 0.75, 1.0)
-        const e = ea * ea * (3 - 2 * ea)
-        camera.position.set(m.x * PARALLAX, lerp(CAM_START_Y, CAM_END_Y, e) + m.y * PARALLAX * 0.3, lerp(CAM_START_Z, CAM_END_Z, e))
-        camera.lookAt(m.x * PARALLAX * 0.5, lerp(0.0, 0.6, e), lerp(LOOK_START_Z, LOOK_END_Z, e))
+        if (storiesVariant) {
+          // A long-form feed needs a stable stage. The wave may stream, but the
+          // camera never dives toward it and never follows the pointer.
+          camera.position.set(0, 4.4, 11)
+          camera.lookAt(0, 0.15, -4)
+        } else {
+          const ea = Math.min(scroll / 0.75, 1.0)
+          const e = ea * ea * (3 - 2 * ea)
+          camera.position.set(m.x * PARALLAX, lerp(CAM_START_Y, CAM_END_Y, e) + m.y * PARALLAX * 0.3, lerp(CAM_START_Z, CAM_END_Z, e))
+          camera.lookAt(m.x * PARALLAX * 0.5, lerp(0.0, 0.6, e), lerp(LOOK_START_Z, LOOK_END_Z, e))
+        }
         updatePointerWorld()
         uniforms.uCursor.value.copy(pointer.world)
-        uniforms.uActivity.value = mobile ? 0 : pointer.activity
+        uniforms.uActivity.value = mobile || storiesVariant ? 0 : pointer.activity
         const elapsed = (performance.now() - state.appearStart) / 1000
         uniforms.uAppear.value = Math.max(0, Math.min(1, (elapsed - 0.2) / 1.4))
       }
 
       let rafId = 0
       let running = false
-      function loop() {
+      let lastRenderAt = 0
+      function loop(timestamp: number) {
         if (!running) return
         rafId = requestAnimationFrame(loop)
+        if (storiesVariant && mobile && timestamp - lastRenderAt < 32) return
+        lastRenderAt = timestamp
         scrollSmooth = lerp(scrollSmooth, scrollTarget, 0.1)
         scrollCurrent = lerp(scrollCurrent, scrollSmooth, 0.06)
         mouse.x = lerp(mouse.x, mouseTarget.x, 0.06)
@@ -510,14 +566,19 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
 
       function renderStaticFrame() {
         // prefers-reduced-motion: one fixed frame, no dive, no loop.
-        toneProgressRef.current = smoothstep01(readHomepageToneProgress())
+        toneProgressRef.current = storiesVariant ? 1 : smoothstep01(readHomepageToneProgress())
         toneCurrent = toneProgressRef.current
         applyTone(toneCurrent, scrollTarget)
         uniforms.uAppear.value = 1
         uniforms.uTime.value = 40
         uniforms.uStream.value = 60
-        camera.position.set(0, CAM_START_Y, CAM_START_Z)
-        camera.lookAt(0, 0, LOOK_START_Z)
+        if (storiesVariant) {
+          camera.position.set(0, 4.4, 11)
+          camera.lookAt(0, 0.15, -4)
+        } else {
+          camera.position.set(0, CAM_START_Y, CAM_START_Z)
+          camera.lookAt(0, 0, LOOK_START_Z)
+        }
         renderer.render(scene, camera)
       }
 
@@ -534,7 +595,7 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       if (reducedMotion) {
         renderStaticFrame()
       } else {
-        if (!mobile) {
+        if (!mobile && !storiesVariant) {
           window.addEventListener('mousemove', onMouseMove, { passive: true })
           window.addEventListener('mouseout', onMouseOut)
         }
@@ -566,15 +627,30 @@ export function FlowWaveBackground({ settings }: { settings: CmsHomepageBackgrou
       }
       cleanupScene?.()
     }
-    // Scene is initialized once; live tuning flows through tunablesRef.
+    // Scene is rebuilt only when its motion profile changes; live tuning flows
+    // through tunablesRef.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [variant])
 
   return (
     <>
-      <div aria-hidden="true" className="flow-wave-layer flow-wave-light" style={{ background: auroraBackground }} />
-      <div ref={darkBackdropRef} aria-hidden="true" className="flow-wave-layer flow-wave-dark" />
-      <canvas ref={canvasRef} aria-hidden="true" className="fixed inset-0 -z-10 h-full w-full" style={{ pointerEvents: 'none' }} />
+      <div
+        aria-hidden="true"
+        className={`flow-wave-layer flow-wave-light flow-wave-light--${variant}`}
+        style={{ background: auroraBackground }}
+      />
+      <div
+        ref={darkBackdropRef}
+        aria-hidden="true"
+        className={`flow-wave-layer flow-wave-dark flow-wave-dark--${variant}`}
+        style={storiesVariant ? { opacity: 1 } : undefined}
+      />
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className={`flow-wave-canvas flow-wave-canvas--${variant} fixed inset-0 -z-10 h-full w-full`}
+        style={{ pointerEvents: 'none' }}
+      />
     </>
   )
 }

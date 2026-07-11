@@ -2643,7 +2643,7 @@
   }
 }
 
-/* ============ Round 9: story carousel (Instagram-style, 4 slides) ============ */
+/* ============ Round 9: story carousel (Instagram-style, up to 5 slides) ============ */
 
 .story-slide-scrim {
   background: linear-gradient(180deg, rgba(10,6,10,0.16) 0%, rgba(10,6,10,0.02) 32%, rgba(10,6,10,0.10) 66%, rgba(10,6,10,0.38) 100%);
@@ -4427,5 +4427,345 @@ header.is-on-hero .site-nav-pill .text-on-surface-variant {
 @media (prefers-reduced-motion: reduce) {
   .flow-wave-dark {
     will-change: auto;
+  }
+}
+
+/* ============================================================
+   Round 16 — The One Stories: dark stage + lossless editorial media
+   ============================================================ */
+
+/* Stories is one continuous wine-dark atmosphere. The translucent page
+   wash keeps the particle network visible without turning each post dark. */
+.stories-dark-stage {
+  background:
+    radial-gradient(72% 34% at 8% 12%, rgba(209, 69, 117, 0.16), transparent 72%),
+    radial-gradient(68% 30% at 92% 42%, rgba(196, 119, 74, 0.10), transparent 74%),
+    linear-gradient(180deg, rgba(26, 7, 20, 0.08), rgba(31, 8, 23, 0.34) 48%, rgba(19, 4, 15, 0.72) 100%);
+}
+
+.flow-wave-light--stories {
+  background: #1a0714 !important;
+  opacity: 0 !important;
+}
+
+.flow-wave-dark--stories {
+  background:
+    radial-gradient(76% 58% at 10% 16%, rgba(90, 30, 59, 0.72), transparent 70%),
+    radial-gradient(70% 54% at 88% 36%, rgba(196, 119, 74, 0.18), transparent 72%),
+    radial-gradient(84% 68% at 48% 88%, rgba(209, 69, 117, 0.12), transparent 76%),
+    linear-gradient(165deg, #1a0714 0%, #2b0d1d 50%, #1d0818 76%, #13040f 100%) !important;
+  opacity: 1 !important;
+  will-change: auto;
+}
+
+.flow-wave-canvas--stories {
+  opacity: 0.78;
+}
+
+/* Keep the global navigation legible throughout the dark Stories page,
+   including after the generic header scroll threshold is crossed. */
+header.is-dark-page .site-nav-pill {
+  border-color: rgba(255, 219, 234, 0.22) !important;
+  background:
+    linear-gradient(135deg, rgba(53, 15, 37, 0.86), rgba(31, 8, 24, 0.74)),
+    rgba(19, 4, 15, 0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 20px 58px rgba(8, 2, 6, 0.34) !important;
+}
+
+header.is-dark-page .site-nav-pill .text-primary,
+header.is-dark-page .site-nav-pill a:not(:hover),
+header.is-dark-page .site-nav-pill .ig-script-title {
+  color: rgba(255, 248, 251, 0.96) !important;
+}
+
+header.is-dark-page .site-nav-pill .text-on-surface-variant {
+  color: rgba(255, 231, 241, 0.72) !important;
+}
+
+header.is-dark-page button[aria-controls='mobile-navigation'] {
+  border-color: rgba(255, 219, 234, 0.24) !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #fff7fb !important;
+}
+
+header.is-dark-page #mobile-navigation {
+  border-color: rgba(255, 219, 234, 0.20) !important;
+  background: rgba(35, 9, 27, 0.96) !important;
+  box-shadow: 0 24px 64px rgba(8, 2, 6, 0.42) !important;
+}
+
+header.is-dark-page #mobile-navigation a {
+  color: rgba(255, 242, 247, 0.84) !important;
+}
+
+/* Instagram-inspired tray: dark glass around the transparent brand marks,
+   rather than forcing every logo onto a white disc. */
+.stories-tray {
+  border-color: rgba(255, 219, 234, 0.14);
+  background:
+    linear-gradient(180deg, rgba(57, 16, 40, 0.88), rgba(31, 8, 24, 0.82)),
+    rgba(26, 7, 20, 0.80);
+  box-shadow: 0 18px 48px rgba(8, 2, 6, 0.26);
+}
+
+.stories-tray .ig-stories-title {
+  color: #fff7fb;
+  text-shadow: 0 2px 18px rgba(8, 2, 6, 0.34);
+}
+
+.stories-tray .ig-story-button > span:last-child {
+  color: rgba(255, 236, 244, 0.78);
+}
+
+.stories-tray .ig-stories-row {
+  scrollbar-width: none;
+}
+
+.stories-tray .ig-stories-row::-webkit-scrollbar {
+  display: none;
+}
+
+.stories-intro {
+  color: rgba(255, 235, 243, 0.78);
+}
+
+.ig-story-ring {
+  background: conic-gradient(from 210deg, #f7b64a, #ef668f, #d12f6e, #e76742, #f7b64a);
+  box-shadow: 0 8px 22px rgba(8, 2, 6, 0.26);
+}
+
+.ig-story-ring.is-viewed {
+  background: conic-gradient(#765162, #a27488, #765162);
+}
+
+.ig-story-ring.is-your-story {
+  background: conic-gradient(from 210deg, #d14575, #c4774a, #f2a65a, #d14575);
+}
+
+.ig-story-ring-inner {
+  border-color: rgba(255, 225, 237, 0.18) !important;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.12), transparent 48%),
+    linear-gradient(145deg, rgba(77, 23, 53, 0.98), rgba(27, 7, 21, 0.98)) !important;
+}
+
+.ig-story-ring-inner img,
+.ig-stories-bar.is-compact .ig-story-ring-inner img {
+  padding: 0 !important;
+}
+
+.story-brand-logo-shell {
+  display: inline-flex;
+  width: var(--story-logo-size);
+  height: var(--story-logo-size);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(116, 39, 76, 0.20);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.16), transparent 46%),
+    linear-gradient(145deg, #5a1e3b, #210819 76%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 7px 20px rgba(43, 13, 29, 0.18);
+}
+
+.story-brand-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 4%;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.story-brand-logo-shell[data-logo-tone='light'] .story-brand-logo {
+  filter: brightness(0) invert(1) drop-shadow(0 1px 5px rgba(0, 0, 0, 0.20));
+  opacity: 0.94;
+}
+
+.story-brand-logo-shell[data-logo-tone='brand'] .story-brand-logo {
+  filter: drop-shadow(0 1px 5px rgba(0, 0, 0, 0.24));
+}
+
+.story-brand-logo-shell[data-story-brand='annita-studios'] .story-brand-logo {
+  filter: brightness(1.55) saturate(1.08) drop-shadow(0 1px 6px rgba(0, 0, 0, 0.24));
+}
+
+.ig-story-ring-inner .story-brand-logo-shell {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ig-stories-bar.is-compact .story-brand-logo {
+  padding: 1%;
+}
+
+/* White editorial posts remain the reading surface. The dark atmosphere is
+   deliberately visible only around/between posts, preserving IG familiarity. */
+.stories-dark-stage .story-post:not(.stories-final-cta) {
+  border-color: rgba(255, 220, 234, 0.72);
+  background: rgba(255, 252, 253, 0.985);
+  box-shadow: 0 26px 76px rgba(8, 2, 6, 0.34);
+}
+
+.stories-rail-card {
+  border-color: rgba(255, 219, 234, 0.16);
+  background: linear-gradient(145deg, rgba(74, 21, 51, 0.74), rgba(28, 7, 22, 0.82));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 22px 64px rgba(8, 2, 6, 0.26);
+}
+
+.stories-rail-card .text-on-surface,
+.stories-rail-card .text-on-surface-variant {
+  color: rgba(255, 244, 249, 0.92) !important;
+}
+
+.stories-rail-card .text-on-surface-variant {
+  opacity: 0.68;
+}
+
+.stories-final-cta {
+  border-color: rgba(255, 219, 234, 0.18);
+  background: linear-gradient(145deg, rgba(78, 22, 54, 0.78), rgba(29, 7, 23, 0.84));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11), 0 24px 70px rgba(8, 2, 6, 0.28);
+}
+
+.stories-final-cta .text-on-surface {
+  color: #fff7fb !important;
+}
+
+/* Media masters have mixed aspect ratios. A themed editorial stage plus
+   object-contain preserves real pixels; object-cover previously enlarged the
+   short edge and made landscape masters visibly soft in the 4:5 frame. */
+.story-media-frame {
+  background: #210819;
+  transform: none !important;
+}
+
+.story-slide-track {
+  transform: none !important;
+  will-change: auto;
+}
+
+.story-slide-media-stage {
+  background-position: center;
+  background-size: cover;
+}
+
+.story-slide-media-stage::after {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.10), transparent 32%),
+    radial-gradient(circle at 82% 78%, var(--story-accent-soft, rgba(209, 69, 117, 0.24)), transparent 40%),
+    linear-gradient(180deg, rgba(10, 3, 8, 0.06), rgba(10, 3, 8, 0.22));
+  content: '';
+}
+
+.story-slide-image {
+  z-index: 1;
+  filter: none !important;
+  image-rendering: auto;
+}
+
+.story-slide-scrim {
+  z-index: 2;
+}
+
+/* Data is live DOM/SVG, not an image. Removing persistent compositor
+   transforms, synthetic weights and heavy glow keeps it optically crisp. */
+.story-glass-tile,
+.story-summary-glass {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background:
+    linear-gradient(145deg, rgba(61, 24, 48, 0.88), rgba(20, 8, 17, 0.84)) !important;
+  text-shadow: 0 1px 2px rgba(8, 2, 6, 0.48);
+  transform: none;
+}
+
+.story-media-frame:hover .story-slide-unit.is-active .story-glass-tile {
+  transform: none;
+}
+
+.story-chart-tile {
+  animation-name: storyDataFade;
+}
+
+@keyframes storyDataFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.story-metric-kicker,
+.story-metric-value,
+.story-summary-kicker,
+.story-summary-more,
+.story-chart-bignum-value,
+.story-chart-ba-value,
+.story-chart-donut-value,
+.story-chart-bars-name,
+.story-chart-trend-ends,
+.story-chart-label-main,
+.story-chart-unit {
+  font-weight: 800 !important;
+}
+
+.story-chart-bignum-value,
+.story-chart-donut-value,
+.story-chart-ba-value {
+  text-shadow: 0 1px 3px rgba(8, 2, 6, 0.54);
+}
+
+.story-chart-icon {
+  filter: none;
+}
+
+.story-summary-glass .story-summary-more {
+  right: 10px;
+  bottom: 40px;
+  min-width: 0;
+  min-height: 28px;
+  border: 1px solid rgba(255, 226, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  padding: 4px 8px;
+  color: rgba(255, 245, 249, 0.82);
+  font-size: 10px;
+}
+
+.story-summary-glass .story-summary-more:hover,
+.story-summary-glass .story-summary-more:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+@media (max-width: 767px) {
+  .stories-dark-stage {
+    background:
+      radial-gradient(95% 24% at 18% 8%, rgba(209, 69, 117, 0.15), transparent 72%),
+      linear-gradient(180deg, rgba(26, 7, 20, 0.06), rgba(19, 4, 15, 0.62));
+  }
+
+  .flow-wave-canvas--stories {
+    opacity: 0.62;
+  }
+
+  .stories-dark-stage > section:last-of-type {
+    row-gap: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-wave-canvas--stories,
+  .story-slide-track,
+  .story-chart-tile {
+    transition: none !important;
+    animation: none !important;
   }
 }

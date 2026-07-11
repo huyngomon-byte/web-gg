@@ -14,6 +14,7 @@ type BrandLayoutProps = {
   hideHeaderCta?: boolean
   flushTop?: boolean
   transparentBackground?: boolean
+  chromeTone?: 'auto' | 'dark'
   mobileHeaderTitle?: string
   floatingCtaRevealSelector?: string
   resolveNavHref?: (href: string, label: string) => string
@@ -67,6 +68,7 @@ export function BrandLayout({
   hideHeaderCta = false,
   flushTop = false,
   transparentBackground = false,
+  chromeTone = 'auto',
   mobileHeaderTitle,
   floatingCtaRevealSelector,
   resolveNavHref,
@@ -235,7 +237,7 @@ export function BrandLayout({
         </button>
       )}
 
-      <header className={`fixed inset-x-0 top-4 z-50 px-3 sm:px-5 lg:absolute ${headerOnHero ? 'is-on-hero' : 'is-off-hero'}`}>
+      <header className={`fixed inset-x-0 top-4 z-50 px-3 sm:px-5 lg:absolute ${headerOnHero ? 'is-on-hero' : 'is-off-hero'} ${chromeTone === 'dark' ? 'is-dark-page' : ''}`}>
         <nav className="site-nav-pill relative mx-auto flex h-16 max-w-[1200px] items-center gap-6 rounded-full border px-4 shadow-[0_18px_48px_rgba(219,39,119,0.12)] backdrop-blur-xl transition-[background,border-color,box-shadow,color] duration-300 sm:px-6 lg:px-8">
           <a href={homeHref} className="flex min-w-0 items-center gap-2.5">
             {header.logoSrc && <img src={header.logoSrc === '/logo-gg.png' ? '/avatars/logo-gg.png' : header.logoSrc} alt={header.logoAlt || header.brandName} className="h-12 w-auto shrink-0" />}

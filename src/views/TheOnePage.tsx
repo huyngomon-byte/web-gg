@@ -25,7 +25,10 @@ import type { CmsPageContent, CmsSiteSettings } from '../cms/types'
 import { getOrderedCaseStudies } from '../data/caseStudyStories'
 import type { CaseStudy, CaseStudyMetric } from '../data/caseStudies'
 import { BigStatTile, StoryMetricChart } from '../components/StoryMetricCharts'
-import { cldResponsiveSrcSet, cldSrcSet, cldWidth } from '../lib/cloudinaryImage'
+import { FlowWaveBackground } from '../components/FlowWaveBackground'
+import { StoryBrandLogo } from '../components/StoryBrandLogo'
+import { mergeHomepageBackground } from '../cms/siteSettings'
+import { cldStoryMediaSrcSet, cldStoryMediaWidth, cldWidth } from '../lib/cloudinaryImage'
 import { useReducedMotionPreference } from '../hooks/useReducedMotionPreference'
 import { brandDisplayFontClass } from '../lib/brandNames'
 
@@ -71,18 +74,6 @@ const socialPlatforms: Array<{ key: SocialKey; label: string; Icon: typeof Insta
   { key: 'website', label: 'Website', Icon: Globe2 },
 ]
 
-// Round 11 P0-A: avatar-role logos come from pre-resized 176px statics — the originals
-// (up to 6251px for inkaholic) were being decoded for 35-88px circles.
-const storyLogoById: Record<string, string> = {
-  phinoi: '/avatars/logo-phinoi.png',
-  'cota-cuti': '/avatars/logo-cotacuti.png',
-  inkaholic: '/avatars/logo-inkaholic.png',
-  'qanda-books': '/avatars/logo-qandabook.png',
-  curnon: '/avatars/logo-curnon.png',
-  'annita-studios': '/avatars/logo-annita.png',
-}
-
-
 const storyThemesById: Record<string, { gradient: string; accent: string; accentSoft: string; tile: string; featured: string }> = {
   phinoi: {
     gradient: 'linear-gradient(145deg,#1a0e06 0%,#91581f 45%,#f0b45c 100%)',
@@ -126,18 +117,6 @@ const storyThemesById: Record<string, { gradient: string; accent: string; accent
     tile: 'rgba(20,3,7,0.46)',
     featured: 'rgba(239,47,57,0.32)',
   },
-}
-
-function getStoryLogo(story: CaseStudy) {
-  // The mapped assets are pre-sized for avatar use. Prefer them over raw CMS
-  // uploads, which can be several thousand pixels wide for an 88px slot.
-  return storyLogoById[story.id] || story.logoUrl || '/avatars/logo-gg.png'
-}
-
-// Round 11 P0-A: avatars display at 35-88px — w_96 (1x) / w_176 (2x) via srcset.
-function storyAvatarProps(story: CaseStudy) {
-  const logo = getStoryLogo(story)
-  return { src: cldWidth(logo, 96), srcSet: cldSrcSet(logo, [96, 176]), sizes: '88px' }
 }
 
 function getAccountName(story: CaseStudy) {
@@ -292,7 +271,14 @@ function StoryRing({
     >
       <span className={`ig-story-ring mx-auto ${viewed ? 'is-viewed' : ''}`}>
         <span className="ig-story-ring-inner">
-          <img {...storyAvatarProps(story)} alt="" className="h-full w-full rounded-full object-contain" decoding="async" />
+          <StoryBrandLogo
+            storyId={story.id}
+            brandName={getDisplayName(story)}
+            src={story.logoUrl}
+            variant={compact ? 'compact' : 'ring'}
+            decorative
+            eager={!compact}
+          />
         </span>
       </span>
       {!compact && (
@@ -309,7 +295,7 @@ function YourStoryRing({ compact }: { compact: boolean }) {
     <button type="button" onClick={() => openBookingModal('your-story')} className="ig-story-button group text-center">
       <span className="ig-story-ring is-your-story mx-auto">
         <span className="ig-story-ring-inner relative">
-          <img src="/avatars/logo-gg.png" alt="GG99" className="h-full w-full rounded-full object-contain opacity-45" />
+          <StoryBrandLogo storyId="gg99" brandName="The One - GG99" variant={compact ? 'compact' : 'ring'} decorative />
           <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-primary text-white">
             <Plus size={14} strokeWidth={3} />
           </span>
@@ -340,7 +326,7 @@ function StoriesBar({
   onStoryClick: (story: CaseStudy) => void
 }) {
   return (
-    <section className={`ig-stories-bar sticky z-30 border-y border-white/65 bg-white/[0.72] px-4 shadow-[0_14px_40px_rgba(219,39,119,0.08)] backdrop-blur-xl ${compact ? 'is-compact' : ''} ${mobile ? 'is-mobile' : ''}`}>
+    <section className={`ig-stories-bar stories-tray sticky z-30 border-y px-4 backdrop-blur-xl ${compact ? 'is-compact' : ''} ${mobile ? 'is-mobile' : ''}`}>
       <div className="mx-auto max-w-[900px]">
         <h1 className={mobile ? 'sr-only' : 'ig-stories-title ig-script-title text-center text-[46px] leading-none text-on-surface md:text-[58px]'}>
           {heading}
@@ -634,8 +620,8 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
       onKeyDown={handleKeyDown}
     >
       <div
-        className="story-slide-track absolute inset-0 flex transition-transform duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-        style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+        className="story-slide-track absolute inset-y-0 left-0 flex w-full transition-[left] duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+        style={{ left: `-${activeSlide * 100}%` }}
       >
         {slides.map((slide, slideIndex) => {
           const nearActive = Math.abs(slideIndex - activeSlide) <= 1
@@ -650,18 +636,26 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
               aria-label={`Slide ${slideIndex + 1} of ${slideCount}`}
             >
               {slide.image && nearActive ? (
-                <img
-                  /* Accurate sizes keep mobile near 1080 while high-DPR/large screens
-                     can select up to the 3840 candidate when the master supports it. */
-                  src={cldWidth(slide.image, 1080, 'best')}
-                  srcSet={cldResponsiveSrcSet(slide.image, 'full', 'best')}
-                  sizes="(min-width: 900px) 860px, (min-width: 640px) calc(100vw - 40px), calc(100vw - 24px)"
-                  alt=""
-                  crossOrigin="anonymous"
-                  className="absolute inset-0 h-full w-full object-cover"
-                  loading={index === 0 && slideIndex === 0 ? 'eager' : 'lazy'}
-                  decoding="async"
-                />
+                <>
+                  <div
+                    className="story-slide-media-stage absolute inset-0"
+                    style={{ backgroundImage: story.screenBackground?.gradient || theme.gradient }}
+                    aria-hidden="true"
+                  />
+                  <img
+                    /* Preserve every source pixel instead of magnifying a
+                       landscape crop to fill the portrait Instagram frame. */
+                    src={cldStoryMediaWidth(slide.image, 1720)}
+                    srcSet={cldStoryMediaSrcSet(slide.image)}
+                    sizes="(min-width: 1280px) 828px, (min-width: 1024px) 660px, (min-width: 768px) 640px, (min-width: 640px) calc(100vw - 40px), calc(100vw - 24px)"
+                    alt=""
+                    crossOrigin="anonymous"
+                    className="story-slide-image absolute inset-0 h-full w-full object-contain"
+                    loading={index === 0 && slideIndex === 0 ? 'eager' : 'lazy'}
+                    fetchPriority={index === 0 && slideIndex === 0 ? 'high' : 'low'}
+                    decoding="async"
+                  />
+                </>
               ) : (
                 <div className="absolute inset-0" style={{ backgroundImage: story.screenBackground?.gradient || theme.gradient }} aria-hidden="true" />
               )}
@@ -970,7 +964,7 @@ function InstagramPost({
       className={`story-post w-full max-w-full overflow-hidden rounded-[28px] border bg-white shadow-[0_24px_70px_rgba(219,39,119,0.12)] transition duration-500 ${highlighted ? 'is-highlighted' : ''}`}
     >
       <header className="flex items-center gap-3 border-b border-outline-variant/35 px-4 py-3">
-        <img {...storyAvatarProps(story)} alt="" className="h-11 w-11 rounded-full border border-outline-variant/45 object-contain" loading="lazy" decoding="async" />
+        <StoryBrandLogo storyId={story.id} brandName={getDisplayName(story)} src={story.logoUrl} variant="header" decorative />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <h2 id={`${story.id}-title`} className="truncate text-sm font-extrabold text-on-surface">{getAccountName(story)}</h2>
@@ -1027,9 +1021,9 @@ function StickyStoryRail({
   return (
     <aside className="hidden xl:block">
       <div className="sticky top-32 space-y-4">
-        <div className="rounded-[24px] border border-white/70 bg-white/80 p-5 shadow-[0_20px_60px_rgba(219,39,119,0.12)] backdrop-blur-xl">
+        <div className="stories-rail-card rounded-[24px] border p-5 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <img src="/avatars/logo-gg.png" alt="The One - GG99" className="h-12 w-12 rounded-full border border-outline-variant/35 object-contain" />
+            <StoryBrandLogo storyId="gg99" brandName="The One - GG99" variant="profile" />
             <div>
               <p className="text-sm font-extrabold text-on-surface">The One - GG99</p>
               <p className="text-xs font-semibold text-on-surface-variant">Client story feed</p>
@@ -1044,12 +1038,12 @@ function StickyStoryRail({
           </button>
         </div>
 
-        <div className="rounded-[24px] border border-white/70 bg-white/80 p-5 shadow-[0_20px_60px_rgba(219,39,119,0.1)] backdrop-blur-xl">
+        <div className="stories-rail-card rounded-[24px] border p-5 backdrop-blur-xl">
           <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-primary">Suggested stories</p>
           <div className="mt-4 space-y-3">
             {stories.slice(0, 4).map((story) => (
               <button key={story.id} type="button" onClick={() => onStoryClick(story)} className="flex w-full items-center gap-3 text-left">
-                <img {...storyAvatarProps(story)} alt="" className="h-10 w-10 rounded-full border border-outline-variant/35 object-contain" loading="lazy" decoding="async" />
+                <StoryBrandLogo storyId={story.id} brandName={getDisplayName(story)} src={story.logoUrl} variant="suggested" decorative />
                 <span className="min-w-0">
                   <span className={`block truncate text-sm font-extrabold text-on-surface ${brandDisplayFontClass(getDisplayName(story))}`}>{getDisplayName(story)}</span>
                   <span className="block truncate text-xs font-semibold text-on-surface-variant">{story.category}</span>
@@ -1075,7 +1069,7 @@ function FinalStoryCta({ label }: { label: string }) {
     <button
       type="button"
       onClick={() => openBookingModal('story-final')}
-      className="story-post group w-full overflow-hidden rounded-[28px] border border-white/75 bg-white/[0.82] p-6 text-left shadow-[0_24px_70px_rgba(219,39,119,0.12)] backdrop-blur transition hover:-translate-y-1 hover:border-primary/45 md:p-8"
+      className="story-post stories-final-cta group w-full overflow-hidden rounded-[28px] border p-6 text-left backdrop-blur transition hover:-translate-y-1 hover:border-primary/45 md:p-8"
     >
       <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-primary">The One - GG99</span>
       <span className="mt-3 flex items-center justify-between gap-4">
@@ -1108,6 +1102,7 @@ export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lan
   const storyHeading = heroBlock?.heading?.trim() || 'The One Stories'
   const storyIntro = heroBlock?.body?.trim()
   const finalCtaLabel = heroBlock?.ctaLabel?.trim() || 'How about our stories?'
+  const storiesBackground = mergeHomepageBackground(siteSettings?.homepageBackground)
 
 
   useEffect(() => {
@@ -1234,11 +1229,19 @@ export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lan
   }
 
   return (
-    <BrandLayout lang={lang} siteSettings={siteSettings} flushTop mobileHeaderTitle={isMobileStories ? storyHeading : undefined}>
+    <BrandLayout
+      lang={lang}
+      siteSettings={siteSettings}
+      flushTop
+      transparentBackground
+      chromeTone="dark"
+      mobileHeaderTitle={isMobileStories ? storyHeading : undefined}
+    >
       <SeoHead meta={getLocalizedPageMeta(cmsPage, lang, c.meta)} schema={[organizationSchema, websiteSchema]} lang={lang} />
+      <FlowWaveBackground settings={storiesBackground} variant="stories" />
 
       <article
-        className="the-one-page min-h-screen overflow-x-clip bg-[linear-gradient(180deg,#fff5f7_0%,#ffe4ec_35%,#fff1c8_100%)] pb-16"
+        className="the-one-page stories-dark-stage relative min-h-screen overflow-x-clip bg-transparent pb-16"
         style={{
           '--stories-sticky-top': `${storiesOffsets.stickyTop}px`,
           '--story-anchor-offset': `${storiesOffsets.anchorOffset}px`,
@@ -1255,7 +1258,7 @@ export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lan
         />
 
         {storyIntro && (
-          <p className="mx-auto mt-7 max-w-2xl px-5 text-center text-sm font-bold leading-relaxed text-on-surface-variant md:text-base">
+          <p className="stories-intro mx-auto mt-7 max-w-2xl px-5 text-center text-sm font-bold leading-relaxed md:text-base">
             {storyIntro}
           </p>
         )}

@@ -12,6 +12,7 @@
     "migrate:sync-ui": "node --env-file=.env.local scripts/sync-approved-ui-content.mjs",
     "migrate:phinoi-name": "node --env-file=.env.local scripts/normalize-phinoi-name.mjs",
     "migrate:homepage-presentation": "node --env-file=.env.local scripts/normalize-homepage-presentation.mjs",
+    "assets:story-logos": "node scripts/generate-story-logos.mjs",
     "config:firebase-domains": "node --env-file=.env.local scripts/sync-firebase-auth-domains.mjs",
     "test:e2e": "playwright test",
     "security:scan": "node scripts/security-scan.mjs",

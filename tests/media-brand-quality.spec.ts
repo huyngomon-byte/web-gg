@@ -3,9 +3,12 @@ import { storyFromCmsItem } from '../src/data/caseStudyStories'
 import { normalizePhinoiText, PHINOI_DISPLAY_NAME } from '../src/lib/brandNames'
 import {
   CLOUDINARY_IMAGE_MAX_WIDTH,
+  CLOUDINARY_STORY_MEDIA_WIDTHS,
   cldResponsiveImage,
   cldResponsiveSrcSet,
   cldSrcSet,
+  cldStoryMediaSrcSet,
+  cldStoryMediaWidth,
   cldWidth,
 } from '../src/lib/cloudinaryImage'
 import { getHomepageVideoDeliveryWidth, retargetCloudinaryVideoWidth } from '../src/lib/cloudinaryVideo'
@@ -61,6 +64,17 @@ test('keeps mobile candidates at 1080 and exposes 4K only to desktop layouts', (
   expect(mobile).not.toContain(' 3840w')
   expect(desktop).toContain(' 1080w')
   expect(desktop).toContain(' 3840w')
+})
+
+test('serves story media at the card pixel budget with sharp, efficient delivery', () => {
+  const storySrcSet = cldStoryMediaSrcSet(rawImage) ?? ''
+
+  expect(cldStoryMediaWidth(rawImage, 1720)).toContain('/upload/c_limit,w_1720/e_sharpen:30/f_auto,q_auto:good/')
+  expect(storySrcSet).toContain(' 1080w')
+  expect(storySrcSet).toContain(' 1720w')
+  expect(storySrcSet).toContain(` ${CLOUDINARY_STORY_MEDIA_WIDTHS.at(-1)}w`)
+  expect(storySrcSet).not.toContain(' 3840w')
+  expect(cldStoryMediaWidth('/local/story.jpg', 1720)).toBe('/local/story.jpg')
 })
 
 test('deduplicates width candidates and returns reusable responsive image props', () => {

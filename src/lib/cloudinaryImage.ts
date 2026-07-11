@@ -18,10 +18,10 @@ export const CLOUDINARY_RESPONSIVE_WIDTHS = {
   full: [360, 540, 720, 900, 1080, 1440, 1920, 2560, 3200, 3840],
 } as const
 
-// Story cards top out at 828 CSS pixels. These candidates cover a 3x phone
-// and a Retina desktop card without shipping a wasteful 3840px derivative.
+// Story cards top out at 660 CSS pixels. These candidates cover a 3x phone
+// and a Retina desktop card without shipping a wasteful 4K derivative.
 // The original 3072×3840 master remains untouched in Cloudinary.
-export const CLOUDINARY_STORY_MEDIA_WIDTHS = [360, 540, 720, 900, 1080, 1280, 1440, 1720, 1920, 2160, 2560] as const
+export const CLOUDINARY_STORY_MEDIA_WIDTHS = [360, 540, 720, 900, 1080, 1280, 1440, 1720, 1920, 2160] as const
 
 export type CloudinaryImageQuality = 'good' | 'best'
 export type CloudinaryResponsiveProfile = keyof typeof CLOUDINARY_RESPONSIVE_WIDTHS

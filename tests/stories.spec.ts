@@ -62,6 +62,7 @@ test.describe('The One Stories', () => {
     await expect(page.locator('.stories-dark-stage')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     await expect(page.locator('.flow-wave-dark--stories')).toHaveCSS('opacity', '1')
     await expect(page.locator('.flow-wave-canvas--stories')).toHaveCount(1)
+    await expect(page.locator('.stories-tray')).toHaveCSS('background-color', 'rgba(255, 252, 253, 0.96)')
 
     const firstRing = page.locator('.ig-story-ring').nth(1)
     const firstLogo = firstRing.locator('.story-brand-logo')
@@ -82,10 +83,16 @@ test.describe('The One Stories', () => {
     await expect(track).toHaveCSS('transform', 'none')
     await expect(image).toHaveCSS('object-fit', 'contain')
     await expect(image).toHaveCSS('filter', 'none')
-    await expect(image).toHaveAttribute('sizes', /828px/)
+    await expect(image).toHaveAttribute('sizes', /660px/)
     await expect(dataTile).toHaveCSS('backdrop-filter', 'none')
     await expect(dataTile).toHaveCSS('transform', 'none')
     await expect(dataTile.locator('.story-chart-bignum-value')).toHaveCSS('font-weight', '800')
+
+    const summary = firstPost.locator('.story-summary-glass')
+    await expect(summary).toHaveCSS('color', 'rgb(43, 23, 33)')
+    await expect(summary.locator('.story-summary-copy')).toHaveCSS('color', 'rgb(43, 23, 33)')
+    await expect(summary.locator('.story-summary-kicker')).toHaveCSS('color', 'rgb(165, 15, 70)')
+    expect(await summary.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('rgba(255, 250, 252, 0.97)')
   })
 
   test('keeps every metric, limits slides to two tiles, and uses manual navigation only', async ({ page }) => {

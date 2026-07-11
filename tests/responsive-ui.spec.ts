@@ -72,7 +72,7 @@ test.describe('responsive UI matrix', () => {
       const firstPost = page.locator('article.story-post').first()
       const postBox = await firstPost.boundingBox()
       expect(postBox).not.toBeNull()
-      expect(postBox!.width).toBeLessThanOrEqual(width >= 1280 ? 860 : width >= 1024 ? 661 : width >= 768 ? 641 : width)
+      expect(postBox!.width).toBeLessThanOrEqual(width >= 1024 ? 661 : width >= 768 ? 641 : width)
 
       const firstDot = firstPost.locator('.story-carousel-dot').first()
       const dotBox = await firstDot.boundingBox()

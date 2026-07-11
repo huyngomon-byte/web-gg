@@ -647,7 +647,7 @@ function StoryMediaFrame({ story, index, swipeHint }: { story: CaseStudy; index:
                        landscape crop to fill the portrait Instagram frame. */
                     src={cldStoryMediaWidth(slide.image, 1720)}
                     srcSet={cldStoryMediaSrcSet(slide.image)}
-                    sizes="(min-width: 1280px) 828px, (min-width: 1024px) 660px, (min-width: 768px) 640px, (min-width: 640px) calc(100vw - 40px), calc(100vw - 24px)"
+                    sizes="(min-width: 1024px) 660px, (min-width: 768px) 640px, (min-width: 640px) calc(100vw - 40px), calc(100vw - 24px)"
                     alt=""
                     crossOrigin="anonymous"
                     className="story-slide-image absolute inset-0 h-full w-full object-contain"
@@ -1258,13 +1258,13 @@ export default function TheOnePage({ lang = 'en', cmsPage, siteSettings }: { lan
         />
 
         {storyIntro && (
-          <p className="stories-intro mx-auto mt-7 max-w-2xl px-5 text-center text-sm font-bold leading-relaxed md:text-base">
+          <p className="stories-intro mx-auto mt-5 max-w-2xl px-5 text-center text-sm font-bold leading-relaxed md:mt-7 md:text-base">
             {storyIntro}
           </p>
         )}
 
-        <section className="mx-auto mt-8 grid w-full max-w-[1180px] min-w-0 grid-cols-[minmax(0,1fr)] gap-8 px-3 sm:px-5 xl:grid-cols-[minmax(0,860px)_280px]">
-          <div className="mx-auto grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] gap-7 md:max-w-[640px] lg:max-w-[660px] xl:max-w-[828px]">
+        <section className="mx-auto mt-5 grid w-full max-w-[1040px] min-w-0 grid-cols-[minmax(0,1fr)] gap-6 px-3 sm:px-5 md:mt-7 xl:grid-cols-[minmax(0,660px)_280px] xl:gap-8">
+          <div className="mx-auto grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] gap-4 md:max-w-[640px] md:gap-6 lg:max-w-[660px] xl:max-w-[660px]">
             {orderedCaseStudies.map((story, index) => (
               <InstagramPost
                 key={story.id}

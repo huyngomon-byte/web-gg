@@ -4546,21 +4546,22 @@ header.is-dark-page #mobile-navigation a {
   color: rgba(255, 235, 243, 0.78);
 }
 
+/* Classic Instagram story gradient: yellow -> orange -> pink -> purple. */
 .ig-story-ring {
-  background: conic-gradient(from 210deg, #f7b64a, #ef668f, #d12f6e, #e76742, #f7b64a);
+  background: conic-gradient(from 210deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5, #feda75);
   box-shadow: 0 8px 22px rgba(8, 2, 6, 0.26);
 }
 
 .ig-story-ring.is-viewed {
-  background: conic-gradient(#765162, #a27488, #765162);
+  background: conic-gradient(#d1d5db, #e5e7eb, #d1d5db);
 }
 
 .ig-story-ring.is-your-story {
-  background: conic-gradient(from 210deg, #d14575, #c4774a, #f2a65a, #d14575);
+  background: conic-gradient(#ffffff, #fdf2f8, #ffffff);
 }
 
 .ig-story-ring-inner {
-  border-color: rgba(255, 225, 237, 0.18) !important;
+  border-color: rgba(255, 252, 253, 0.96) !important;
   background:
     radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.12), transparent 48%),
     linear-gradient(145deg, rgba(77, 23, 53, 0.98), rgba(27, 7, 21, 0.98)) !important;
@@ -4607,6 +4608,15 @@ header.is-dark-page #mobile-navigation a {
 
 .story-brand-logo-shell[data-story-brand='annita-studios'] .story-brand-logo {
   filter: brightness(1.55) saturate(1.08) drop-shadow(0 1px 6px rgba(0, 0, 0, 0.24));
+}
+
+/* CMS-uploaded avatars render exactly as uploaded: full-bleed like an
+   Instagram profile picture, no knockout/brightness treatment. */
+.story-brand-logo-shell[data-logo-source='cms'] .story-brand-logo {
+  padding: 0;
+  object-fit: cover;
+  filter: none;
+  opacity: 1;
 }
 
 .ig-story-ring-inner .story-brand-logo-shell {

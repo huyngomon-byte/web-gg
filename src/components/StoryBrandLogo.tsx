@@ -91,8 +91,11 @@ export function StoryBrandLogo({
 }: StoryBrandLogoProps) {
   const asset = getStoryBrandLogoAsset(storyId)
   const resolvedSize = Math.max(1, Math.round(size ?? variantSizes[variant]))
-  const resolvedTone = tone ?? asset?.tone ?? 'brand'
-  const resolvedSrc = asset?.src || src?.trim() || storyBrandLogoAssets.gg99.src
+  // The CMS avatar is authoritative; bundled derivatives only backfill brands
+  // that never uploaded one. CMS avatars render untinted and full-bleed.
+  const cmsSrc = src?.trim()
+  const resolvedTone = tone ?? (cmsSrc ? 'brand' : asset?.tone ?? 'brand')
+  const resolvedSrc = cmsSrc || asset?.src || storyBrandLogoAssets.gg99.src
   const label = brandName?.trim() || asset?.alt || 'Brand'
   const accessibleAlt = decorative ? '' : alt?.trim() || `${label} logo`
   const shellStyle = { '--story-logo-size': `${resolvedSize}px` } as CSSProperties
@@ -101,6 +104,7 @@ export function StoryBrandLogo({
     <span
       className={`story-brand-logo-shell story-brand-logo-shell--${variant} ${className}`.trim()}
       data-logo-tone={resolvedTone}
+      data-logo-source={cmsSrc ? 'cms' : 'asset'}
       data-story-brand={normalizeStoryBrandId(storyId)}
       style={shellStyle}
       aria-hidden={decorative || undefined}

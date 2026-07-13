@@ -143,7 +143,7 @@ const storyLogoById: Record<string, string> = {
 }
 
 function getStoryLogoForHome(story: Pick<CaseStudy, 'id' | 'logoUrl'>) {
-  return storyLogoById[story.id] || story.logoUrl || '/avatars/logo-gg.png'
+  return story.logoUrl || storyLogoById[story.id] || '/avatars/logo-gg.png'
 }
 
 // Round 12 A2.3: word-by-word reveal for big headings/quotes ([data-reveal='words'] CSS)

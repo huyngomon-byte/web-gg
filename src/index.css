@@ -3865,9 +3865,8 @@ header.is-on-hero .site-nav-pill .text-on-surface-variant {
 /* Banner slideshow: the visible slide drifts with a slow Ken Burns zoom so the
    image carousel reads like an ambient video. Reduced motion keeps stills. */
 @media (prefers-reduced-motion: no-preference) {
-  .banner-slide-active.featured-banner-role-image,
-  .banner-slide-active.people-banner-image {
-    animation: banner-slide-kenburns 5.5s ease-out forwards;
+  .banner-slide-active {
+    animation: banner-slide-kenburns 3s ease-out forwards;
   }
 }
 

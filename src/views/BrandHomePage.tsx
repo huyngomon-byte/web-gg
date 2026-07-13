@@ -842,7 +842,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
     const interval = window.setInterval(() => {
       if (Date.now() < pauseUntilRef.current) return
       setBannerSlide((slide) => slide + 1)
-    }, 4000)
+    }, 2500)
     return () => window.clearInterval(interval)
   }, [activeSlideCount, interacting, pageVisible, reducedMotion, showcaseStories.length])
 
@@ -977,32 +977,59 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
               return slides.map((slideUrl, slideIndex) => {
                 const isMainSlide = slideUrl === media.desktop
                 const visible = storyActive && slideIndex === safeSlide
-                return (
-                  <picture key={`${story.id}-banner-${index}-${slideIndex}`}>
-                    {isMainSlide && (
+                if (isMainSlide) {
+                  return (
+                    <picture key={`${story.id}-banner-${index}-${slideIndex}`}>
                       <source
                         media="(max-width: 767px)"
                         srcSet={cldResponsiveSrcSet(media.mobile, 'mobile', 'best')}
                         sizes="100vw"
                       />
-                    )}
+                      <img
+                        src={cldWidth(slideUrl, 1920, 'best')}
+                        srcSet={cldResponsiveSrcSet(slideUrl, 'full', 'best')}
+                        sizes="(min-width: 1280px) 1152px, 96vw"
+                        alt={visible ? `${story.brandName} case study` : ''}
+                        aria-hidden={visible ? undefined : true}
+                        loading="lazy"
+                        decoding="async"
+                        className={`featured-banner-role-image absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.025] ${
+                          isLogoLikeImage(slideUrl) ? 'bg-[linear-gradient(135deg,#fff7fb,#ffd8e8)] object-contain p-12 md:p-20' : 'object-cover'
+                        } ${visible ? 'banner-slide-active opacity-100' : 'opacity-0'}`}
+                        style={{
+                          '--featured-banner-position': media.desktopPosition,
+                          '--featured-banner-position-mobile': media.mobilePosition,
+                        } as CSSProperties}
+                      />
+                    </picture>
+                  )
+                }
+                // Gallery slides keep the whole 16:9 upload visible: the image is
+                // letterboxed with object-contain while a blurred copy fills the strip.
+                return (
+                  <div
+                    key={`${story.id}-banner-${index}-${slideIndex}`}
+                    aria-hidden={visible ? undefined : true}
+                    className={`absolute inset-0 transition duration-700 ${visible ? 'opacity-100' : 'opacity-0'}`}
+                  >
+                    <img
+                      src={cldWidth(slideUrl, 480)}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      decoding="async"
+                      className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl saturate-[1.15]"
+                    />
                     <img
                       src={cldWidth(slideUrl, 1920, 'best')}
                       srcSet={cldResponsiveSrcSet(slideUrl, 'full', 'best')}
                       sizes="(min-width: 1280px) 1152px, 96vw"
                       alt={visible ? `${story.brandName} case study` : ''}
-                      aria-hidden={visible ? undefined : true}
                       loading="lazy"
                       decoding="async"
-                      className={`featured-banner-role-image absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.025] ${
-                        isLogoLikeImage(slideUrl) ? 'bg-[linear-gradient(135deg,#fff7fb,#ffd8e8)] object-contain p-12 md:p-20' : 'object-cover'
-                      } ${visible ? 'banner-slide-active opacity-100' : 'opacity-0'}`}
-                      style={{
-                        '--featured-banner-position': isMainSlide ? media.desktopPosition : 'center',
-                        '--featured-banner-position-mobile': isMainSlide ? media.mobilePosition : 'center',
-                      } as CSSProperties}
+                      className={`relative h-full w-full object-contain ${visible ? 'banner-slide-active' : ''}`}
                     />
-                  </picture>
+                  </div>
                 )
               })
             })}
@@ -1384,8 +1411,8 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
   }, [])
 
   const activeSlideCount = hasPeople ? getPeopleBannerSlides(members[activeIndex % members.length] ?? members[0]).length : 0
-  // Slides split the member's autoSlideSeconds window, but never flip faster than 3.5s.
-  const slideDurationMs = Math.max(3500, (autoSlideSeconds * 1000) / Math.max(1, activeSlideCount))
+  // Slides split the member's autoSlideSeconds window, but never flip faster than 2.5s.
+  const slideDurationMs = Math.max(2500, (autoSlideSeconds * 1000) / Math.max(1, activeSlideCount))
 
   useEffect(() => {
     setBannerSlide(0)
@@ -1505,27 +1532,50 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
               getPeopleBannerSlides(activeMember).map((slideUrl, slideIndex, slides) => {
                 const isMainSlide = slideUrl === activeBanner
                 const visible = slideIndex === (bannerSlide < slides.length ? bannerSlide : 0)
-                return (
-                  <picture key={`${activeMember.title}-banner-slide-${slideIndex}`}>
-                    {isMainSlide && (
+                if (isMainSlide) {
+                  return (
+                    <picture key={`${activeMember.title}-banner-slide-${slideIndex}`}>
                       <source media="(max-width: 767px)" srcSet={cldResponsiveSrcSet(activeMobileBanner, 'mobile', 'best')} sizes="100vw" />
-                    )}
+                      <img
+                        src={cldWidth(slideUrl, 1920, 'best')}
+                        srcSet={cldResponsiveSrcSet(slideUrl, 'full', 'best')}
+                        sizes="(min-width: 1280px) 1152px, 96vw"
+                        decoding="async"
+                        alt={visible ? `${activeMember.title} banner` : ''}
+                        aria-hidden={visible ? undefined : true}
+                        className={`people-banner-image absolute inset-0 h-full w-full object-cover transition duration-700 ${visible ? 'banner-slide-active opacity-100' : 'opacity-0'}`}
+                        style={{
+                          '--people-banner-position': normalizeObjectPosition(activeMember.bannerImagePosition),
+                          '--people-banner-position-mobile': normalizeObjectPosition(activeMember.bannerImageMobilePosition, normalizeObjectPosition(activeMember.bannerImagePosition)),
+                        } as CSSProperties}
+                      />
+                    </picture>
+                  )
+                }
+                // Avatar slides show the full uploaded frame, letterboxed over a blurred fill.
+                return (
+                  <div
+                    key={`${activeMember.title}-banner-slide-${slideIndex}`}
+                    aria-hidden={visible ? undefined : true}
+                    className={`absolute inset-0 transition duration-700 ${visible ? 'opacity-100' : 'opacity-0'}`}
+                  >
+                    <img
+                      src={cldWidth(slideUrl, 480)}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      decoding="async"
+                      className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl saturate-[1.15]"
+                    />
                     <img
                       src={cldWidth(slideUrl, 1920, 'best')}
                       srcSet={cldResponsiveSrcSet(slideUrl, 'full', 'best')}
                       sizes="(min-width: 1280px) 1152px, 96vw"
                       decoding="async"
                       alt={visible ? `${activeMember.title} banner` : ''}
-                      aria-hidden={visible ? undefined : true}
-                      className={`people-banner-image absolute inset-0 h-full w-full object-cover transition duration-700 ${visible ? 'banner-slide-active opacity-100' : 'opacity-0'}`}
-                      style={{
-                        '--people-banner-position': isMainSlide ? normalizeObjectPosition(activeMember.bannerImagePosition) : 'center',
-                        '--people-banner-position-mobile': isMainSlide
-                          ? normalizeObjectPosition(activeMember.bannerImageMobilePosition, normalizeObjectPosition(activeMember.bannerImagePosition))
-                          : 'center',
-                      } as CSSProperties}
+                      className={`relative h-full w-full object-contain ${visible ? 'banner-slide-active' : ''}`}
                     />
-                  </picture>
+                  </div>
                 )
               })
             )}

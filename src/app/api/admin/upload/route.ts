@@ -188,7 +188,8 @@ function validateCloudinaryResource(resource: CloudinaryResource, intent: Upload
   // Fixed folder mode returns "<folder>/<id>"; dynamic folder mode keeps public_id as "<id>".
   const expectedPublicIds = new Set([intent.publicId, intent.publicId.split('/').pop() ?? intent.publicId])
   if (
-    resource.status !== 'active' ||
+    // The resource-by-asset_id API omits `status` for normal active assets; only reject explicit non-active states.
+    (resource.status !== undefined && resource.status !== 'active') ||
     resource.type !== 'upload' ||
     resource.resource_type !== intent.kind ||
     !resource.public_id ||

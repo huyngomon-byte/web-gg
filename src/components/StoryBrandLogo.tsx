@@ -17,13 +17,11 @@ export const storyBrandLogoAssets: Readonly<Record<string, StoryBrandLogoAsset>>
   phinoi: { alt: 'PHINƠI', src: '/story-logos/phinoi.webp', tone: 'brand' },
   'cota-cuti': { alt: 'cota.cuti', src: '/story-logos/cotacuti.webp', tone: 'light' },
   inkaholic: { alt: 'INKAHOLIC', src: '/story-logos/inkaholic.webp', tone: 'light' },
-  'qanda-books': { alt: 'QANDA Books', src: '/story-logos/qandabook-avatar.webp', tone: 'brand' },
+  'qanda-books': { alt: 'QANDA Books', src: '/story-logos/qandabook.webp', tone: 'brand' },
   curnon: { alt: 'CURNON', src: '/story-logos/curnon.webp', tone: 'light' },
   'annita-studios': { alt: 'ANNITA STUDIOS', src: '/story-logos/annita.webp', tone: 'brand' },
-  gg99: { alt: 'The One - GG99', src: '/story-logos/gg-avatar.webp', tone: 'brand' },
+  gg99: { alt: 'The One - GG99', src: '/story-logos/gg.webp', tone: 'brand' },
 }
-
-const avatarVariants = new Set<StoryBrandLogoVariant>(['ring', 'compact', 'header', 'suggested', 'profile'])
 
 const storyBrandLogoAliases: Readonly<Record<string, string>> = {
   annita: 'annita-studios',
@@ -93,13 +91,11 @@ export function StoryBrandLogo({
 }: StoryBrandLogoProps) {
   const asset = getStoryBrandLogoAsset(storyId)
   const resolvedSize = Math.max(1, Math.round(size ?? variantSizes[variant]))
-  // Known brands use purpose-built square assets in circular avatar contexts.
-  // This keeps a CMS wordmark from being cropped through the middle. CMS
-  // artwork remains the fallback for brands that do not have a local avatar.
+  // The CMS avatar is authoritative; bundled derivatives only backfill brands
+  // that never uploaded one. CMS avatars render untinted and full-bleed.
   const cmsSrc = src?.trim()
-  const usesBundledAvatar = Boolean(asset && avatarVariants.has(variant))
-  const resolvedTone = tone ?? (usesBundledAvatar ? asset?.tone ?? 'brand' : cmsSrc ? 'brand' : asset?.tone ?? 'brand')
-  const resolvedSrc = usesBundledAvatar ? asset?.src ?? storyBrandLogoAssets.gg99.src : cmsSrc || asset?.src || storyBrandLogoAssets.gg99.src
+  const resolvedTone = tone ?? (cmsSrc ? 'brand' : asset?.tone ?? 'brand')
+  const resolvedSrc = cmsSrc || asset?.src || storyBrandLogoAssets.gg99.src
   const label = brandName?.trim() || asset?.alt || 'Brand'
   const accessibleAlt = decorative ? '' : alt?.trim() || `${label} logo`
   const shellStyle = { '--story-logo-size': `${resolvedSize}px` } as CSSProperties
@@ -108,7 +104,7 @@ export function StoryBrandLogo({
     <span
       className={`story-brand-logo-shell story-brand-logo-shell--${variant} ${className}`.trim()}
       data-logo-tone={resolvedTone}
-      data-logo-source={usesBundledAvatar || !cmsSrc ? 'asset' : 'cms'}
+      data-logo-source={cmsSrc ? 'cms' : 'asset'}
       data-story-brand={normalizeStoryBrandId(storyId)}
       style={shellStyle}
       aria-hidden={decorative || undefined}

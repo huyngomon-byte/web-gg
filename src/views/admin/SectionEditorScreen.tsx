@@ -1343,6 +1343,24 @@ function StoryItemEditor({
               />
             </Field>
           </div>
+          <Field label="Video preview (hover/tap)" hint="MP4/WebM/OGG chay khi hover/tap brand card tren homepage. YouTube link khong dung duoc.">
+            <div className="grid gap-2">
+              <TextInput
+                value={item.videoUrl ?? item.embedUrl ?? ''}
+                onChange={(value) => updateBlockItem(pageId, blockId, index, { videoUrl: value, embedUrl: '' })}
+              />
+              {getUnsupportedPreviewVideoMessage(item.videoUrl ?? item.embedUrl) && (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
+                  {getUnsupportedPreviewVideoMessage(item.videoUrl ?? item.embedUrl)}
+                </p>
+              )}
+              <VideoUploadButton
+                folder={`cms/pages/${pageId}/${blockId}/items/previews`}
+                onUploaded={(url) => updateBlockItem(pageId, blockId, index, { videoUrl: url, embedUrl: '' })}
+                onError={onUploadError}
+              />
+            </div>
+          </Field>
           <Field label="Background image URL" hint="Dùng làm ảnh nền phía sau brand story card.">
             <div className="grid gap-2">
               <TextInput value={item.backgroundImageUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { backgroundImageUrl: value })} />

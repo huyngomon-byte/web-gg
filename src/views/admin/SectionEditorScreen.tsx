@@ -18,6 +18,7 @@ import {
   VideoUploadButton,
 } from '../../admin/ui'
 import { CmsIcon } from '../../components/CmsIcon'
+import { getStoryBrandLogoAsset } from '../../components/StoryBrandLogo'
 import { getAdminSectionLabel } from '../../cms/adminSectionLabels'
 import { uploadCmsAsset } from '../../cms/mediaRepository'
 import type { BrandLang } from '../../brandContent'
@@ -873,6 +874,10 @@ function StoryItemEditor({
   const slideTileCounts = chartSlideNumbers.map((slide) => filledMetrics.filter((metric) => metric.slide === slide).length)
   const slideBalanceWarning = slideTileCounts.some((count) => count > 0 && count !== 2)
   const backgroundImageCount = (item.backgroundImages ?? []).filter((url) => url.trim()).length
+  const avatarPreviewAsset = getStoryBrandLogoAsset(String(item.href || item.id || title || item.title || ''))
+  const avatarPreviewSrc = ['/story-logos/qandabook.webp', '/story-logos/gg.webp'].includes(avatarPreviewAsset?.src ?? '')
+    ? avatarPreviewAsset?.src
+    : item.logoUrl
 
   function updateText(patch: CmsLocalizedBlockItemFields) {
     updateBlockItem(pageId, blockId, index, patchItemText(item, activeLang, patch))
@@ -994,8 +999,8 @@ function StoryItemEditor({
             </label>
           </div>
           <div className="flex items-center justify-center rounded-xl border border-outline-variant/45 bg-surface p-4">
-            {item.logoUrl ? (
-              <img src={item.logoUrl} alt={`${item.title || 'Brand'} avatar preview`} className="h-28 w-28 rounded-full object-contain" />
+            {avatarPreviewSrc ? (
+              <img src={avatarPreviewSrc} alt={`${item.title || 'Brand'} avatar preview`} className="h-28 w-28 rounded-full object-contain" />
             ) : (
               <div className="flex h-28 w-28 items-center justify-center rounded-full border border-dashed border-outline-variant/60 text-xs font-bold text-on-surface-variant">
                 Avatar

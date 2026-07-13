@@ -30,6 +30,7 @@ const storyBrandLogoAliases: Readonly<Record<string, string>> = {
   'cota.cuti': 'cota-cuti',
   gg: 'gg99',
   qanda: 'qanda-books',
+  'qanda books': 'qanda-books',
   qandabook: 'qanda-books',
   qandabooks: 'qanda-books',
 }
@@ -89,13 +90,15 @@ export function StoryBrandLogo({
   className = '',
   imageClassName = '',
 }: StoryBrandLogoProps) {
-  const asset = getStoryBrandLogoAsset(storyId)
+  const normalizedStoryId = normalizeStoryBrandId(storyId)
+  const asset = storyBrandLogoAssets[normalizedStoryId]
   const resolvedSize = Math.max(1, Math.round(size ?? variantSizes[variant]))
-  // The CMS avatar is authoritative; bundled derivatives only backfill brands
-  // that never uploaded one. CMS avatars render untinted and full-bleed.
+  // QANDA and GG99 use bundled circular derivatives so their complete marks
+  // remain centered and uncropped in profile-avatar contexts.
   const cmsSrc = src?.trim()
-  const resolvedTone = tone ?? (cmsSrc ? 'brand' : asset?.tone ?? 'brand')
-  const resolvedSrc = cmsSrc || asset?.src || storyBrandLogoAssets.gg99.src
+  const usesBundledCircularAvatar = (normalizedStoryId === 'qanda-books' || normalizedStoryId === 'gg99') && Boolean(asset)
+  const resolvedTone = tone ?? (usesBundledCircularAvatar ? asset?.tone ?? 'brand' : cmsSrc ? 'brand' : asset?.tone ?? 'brand')
+  const resolvedSrc = usesBundledCircularAvatar ? asset?.src ?? storyBrandLogoAssets.gg99.src : cmsSrc || asset?.src || storyBrandLogoAssets.gg99.src
   const label = brandName?.trim() || asset?.alt || 'Brand'
   const accessibleAlt = decorative ? '' : alt?.trim() || `${label} logo`
   const shellStyle = { '--story-logo-size': `${resolvedSize}px` } as CSSProperties
@@ -104,8 +107,8 @@ export function StoryBrandLogo({
     <span
       className={`story-brand-logo-shell story-brand-logo-shell--${variant} ${className}`.trim()}
       data-logo-tone={resolvedTone}
-      data-logo-source={cmsSrc ? 'cms' : 'asset'}
-      data-story-brand={normalizeStoryBrandId(storyId)}
+      data-logo-source={usesBundledCircularAvatar || !cmsSrc ? 'asset' : 'cms'}
+      data-story-brand={normalizedStoryId}
       style={shellStyle}
       aria-hidden={decorative || undefined}
     >

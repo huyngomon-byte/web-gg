@@ -70,6 +70,12 @@ test.describe('The One Stories', () => {
     await expect(firstRing.locator('.ig-story-ring-inner')).not.toHaveCSS('background-color', 'rgb(255, 255, 255)')
     expect(await firstLogo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThanOrEqual(384)
 
+    const qandaAvatar = page.locator('.ig-stories-row [data-story-brand="qanda-books"] .story-brand-logo')
+    await expect(qandaAvatar).toHaveAttribute('src', /\/story-logos\/qandabook\.webp$/)
+
+    const ggAvatar = page.locator('.ig-story-ring.is-your-story .story-brand-logo')
+    await expect(ggAvatar).toHaveAttribute('src', /\/story-logos\/gg\.webp$/)
+
     const firstPost = page.locator('article.story-post').first()
     await firstPost.scrollIntoViewIfNeeded()
     const postSurface = await firstPost.evaluate((element) => getComputedStyle(element).backgroundColor)

@@ -1287,7 +1287,7 @@ function StoryItemEditor({
               />
             </div>
           </Field>
-          <Field label="Homepage banner - desktop" hint="Recommended 2400x1000 (about 12:5). Keep the subject inside the center safe area.">
+          <Field label="Homepage banner - desktop" hint="Recommended 3840x2160 (16:9), toi thieu 2560x1440. Banner homepage hien full khung 16:9.">
             <div className="grid gap-2">
               <TextInput value={item.homepageBannerImageUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageBannerImageUrl: value })} />
               <ImageUploadButton
@@ -1304,7 +1304,7 @@ function StoryItemEditor({
               <SafeCropPreview
                 url={item.homepageBannerImageUrl}
                 alt={`${item.title || 'Story'} desktop homepage banner preview`}
-                aspectClassName="aspect-[12/5]"
+                aspectClassName="aspect-video"
                 label="Desktop safe crop"
                 position={item.homepageBannerPosition}
               />

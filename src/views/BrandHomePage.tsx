@@ -1522,7 +1522,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
           perWord
           dark
         />
-        <div className="people-feature-banner group relative aspect-[16/8] overflow-hidden rounded-[24px] bg-[#190b12] text-white shadow-[0_24px_70px_rgba(80,20,50,0.16)] ring-1 ring-white/70 md:aspect-[16/6]">
+        <div className="people-feature-banner group relative aspect-[16/9] overflow-hidden rounded-[24px] bg-[#190b12] text-white shadow-[0_24px_70px_rgba(80,20,50,0.16)] ring-1 ring-white/70">
           <div data-reveal="scale" data-reveal-phase="1" style={{ '--rd': `${peopleBannerDelay}ms` } as CSSProperties} className="absolute inset-0">
             {activeBannerIsPlaceholder ? (
               <div className="people-typographic-banner absolute inset-0 flex items-center justify-center px-8 text-center" aria-hidden="true">

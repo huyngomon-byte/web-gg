@@ -1103,7 +1103,7 @@
 @media (min-width: 640px) {
   .featured-banner {
     min-height: 0;
-    aspect-ratio: 16 / 8;
+    aspect-ratio: 16 / 9;
   }
 }
 
@@ -1127,7 +1127,7 @@
   }
 
   .featured-banner {
-    aspect-ratio: 16 / 6;
+    aspect-ratio: 16 / 9;
   }
 
   .featured-banner-copy {

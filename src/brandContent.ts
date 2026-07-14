@@ -1,6 +1,6 @@
 ﻿export const siteUrl = 'https://www.gg99.vn'
 export const logoUrl = `${siteUrl}/logo-gg.png`
-export const ogTheOneImagePath = '/og-the-one-gg99.jpg'
+export const ogTheOneImagePath = '/og-the-one.jpg'
 export const ogTheOneImageUrl = `${siteUrl}${ogTheOneImagePath}`
 
 export type PageMeta = {
@@ -44,9 +44,9 @@ export const homeMeta: PageMeta = {
   description:
     'The One - GG99 is a growth partner for startups and SMEs, providing brand, website, CRM, automation and performance marketing solutions.',
   path: '/',
-  ogTitle: 'The One - GG99',
+  ogTitle: 'The One',
   ogDescription:
-    'The One - GG99 is a growth partner for brand, website, CRM, automation and performance marketing.',
+    'The One is a growth partner for brand, website, CRM, automation and performance marketing.',
   ogImage: ogTheOneImagePath,
 }
 
@@ -55,9 +55,9 @@ export const theOneMeta: PageMeta = {
   description:
     'The One is the slogan and core positioning of GG99 — one growth partner for brand, website, CRM, automation and performance marketing.',
   path: '/the-one',
-  ogTitle: 'The One - GG99',
+  ogTitle: 'The One',
   ogDescription:
-    'GG99 is The One growth partner for brand, website, CRM, automation and performance marketing.',
+    'The One growth partner for brand, website, CRM, automation and performance marketing.',
   ogImage: ogTheOneImagePath,
 }
 

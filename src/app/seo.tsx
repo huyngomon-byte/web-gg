@@ -33,7 +33,7 @@ export function createMetadata(meta: PageMeta | undefined, _lang = 'en'): Metada
       title: ogTitle,
       description: ogDescription,
       url: canonical,
-      siteName: 'The One - GG99',
+      siteName: 'The One',
       images: [{ url: image }],
       locale: 'en_US',
       type: 'website',

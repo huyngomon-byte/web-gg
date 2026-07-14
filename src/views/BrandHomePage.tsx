@@ -805,9 +805,11 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
   const showcaseStories = useMemo(() => getHomepageCaseStudies(stories), [stories])
   const [bannerIndex, setBannerIndex] = useState(0)
   const [bannerSlide, setBannerSlide] = useState(0)
+  // While a rail card is hovered/focused the banner locks onto that story and
+  // loops its slides instead of handing off to the next brand.
+  const [hoverLockIndex, setHoverLockIndex] = useState<number | null>(null)
   const [previewStory, setPreviewStory] = useState<StoryPreviewState | null>(null)
   const [canHover, setCanHover] = useState(false)
-  const [interacting, setInteracting] = useState(false)
   const [pageVisible, setPageVisible] = useState(true)
   const reducedMotion = useReducedMotionPreference()
   const hoverOpenTimer = useRef<number | null>(null)
@@ -837,30 +839,36 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
   }, [bannerIndex])
 
   useEffect(() => {
-    if (!showcaseStories.length || reducedMotion || interacting || !pageVisible) return
+    if (!showcaseStories.length || reducedMotion || !pageVisible) return
     if (showcaseStories.length < 2 && activeSlideCount < 2) return
     const interval = window.setInterval(() => {
-      if (Date.now() < pauseUntilRef.current) return
       setBannerSlide((slide) => slide + 1)
-    }, 2500)
+    }, 3000)
     return () => window.clearInterval(interval)
-  }, [activeSlideCount, interacting, pageVisible, reducedMotion, showcaseStories.length])
+  }, [activeSlideCount, pageVisible, reducedMotion, showcaseStories.length])
 
   useEffect(() => {
     if (!showcaseStories.length || bannerSlide < activeSlideCount) return
     setBannerSlide(0)
-    setBannerIndex((index) => (index + 1) % showcaseStories.length)
-  }, [activeSlideCount, bannerSlide, showcaseStories.length])
+    // Slides never stop; hover lock and recent taps only keep the banner
+    // looping the current story instead of handing off to the next brand.
+    if (hoverLockIndex === null && Date.now() >= pauseUntilRef.current) {
+      setBannerIndex((index) => (index + 1) % showcaseStories.length)
+    }
+  }, [activeSlideCount, bannerSlide, hoverLockIndex, showcaseStories.length])
 
   useEffect(() => {
     const rail = railRef.current
+    // Never auto-scroll the rail while the user is hovering a card — the card
+    // would slide away from under the cursor.
+    if (hoverLockIndex !== null) return
     const activeId = showcaseStories[bannerIndex % Math.max(1, showcaseStories.length)]?.id
     if (!rail || !activeId) return
     const activeCard = rail.querySelector<HTMLElement>(`[data-story-id="${CSS.escape(activeId)}"]`)
     if (!activeCard) return
     const left = activeCard.offsetLeft - (rail.clientWidth - activeCard.offsetWidth) / 2
     rail.scrollTo({ left: Math.max(0, left), behavior: reducedMotion ? 'auto' : 'smooth' })
-  }, [bannerIndex, reducedMotion, showcaseStories])
+  }, [bannerIndex, hoverLockIndex, reducedMotion, showcaseStories])
 
   if (!showcaseStories.length) return null
 
@@ -921,15 +929,7 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
       data-reveal-scene
       data-home-tone="light"
       className="home-tone-zone home-section-pad home-section-pad--featured relative overflow-hidden px-5 lg:px-10"
-      onMouseEnter={() => setInteracting(true)}
-      onMouseLeave={() => {
-        setInteracting(false)
-        closePreviewSoon()
-      }}
-      onFocusCapture={() => setInteracting(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setInteracting(false)
-      }}
+      onMouseLeave={closePreviewSoon}
       onPointerDown={() => pauseAuto(12000)}
     >
       {/* Round 7 A2.1: warm bridge from the video's bottom tone into the shared wave background */}
@@ -1088,14 +1088,20 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
                 data-reveal-open
                 style={{ '--ri': index, '--rd': `${featuredRailMs}ms` } as CSSProperties}
                 onMouseEnter={(event) => {
+                  setHoverLockIndex(index)
                   setBannerIndex(index)
                   showPreview(story, event.currentTarget)
                 }}
                 onFocus={(event) => {
+                  setHoverLockIndex(index)
                   setBannerIndex(index)
                   showPreview(story, event.currentTarget)
                 }}
-                onMouseLeave={closePreviewSoon}
+                onMouseLeave={() => {
+                  setHoverLockIndex(null)
+                  closePreviewSoon()
+                }}
+                onBlur={() => setHoverLockIndex(null)}
                 className={[
                   // Round 7 A2.2: two-tier card — clean 16:9 image on top, glass caption bar below.
                   'group relative shrink-0 basis-[42vw] snap-start rounded-[18px] p-[2px] text-left outline-none transition duration-300 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:basis-[calc((100%_-_8px)/2.25)] md:basis-[calc((100%_-_16px)/3)] lg:basis-[calc((100%_-_24px)/4)]',
@@ -1387,9 +1393,11 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
   const railRef = useRef<HTMLDivElement | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const [bannerSlide, setBannerSlide] = useState(0)
+  // While a member card is hovered/focused the banner locks onto that member
+  // and loops their avatar slides instead of advancing to the next person.
+  const [hoverLockIndex, setHoverLockIndex] = useState<number | null>(null)
   const [previewMember, setPreviewMember] = useState<{ member: CmsBlockItem; style: CSSProperties } | null>(null)
   const [canHover, setCanHover] = useState(false)
-  const [interacting, setInteracting] = useState(false)
   const [pageVisible, setPageVisible] = useState(true)
   const reducedMotion = useReducedMotionPreference()
   const hoverOpenTimer = useRef<number | null>(null)
@@ -1411,38 +1419,43 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
   }, [])
 
   const activeSlideCount = hasPeople ? getPeopleBannerSlides(members[activeIndex % members.length] ?? members[0]).length : 0
-  // Slides split the member's autoSlideSeconds window, but never flip faster than 2.5s.
-  const slideDurationMs = Math.max(2500, (autoSlideSeconds * 1000) / Math.max(1, activeSlideCount))
+  // Slides split the member's autoSlideSeconds window, but never flip faster than 3s.
+  const slideDurationMs = Math.max(3000, (autoSlideSeconds * 1000) / Math.max(1, activeSlideCount))
 
   useEffect(() => {
     setBannerSlide(0)
   }, [activeIndex])
 
   useEffect(() => {
-    if (!hasPeople || reducedMotion || interacting || !pageVisible) return
+    if (!hasPeople || reducedMotion || !pageVisible) return
     if (members.length < 2 && activeSlideCount < 2) return
     const interval = window.setInterval(() => {
-      if (Date.now() < pauseUntilRef.current) return
       setBannerSlide((slide) => slide + 1)
     }, slideDurationMs)
     return () => window.clearInterval(interval)
-  }, [activeSlideCount, hasPeople, interacting, members.length, pageVisible, reducedMotion, slideDurationMs])
+  }, [activeSlideCount, hasPeople, members.length, pageVisible, reducedMotion, slideDurationMs])
 
   useEffect(() => {
     if (!hasPeople || bannerSlide < activeSlideCount) return
     setBannerSlide(0)
-    setActiveIndex((index) => (index + 1) % members.length)
-  }, [activeSlideCount, bannerSlide, hasPeople, members.length])
+    // Slides never stop; hover lock and recent taps only keep the banner
+    // looping the current member instead of advancing to the next person.
+    if (hoverLockIndex === null && Date.now() >= pauseUntilRef.current) {
+      setActiveIndex((index) => (index + 1) % members.length)
+    }
+  }, [activeSlideCount, bannerSlide, hasPeople, hoverLockIndex, members.length])
 
   useEffect(() => {
     const rail = railRef.current
+    // Never auto-scroll the rail while the user is hovering a card.
+    if (hoverLockIndex !== null) return
     const member = members[activeIndex % Math.max(1, members.length)]
     if (!rail || !member) return
     const activeCard = rail.querySelector<HTMLElement>(`[data-person-index="${activeIndex % members.length}"]`)
     if (!activeCard) return
     const left = activeCard.offsetLeft - (rail.clientWidth - activeCard.offsetWidth) / 2
     rail.scrollTo({ left: Math.max(0, left), behavior: reducedMotion ? 'auto' : 'smooth' })
-  }, [activeIndex, members, reducedMotion])
+  }, [activeIndex, hoverLockIndex, members, reducedMotion])
 
   if (!block || !members.length) return null
 
@@ -1502,15 +1515,7 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
       data-reveal-scene
       data-home-tone="dark"
       className="home-tone-zone home-section-pad px-5 lg:px-10"
-      onMouseEnter={() => setInteracting(true)}
-      onMouseLeave={() => {
-        setInteracting(false)
-        closeMemberPreviewSoon()
-      }}
-      onFocusCapture={() => setInteracting(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setInteracting(false)
-      }}
+      onMouseLeave={closeMemberPreviewSoon}
       onPointerDown={() => pauseAuto(12000)}
     >
       <div className="mx-auto max-w-6xl">
@@ -1631,9 +1636,21 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
                 data-reveal="people-card"
                 data-reveal-phase="2"
                 type="button"
-                onMouseEnter={(event) => showMemberPreview(member, event.currentTarget)}
-                onMouseLeave={closeMemberPreviewSoon}
-                onFocus={(event) => showMemberPreview(member, event.currentTarget)}
+                onMouseEnter={(event) => {
+                  setHoverLockIndex(index)
+                  setActiveIndex(index)
+                  showMemberPreview(member, event.currentTarget)
+                }}
+                onMouseLeave={() => {
+                  setHoverLockIndex(null)
+                  closeMemberPreviewSoon()
+                }}
+                onFocus={(event) => {
+                  setHoverLockIndex(index)
+                  setActiveIndex(index)
+                  showMemberPreview(member, event.currentTarget)
+                }}
+                onBlur={() => setHoverLockIndex(null)}
                 onClick={() => {
                   pauseAuto(12000)
                   setActiveIndex(index)

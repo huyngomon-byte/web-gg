@@ -938,24 +938,6 @@ function StoryItemEditor({
     })
   }
 
-  function updateBackgroundImageUrl(value: string) {
-    updateBlockItem(pageId, blockId, index, { backgroundImageUrl: value })
-  }
-
-  function updateScreenBackground(patch: { imageUrl?: string; gradient?: string }) {
-    updateBlockItem(pageId, blockId, index, {
-      screenBackground: {
-        ...item.screenBackground,
-        ...patch,
-      },
-    })
-  }
-
-  function handleBackgroundUploaded(url: string) {
-    onUploadError('')
-    updateBackgroundImageUrl(url)
-  }
-
   function updateBackgroundImages(urls: string[]) {
     updateBlockItem(pageId, blockId, index, {
       backgroundImages: urls.map((url) => url.trim()).filter(Boolean).slice(0, 5),
@@ -964,13 +946,13 @@ function StoryItemEditor({
 
   function updateHomepageGalleryImages(urls: string[]) {
     updateBlockItem(pageId, blockId, index, {
-      homepageGalleryImages: urls.map((url) => url.trim()).filter(Boolean).slice(0, 3),
+      homepageGalleryImages: urls.map((url) => url.trim()).filter(Boolean).slice(0, 4),
     })
   }
 
   function updateHomepageGalleryImagesMobile(urls: string[]) {
     updateBlockItem(pageId, blockId, index, {
-      homepageGalleryImagesMobile: urls.map((url) => url.trim()).filter(Boolean).slice(0, 3),
+      homepageGalleryImagesMobile: urls.map((url) => url.trim()).filter(Boolean).slice(0, 4),
     })
   }
 
@@ -1303,147 +1285,36 @@ function StoryItemEditor({
             />
             Show on homepage
           </label>
-          <Field label="Homepage thumbnail URL" hint="16:9 thumbnail used only in the compact homepage case rail.">
-            <div className="grid gap-2">
-              <TextInput value={item.thumbnailUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { thumbnailUrl: value })} />
-              <ImageUploadButton
-                folder={`cms/pages/${pageId}/${blockId}/homepage-thumbnails`}
-                onUploaded={(url) => updateBlockItem(pageId, blockId, index, { thumbnailUrl: url })}
-                onError={onUploadError}
-                label={item.thumbnailUrl ? 'Thay thumbnail' : 'Upload thumbnail'}
-              />
-            </div>
-          </Field>
-          <Field label="Homepage banner - desktop" hint="Recommended 3840x2160 (16:9), toi thieu 2560x1440. Banner homepage hien full khung 16:9.">
-            <div className="grid gap-2">
-              <TextInput value={item.homepageBannerImageUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageBannerImageUrl: value })} />
-              <ImageUploadButton
-                folder={`cms/pages/${pageId}/${blockId}/homepage-banner-desktop`}
-                onUploaded={(url) => updateBlockItem(pageId, blockId, index, { homepageBannerImageUrl: url })}
-                onError={onUploadError}
-                label={item.homepageBannerImageUrl ? 'Replace desktop banner' : 'Upload desktop banner'}
-              />
-              <TextInput
-                value={item.homepageBannerPosition ?? ''}
-                onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageBannerPosition: value })}
-                placeholder="Focal point, e.g. 50% 40%"
-              />
-              <SafeCropPreview
-                url={item.homepageBannerImageUrl}
-                alt={`${item.title || 'Story'} desktop homepage banner preview`}
-                aspectClassName="aspect-video"
-                label="Desktop safe crop"
-                position={item.homepageBannerPosition}
-              />
-            </div>
-          </Field>
-          <Field label="Homepage banner - mobile" hint="Recommended 1200x900 (4:3), composed independently from desktop.">
-            <div className="grid gap-2">
-              <TextInput value={item.homepageBannerMobileUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageBannerMobileUrl: value })} />
-              <ImageUploadButton
-                folder={`cms/pages/${pageId}/${blockId}/homepage-banner-mobile`}
-                onUploaded={(url) => updateBlockItem(pageId, blockId, index, { homepageBannerMobileUrl: url })}
-                onError={onUploadError}
-                label={item.homepageBannerMobileUrl ? 'Replace mobile banner' : 'Upload mobile banner'}
-              />
-              <TextInput
-                value={item.homepageBannerMobilePosition ?? ''}
-                onChange={(value) => updateBlockItem(pageId, blockId, index, { homepageBannerMobilePosition: value })}
-                placeholder="Mobile focal point, e.g. 50% 35%"
-              />
-              <SafeCropPreview
-                url={item.homepageBannerMobileUrl || item.homepageBannerImageUrl}
-                alt={`${item.title || 'Story'} mobile homepage banner preview`}
-                aspectClassName="aspect-[4/3]"
-                label="Mobile safe crop"
-                position={item.homepageBannerMobilePosition || item.homepageBannerPosition}
-              />
-            </div>
-          </Field>
           <div className="md:col-span-2">
-            <Field label="Homepage hover gallery" hint="Upload up to 3 rectangular images used only in the desktop hover preview.">
+            <Field label="Homepage hover gallery" hint="Upload up to 4 rectangular images used in the desktop hover preview. Image 1 also becomes the homepage thumbnail automatically.">
               <BackgroundCarouselUploader
                 urls={item.homepageGalleryImages ?? []}
                 onChange={updateHomepageGalleryImages}
                 folder={`cms/pages/${pageId}/${blockId}/homepage-gallery`}
                 onUploadError={onUploadError}
-                max={3}
+                max={4}
                 uploadLabel="Upload gallery"
                 emptyLabel="Chua co anh gallery"
-                hint="Keo thumbnail de doi thu tu. Toi da 3 anh bo sung; thumbnail chinh nam o field Homepage thumbnail URL."
+                hint="Keo thumbnail de doi thu tu. Anh 1 tu dong lam homepage thumbnail. Toi da 4 anh."
                 aspectClassName="aspect-[16/9]"
               />
             </Field>
           </div>
           <div className="md:col-span-2">
-            <Field label="Homepage hover gallery - mobile (4:3)" hint="Optional. Upload up to 3 images cropped 4:3 so the mobile banner slideshow fills edge-to-edge. Falls back to the 16:9 gallery above if left empty.">
+            <Field label="Homepage hover gallery - mobile (4:3)" hint="Optional. Upload up to 4 images cropped 4:3 so the mobile banner slideshow fills edge-to-edge. Falls back to the 16:9 gallery above if left empty.">
               <BackgroundCarouselUploader
                 urls={item.homepageGalleryImagesMobile ?? []}
                 onChange={updateHomepageGalleryImagesMobile}
                 folder={`cms/pages/${pageId}/${blockId}/homepage-gallery-mobile`}
                 onUploadError={onUploadError}
-                max={3}
+                max={4}
                 uploadLabel="Upload gallery mobile"
                 emptyLabel="Chua co anh gallery mobile"
-                hint="Anh 4:3 rieng cho mobile. Toi da 3 anh, thu tu khop voi gallery 16:9."
+                hint="Anh 4:3 rieng cho mobile. Toi da 4 anh, thu tu khop voi gallery 16:9."
                 aspectClassName="aspect-[4/3]"
               />
             </Field>
           </div>
-          <Field label="Background image URL" hint="Dùng làm ảnh nền phía sau brand story card.">
-            <div className="grid gap-2">
-              <TextInput value={item.backgroundImageUrl ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { backgroundImageUrl: value })} />
-              <p className="text-xs leading-relaxed text-on-surface-variant/75">
-                Upload thumbnail/poster here. This image appears before homepage hover and remains the story background.
-              </p>
-              {item.backgroundImageUrl ? (
-                <div className="overflow-hidden rounded-xl border border-outline-variant/45 bg-surface">
-                  <img src={item.backgroundImageUrl} alt={`${item.title || 'Brand'} background preview`} className="h-40 w-full object-cover" />
-                </div>
-              ) : (
-                <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-outline-variant/60 bg-surface text-xs font-bold text-on-surface-variant">
-                  Chưa có ảnh nền
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-              <ImageUploadButton
-                folder={`cms/pages/${pageId}/${blockId}/backgrounds`}
-                onUploaded={handleBackgroundUploaded}
-                onError={onUploadError}
-                label={item.backgroundImageUrl ? 'Thay ảnh' : 'Upload ảnh'}
-              />
-                {item.backgroundImageUrl && (
-                  <button
-                    type="button"
-                    onClick={() => updateBackgroundImageUrl('')}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 text-xs font-extrabold text-red-700 transition-colors hover:bg-red-50"
-                  >
-                    <Trash2 size={14} /> Xóa ảnh
-                  </button>
-                )}
-              </div>
-            </div>
-          </Field>
-          <Field label="iPhone screen background" hint="Gradient CSS hoặc ảnh nền riêng cho màn hình iPhone trong post.">
-            <div className="grid gap-2">
-              <TextInput
-                value={item.screenBackground?.gradient ?? ''}
-                onChange={(value) => updateScreenBackground({ gradient: value })}
-                placeholder="linear-gradient(145deg,#ffe4ec,#ff6f91,#ffd166)"
-              />
-              <TextInput
-                value={item.screenBackground?.imageUrl ?? ''}
-                onChange={(value) => updateScreenBackground({ imageUrl: value })}
-                placeholder="https://.../screen-bg.jpg"
-              />
-              <ImageUploadButton
-                folder={`cms/pages/${pageId}/${blockId}/screen-backgrounds`}
-                onUploaded={(url) => updateScreenBackground({ imageUrl: url })}
-                onError={onUploadError}
-                label={item.screenBackground?.imageUrl ? 'Thay iPhone bg' : 'Upload iPhone bg'}
-              />
-            </div>
-          </Field>
           <Field label="Background carousel images" hint="Upload five 4:5 portrait masters at 3072×3840. The site serves responsive 1080-class mobile and Retina desktop variants. Drag thumbnails to reorder.">
             <BackgroundCarouselUploader
               urls={item.backgroundImages ?? []}

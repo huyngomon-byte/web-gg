@@ -573,7 +573,10 @@ function resolveStoryHref(lang: BrandLang, href: string, storyId?: string) {
 }
 
 function getCaseStudyThumbnail(story: CaseStudy) {
+  // The homepage thumbnail field was removed from the editor — the first
+  // hover-gallery image now auto-fills this role.
   const [thumbnail] = uniqueImageUrls([
+    story.homepageGalleryImages?.[0],
     story.thumbnailUrl,
     story.backgroundImageUrl,
     story.backgroundImages?.[0],

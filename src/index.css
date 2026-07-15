@@ -4010,8 +4010,7 @@ header.is-on-hero .site-nav-pill .text-on-surface-variant {
   }
 
   .people-feature-banner {
-    min-height: 320px;
-    aspect-ratio: auto !important;
+    aspect-ratio: 4 / 3;
   }
 
   .people-banner-image {

@@ -79,7 +79,7 @@ export const organizationSchema = {
     'The One - GG99 is a growth partner for startups and SMEs, providing brand, website, CRM, automation and performance marketing solutions.',
   url: `${siteUrl}/`,
   logo: logoUrl,
-  sameAs: ['https://zalo.me/smoothgg'],
+  sameAs: ['https://zalo.me/0965650416'],
   knowsAbout: [
     'Branding',
     'Website Development',

@@ -10,6 +10,12 @@ import type { CmsSiteSettings } from '../cms/types'
 
 type BrandLayoutProps = {
   children: ReactNode
+  /**
+   * A single decorative atmosphere shared by main and footer. Passing the
+   * layer here keeps fixed negative-z canvases inside one stacking context;
+   * older pages may continue rendering their background inside `children`.
+   */
+  atmosphereLayer?: ReactNode
   lang?: BrandLang
   siteSettings?: CmsSiteSettings | null
   hideHeaderCta?: boolean
@@ -56,6 +62,7 @@ function lockBodyScroll() {
 
 export function BrandLayout({
   children,
+  atmosphereLayer,
   lang = 'en',
   siteSettings,
   hideHeaderCta = false,
@@ -84,6 +91,7 @@ export function BrandLayout({
   const homeHref = localizedPath(contentLang, '/')
   const showHeaderCopy = Boolean(header.brandName.trim() || header.tagline.trim())
   const showHeaderCta = !hideHeaderCta
+  const hasContinuousAtmosphere = Boolean(atmosphereLayer)
 
   function getNavHref(href: string, label: string) {
     const resolved = resolveNavHref?.(href, label) ?? href
@@ -314,8 +322,26 @@ export function BrandLayout({
         )}
       </header>
 
-      <main id="main-content" tabIndex={-1} className={`${flushTop ? '' : 'pt-24 '}${transparentBackground ? 'flow-wave-host' : 'mesh'} focus:outline-none`}>{children}</main>
-      <BrandFooter lang={contentLang} siteSettings={siteSettings} />
+      {hasContinuousAtmosphere ? (
+        <div className="brand-atmosphere-shell flow-wave-host" data-continuous-atmosphere="true">
+          <div className="brand-atmosphere-layer" aria-hidden="true">
+            {atmosphereLayer}
+          </div>
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className={`${flushTop ? '' : 'pt-24 '}${transparentBackground ? 'flow-wave-main' : 'mesh'} focus:outline-none`}
+          >
+            {children}
+          </main>
+          <BrandFooter lang={contentLang} siteSettings={siteSettings} continuousAtmosphere />
+        </div>
+      ) : (
+        <>
+          <main id="main-content" tabIndex={-1} className={`${flushTop ? '' : 'pt-24 '}${transparentBackground ? 'flow-wave-host' : 'mesh'} focus:outline-none`}>{children}</main>
+          <BrandFooter lang={contentLang} siteSettings={siteSettings} />
+        </>
+      )}
 
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}

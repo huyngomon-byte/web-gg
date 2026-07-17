@@ -16,12 +16,30 @@ export type CmsPackageFeature = {
   availability?: 'included' | 'excluded'
   // Featured rows appear in the compact card view (max 4); the rest live in the expander.
   featured?: boolean
+  // Stable information-architecture bucket used by the homepage package modules.
+  // Older records without this field are categorized deterministically from their copy.
+  module?: CmsPackageModuleId
+  // Optional concise status pill (for example "Unlimited" or "Custom").
+  statusLabel?: string
+}
+
+export type CmsPackageModuleId = 'output' | 'content' | 'web' | 'growth'
+
+export type CmsPackageMetric = {
+  value: string
+  label: string
+}
+
+export type CmsPackageProcessStep = {
+  title: string
+  body: string
 }
 
 export type CmsPackageComparisonRow = {
   label: string
   value: string
   availability?: 'included' | 'excluded'
+  module?: CmsPackageModuleId
 }
 
 export type CmsLocalizedBlockFields = {
@@ -37,6 +55,10 @@ export type CmsLocalizedBlockFields = {
   heroTextAlign?: 'center' | 'left'
   pricingNote?: string
   disclaimer?: string
+  packageProcessSteps?: CmsPackageProcessStep[]
+  packageRecommendationTitle?: string
+  packageRecommendationBody?: string
+  packageRecommendationCta?: string
   statChips?: CmsStatChip[]
 }
 
@@ -74,6 +96,8 @@ export type CmsLocalizedBlockItemFields = {
   priceValue?: string
   priceSupportingText?: string
   ctaMicrocopy?: string
+  ctaHref?: string
+  packageMetrics?: CmsPackageMetric[]
   comparisonRows?: CmsPackageComparisonRow[]
   featuredStats?: CmsStatChip[]
   proofPoint?: string
@@ -165,12 +189,14 @@ export type CmsBlockItem = {
     result?: string
   }
   ctaText?: string
+  ctaHref?: string
   caseStudyLink?: string
   priceLabel?: string
   priceValue?: string
   packageTier?: 'start' | 'system' | 'scale'
   priceSupportingText?: string
   ctaMicrocopy?: string
+  packageMetrics?: CmsPackageMetric[]
   comparisonRows?: CmsPackageComparisonRow[]
   leftBackgroundUrl?: string
   rightBackgroundUrl?: string
@@ -224,6 +250,10 @@ export type CmsBlock = {
   disclaimer?: string
   // Round 7 A4: single merged note under the packages section (replaces pricingNote + disclaimer).
   packagesNote?: string
+  packageProcessSteps?: CmsPackageProcessStep[]
+  packageRecommendationTitle?: string
+  packageRecommendationBody?: string
+  packageRecommendationCta?: string
   // Round 7 A3: Threads-style opening post for the red-flags zone
   postHandle?: string
   postTopic?: string

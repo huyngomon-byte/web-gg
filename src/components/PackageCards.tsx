@@ -1,9 +1,14 @@
 'use client'
 
 import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
-import { ArrowRight, Check, ChevronDown, Megaphone, Rocket, Workflow, X } from 'lucide-react'
+import { ArrowRight, Check, Megaphone, Rocket, Workflow, X } from 'lucide-react'
 import { localizedPath, type BrandLang } from '../brandContent'
-import type { CmsBlockItem, CmsPackageComparisonRow } from '../cms/types'
+import type {
+  CmsBlockItem,
+  CmsPackageComparisonRow,
+  CmsPackageMetric,
+  CmsPackageModuleId,
+} from '../cms/types'
 import { CmsIcon } from './CmsIcon'
 import { openBookingModal } from './openBookingModal'
 
@@ -16,6 +21,8 @@ export type PackageFeatureRow = {
   label?: string
   featured?: boolean
   availability?: 'included' | 'excluded'
+  module?: CmsPackageModuleId
+  statusLabel?: string
 }
 
 type PackageFeatureTextParts = {
@@ -39,6 +46,23 @@ const packageIcons = {
   system: Workflow,
   scale: Megaphone,
 } satisfies Record<PackageTone, typeof Rocket>
+
+export const packageModuleOrder = ['output', 'content', 'web', 'growth'] as const satisfies readonly CmsPackageModuleId[]
+
+const packageModuleCopy: Record<BrandLang, Record<CmsPackageModuleId, string>> = {
+  en: {
+    output: 'Output & Cadence',
+    content: 'Content Engine',
+    web: 'Web & Commerce',
+    growth: 'Growth & Activation',
+  },
+  vi: {
+    output: 'Sản lượng & Nhịp vận hành',
+    content: 'Hệ thống nội dung',
+    web: 'Web & Thương mại',
+    growth: 'Tăng trưởng & Kích hoạt',
+  },
+}
 
 function safelyDecodeURIComponent(value: string) {
   try {
@@ -117,7 +141,7 @@ function isContentMetricRow(row: PackageFeatureRow) {
   return /content units?/i.test(row.text)
 }
 
-function getPackageContent(item: CmsBlockItem) {
+function getPackageContent(item: CmsBlockItem, tone: PackageTone, lang: BrandLang) {
   const parsed = parsePackageBody(item.body)
   const fallbackDeliverables = normalizePackageDeliverables(parsed.bullets)
   const fallbackFeatures: PackageFeatureRow[] = fallbackDeliverables.map((deliverable) => {
@@ -135,17 +159,39 @@ function getPackageContent(item: CmsBlockItem) {
     }
   })
 
-  const cmsFeatures = item.features?.filter((feature) => feature.label?.trim() || feature.text.trim()) ?? []
+  const cmsFeatures = item.features?.filter((feature) => (
+    (feature.label?.trim() || feature.text.trim())
+    && !/might be cheaper than/i.test(feature.text)
+  )) ?? []
   const rows: PackageFeatureRow[] = cmsFeatures.length ? cmsFeatures : fallbackFeatures
   const featureCapacity = rows.find(isContentMetricRow)
   const parsedCapacity = !featureCapacity
     ? fallbackFeatures.find(isContentMetricRow)
     : undefined
+  const capacity = featureCapacity ?? parsedCapacity
+  const cmsMetrics = item.packageMetrics?.filter((metric) => metric.value.trim() && metric.label.trim()) ?? []
+  const capacityMetrics: CmsPackageMetric[] = capacity
+    ? (() => {
+        const match = capacity.text.match(/^(\d+[+]?)\s+(.+?)(?:,|\s+\(|\s+[\u2013\u2014-]\s+|$)/i)
+        return match
+          ? [{ value: match[1].trim(), label: match[2].trim() }]
+          : [{ value: capacity.text, label: '' }]
+      })()
+    : []
+  const comparisonMetrics = (item.comparisonRows?.length ? item.comparisonRows : fallbackComparisonRows(tone, lang))
+    .filter((row) => row.label.trim() && row.value.trim())
+    .map((row) => ({ value: row.value.replace(/^[✓✗×]\s*/, ''), label: row.label }))
+  const fallbackMetrics = [...capacityMetrics, ...comparisonMetrics]
+    .filter((metric, index, all) => all.findIndex((candidate) => (
+      candidate.value.toLocaleLowerCase() === metric.value.toLocaleLowerCase()
+      && candidate.label.toLocaleLowerCase() === metric.label.toLocaleLowerCase()
+    )) === index)
+    .slice(0, 3)
 
   return {
     subtitle: item.subtitle?.trim() || parsed.subtitle,
-    capacity: featureCapacity ?? parsedCapacity,
-    features: rows.filter((row) => row !== featureCapacity && !isContentMetricRow(row)),
+    metrics: cmsMetrics.length ? cmsMetrics : fallbackMetrics,
+    features: rows,
     priceLabel: item.priceLabel?.trim() || 'From',
     priceValue: item.priceValue?.trim() || parsed.price,
     priceSupportingText: item.priceSupportingText?.trim() || '',
@@ -213,7 +259,11 @@ export function resolvePackageTones(
   packageIds: string[],
 ) {
   const requested = items.map((item, index) => resolvePackageTone(item, packageIds[index] ?? '', index))
-  if (items.length !== packageToneOrder.length) return requested
+  // Three public tiers are the supported homepage contract. For one to three
+  // records, resolve duplicates into a unique deterministic set. More than
+  // three records cannot be unique within this taxonomy, so preserve source
+  // intent instead of silently dropping content.
+  if (items.length > packageToneOrder.length) return requested
 
   const assigned: Array<PackageTone | undefined> = Array(items.length).fill(undefined)
   const available = new Set<PackageTone>(packageToneOrder)
@@ -302,46 +352,47 @@ export function getPackageFeaturePresentation(
   }
 }
 
-function fallbackExcludedFeatures(lang: BrandLang): PackageFeatureRow[] {
-  if (lang === 'vi') {
-    return [
-      { label: 'ECOMMERCE OPS', text: 'Vận hành thương mại điện tử (Shopee, TikTok Shop, Lazada...)', availability: 'excluded' },
-      { label: 'WEBSITE SYSTEM', text: 'Landing page không giới hạn', availability: 'excluded' },
-    ]
-  }
+export function resolvePackageModule(
+  row: Pick<PackageFeatureRow, 'text' | 'group' | 'label' | 'module'>,
+): CmsPackageModuleId {
+  if (row.module && packageModuleOrder.includes(row.module)) return row.module
 
-  return [
-    { label: 'ECOMMERCE OPS', text: 'E-commerce management (Shopee, TikTok Shop, Lazada...)', availability: 'excluded' },
-    { label: 'WEBSITE SYSTEM', text: 'Unlimited landing pages', availability: 'excluded' },
-  ]
+  const source = `${row.group ?? ''} ${row.label ?? ''} ${row.text}`.toLocaleLowerCase()
+  if (/capacity|content units?|short[- ]form|reels?|cadence|output|sản lượng|nhịp vận hành/.test(source)) return 'output'
+  if (/content engine|content strategy|content calendar|production|publishing|posting|system base|everything included|hệ thống nội dung/.test(source)) return 'content'
+  if (/website|landing page|e-?commerce|commerce|shopee|tiktok shop|lazada|booking|sales site|thương mại|trang đích/.test(source)) return 'web'
+  if (/performance|campaign|event|activation|media|ad spend|marketing|growth|deliverables|tăng trưởng|sự kiện|kích hoạt/.test(source)) return 'growth'
+  return 'output'
 }
 
-function withStartExclusions(features: PackageFeatureRow[], tone: PackageTone, lang: BrandLang) {
-  if (tone !== 'start') return features
-
-  const nextRows = [...features]
-  for (const fallback of fallbackExcludedFeatures(lang)) {
-    const semanticMatch = /e-?commerce|shopee|tiktok shop|lazada/i.test(fallback.text)
-      ? /e-?commerce|shopee|tiktok shop|lazada/i
-      : /unlimited landing pages|landing page không giới hạn/i
-    if (!nextRows.some((row) => semanticMatch.test(row.text))) nextRows.push(fallback)
-  }
-  return nextRows
+export function groupPackageFeatures(features: PackageFeatureRow[]) {
+  return packageModuleOrder
+    .map((module) => ({ module, rows: features.filter((row) => resolvePackageModule(row) === module) }))
+    .filter((group) => group.rows.length > 0)
 }
 
 function PackageFeatureRowView({
   row,
   tone,
+  lang,
+  module,
   style,
 }: {
   row: PackageFeatureRow
   tone: PackageTone
+  lang: BrandLang
+  module: CmsPackageModuleId
   style?: CSSProperties
 }) {
   const presentation = getPackageFeaturePresentation(row)
   const availability = row.availability ?? 'included'
   const included = availability === 'included'
-  const systemBase = tone === 'scale' && /everything included in the one system/i.test(row.text)
+  const systemBase = tone === 'scale' && /everything included in the one system|bao gồm toàn bộ the one system/i.test(row.text)
+  const moduleTitle = packageModuleCopy[lang][module]
+  const detailLabel = packageToken(presentation.group) === packageToken(moduleTitle) ? '' : presentation.group
+  const statusLabel = row.statusLabel?.trim() || (included
+    ? lang === 'vi' ? 'Bao gồm' : 'Included'
+    : lang === 'vi' ? 'Không bao gồm' : 'No access')
 
   return (
     <li
@@ -356,9 +407,13 @@ function PackageFeatureRowView({
       <span className="package-feature-status" aria-hidden="true">
         {included ? <Check size={15} strokeWidth={3} /> : <X size={15} strokeWidth={3} />}
       </span>
-      <span className="sr-only">{included ? 'Included: ' : 'Not included: '}</span>
+      <span className="sr-only">
+        {included
+          ? lang === 'vi' ? 'Bao gồm: ' : 'Included: '
+          : lang === 'vi' ? 'Không bao gồm: ' : 'Not included: '}
+      </span>
       <span className="package-feature-copy">
-        <span className="package-feature-group">{presentation.group}</span>
+        {detailLabel && <span className="package-feature-group">{detailLabel}</span>}
         <span className="package-feature-text">
           {presentation.parts.emphasis ? (
             <>
@@ -375,7 +430,76 @@ function PackageFeatureRowView({
           ) : row.text}
         </span>
       </span>
+      <span className="package-feature-value" aria-hidden="true">{statusLabel}</span>
     </li>
+  )
+}
+
+function PackageServiceModules({
+  features,
+  tone,
+  lang,
+}: {
+  features: PackageFeatureRow[]
+  tone: PackageTone
+  lang: BrandLang
+}) {
+  const groups = groupPackageFeatures(features)
+  const moduleComponentId = useId().replace(/:/g, '')
+  const [openModule, setOpenModule] = useState<CmsPackageModuleId>('output')
+  if (!groups.length) return null
+  const activeModule = groups.some((group) => group.module === openModule) ? openModule : groups[0].module
+
+  return (
+    <div className="package-service-modules" data-testid="package-service-modules">
+      {groups.map(({ module, rows }, moduleIndex) => (
+        (() => {
+          const panelId = `${moduleComponentId}-${module}-panel`
+          const expanded = activeModule === module
+          return (
+            <section
+              key={module}
+              className="package-service-module pkg-rv"
+              data-package-module={module}
+              style={{ '--pi': 6 + moduleIndex } as CSSProperties}
+            >
+              <h4 className="package-service-module-heading package-service-module-heading--desktop">
+                <span aria-hidden="true" />
+                {packageModuleCopy[lang][module]}
+              </h4>
+              <button
+                type="button"
+                className="package-service-module-toggle"
+                aria-expanded={expanded}
+                aria-controls={panelId}
+                onClick={() => setOpenModule(module)}
+              >
+                <span>{packageModuleCopy[lang][module]}</span>
+                <span aria-hidden="true">{expanded ? '−' : '+'}</span>
+              </button>
+              <div
+                id={panelId}
+                className={`package-service-module-panel${expanded ? ' is-open' : ''}`}
+                data-expanded={expanded ? 'true' : 'false'}
+              >
+                <ul className="package-card-features package-service-module-list">
+                  {rows.map((feature, featureIndex) => (
+                    <PackageFeatureRowView
+                      key={`${module}-${featureIndex}-${feature.label ?? feature.group ?? ''}`}
+                      row={feature}
+                      tone={tone}
+                      lang={lang}
+                      module={module}
+                      style={{ '--pi': 7 + moduleIndex + featureIndex } as CSSProperties}
+                    />
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )
+        })()
+      ))}
+    </div>
   )
 }
 
@@ -408,24 +532,24 @@ function fallbackComparisonRows(tone: PackageTone, lang: BrandLang): CmsPackageC
 
   if (tone === 'start') {
     return [
-      { label: labels[0], value: isVi ? '10 trang' : '10 pages', availability: 'included' },
-      { label: labels[1], value: isVi ? 'Không bao gồm' : 'No access', availability: 'excluded' },
-      { label: labels[2], value: isVi ? 'Không bao gồm' : 'No access', availability: 'excluded' },
+      { label: labels[0], value: isVi ? 'Tối đa 10 trang' : 'Up to 10 pages', availability: 'included', module: 'web' },
+      { label: labels[1], value: isVi ? 'Không bao gồm' : 'No access', availability: 'excluded', module: 'web' },
+      { label: labels[2], value: isVi ? 'Không bao gồm' : 'No access', availability: 'excluded', module: 'growth' },
     ]
   }
 
   if (tone === 'system') {
     return [
-      { label: labels[0], value: isVi ? 'Không giới hạn' : 'Unlimited', availability: 'included' },
-      { label: labels[1], value: isVi ? 'Toàn quyền' : 'Full access', availability: 'included' },
-      { label: labels[2], value: isVi ? 'Không bao gồm' : 'No access', availability: 'excluded' },
+      { label: labels[0], value: isVi ? 'Không giới hạn' : 'Unlimited', availability: 'included', module: 'web' },
+      { label: labels[1], value: isVi ? 'Toàn quyền' : 'Full access', availability: 'included', module: 'web' },
+      { label: labels[2], value: isVi ? 'Không bao gồm' : 'No access', availability: 'excluded', module: 'growth' },
     ]
   }
 
   return [
-    { label: labels[0], value: isVi ? 'Không giới hạn' : 'Unlimited', availability: 'included' },
-    { label: labels[1], value: isVi ? 'Toàn quyền' : 'Full access', availability: 'included' },
-    { label: labels[2], value: isVi ? 'Tại sự kiện' : 'On-site', availability: 'included' },
+    { label: labels[0], value: isVi ? 'Không giới hạn' : 'Unlimited', availability: 'included', module: 'web' },
+    { label: labels[1], value: isVi ? 'Toàn quyền' : 'Full access', availability: 'included', module: 'web' },
+    { label: labels[2], value: isVi ? 'Tại sự kiện' : 'On-site', availability: 'included', module: 'growth' },
   ]
 }
 
@@ -434,93 +558,174 @@ function packageComparisonRows(item: CmsBlockItem, tone: PackageTone, lang: Bran
   const rows = cmsRows.length ? cmsRows : fallbackComparisonRows(tone, lang)
   return rows.map((row) => ({
     ...row,
+    module: row.module ?? resolvePackageModule({ label: row.label, text: row.value }),
     availability: row.availability ?? (/^(?:✗|×)|no access|not included|không bao gồm/i.test(row.value)
       ? 'excluded'
       : 'included'),
   }))
 }
 
-function Capacity({ row }: { row: PackageFeatureRow }) {
-  const match = row.text.match(/^(.+?content units?\/month)(?:,\s*|\s+[\u2013\u2014-]\s*|\s+)(.+)$/i)
-  const main = match?.[1]?.trim() || row.text
-  const supporting = match?.[2]?.trim() || ''
-
+function PackageMetricRail({ metrics, lang }: { metrics: CmsPackageMetric[]; lang: BrandLang }) {
+  if (!metrics.length) return null
   return (
-    <div className="package-metric-chip pkg-rv" data-testid="package-capacity">
-      <span className="package-capacity-icon" aria-hidden="true">✦</span>
-      <span className="sr-only">Package capacity: </span>
-      <span className="package-capacity-copy">
-        <strong>{main}</strong>
-        {supporting && <span>{supporting}</span>}
-      </span>
-    </div>
+    <dl
+      className="package-metric-rail pkg-rv"
+      data-testid="package-metric-rail"
+      aria-label={lang === 'vi' ? 'Chỉ số chính của gói' : 'Package highlights'}
+      style={{ '--pi': 4 } as CSSProperties}
+    >
+      {metrics.slice(0, 3).map((metric, index) => (
+        <div className="package-metric" data-testid="package-metric" key={`${metric.value}-${metric.label}-${index}`}>
+          <dt>{metric.label || (lang === 'vi' ? 'Quy mô gói' : 'Package capacity')}</dt>
+          <dd>{metric.value}</dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 
-function PackageComparison({
-  item,
-  tone,
-  lang,
-  panelId,
-  expanded,
-  onToggle,
-}: {
+type PackageComparisonValue = {
+  value: string
+  availability: 'included' | 'excluded'
+}
+
+export type PackageComparisonGroup = {
+  module: CmsPackageModuleId
+  title: string
+  rows: Array<{
+    key: string
+    label: string
+    values: Partial<Record<PackageTone, PackageComparisonValue>>
+  }>
+}
+
+function comparisonRowKey(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+export function buildPackageComparisonGroups(
+  plans: Array<{ item: CmsBlockItem; tone: PackageTone }>,
+  lang: BrandLang,
+): PackageComparisonGroup[] {
+  const grouped = new Map<CmsPackageModuleId, Map<string, PackageComparisonGroup['rows'][number]>>()
+
+  for (const { item, tone } of plans) {
+    for (const row of packageComparisonRows(item, tone, lang)) {
+      const module = row.module ?? 'output'
+      const moduleRows = grouped.get(module) ?? new Map<string, PackageComparisonGroup['rows'][number]>()
+      const key = comparisonRowKey(row.label) || `${module}-${moduleRows.size + 1}`
+      const normalized = moduleRows.get(key) ?? { key, label: row.label, values: {} }
+      if (!normalized.values[tone]) {
+        normalized.values[tone] = {
+          value: row.value.replace(/^[✓✗×]\s*/, ''),
+          availability: row.availability ?? 'included',
+        }
+      }
+      moduleRows.set(key, normalized)
+      grouped.set(module, moduleRows)
+    }
+  }
+
+  return packageModuleOrder.flatMap((module) => {
+    const rows = Array.from(grouped.get(module)?.values() ?? [])
+    return rows.length ? [{ module, title: packageModuleCopy[lang][module], rows }] : []
+  })
+}
+
+type PackageCardModel = {
   item: CmsBlockItem
+  id: string
+  sourceIndex: number
   tone: PackageTone
+}
+
+function PackageCompareAll({
+  cards,
+  activeTone,
+  lang,
+  headingId,
+}: {
+  cards: PackageCardModel[]
+  activeTone: PackageTone
   lang: BrandLang
-  panelId: string
-  expanded: boolean
-  onToggle: () => void
+  headingId: string
 }) {
-  const rows = packageComparisonRows(item, tone, lang)
-  const toggleLabel = lang === 'vi' ? 'So sánh chi tiết' : 'Compare details'
-  const panelLabel = lang === 'vi' ? 'Mức độ dịch vụ' : 'Service access'
+  const groups = buildPackageComparisonGroups(cards, lang)
+  if (!groups.length) return null
+  const copy = lang === 'vi'
+    ? { eyebrow: 'SO SÁNH TẤT CẢ', heading: 'So sánh từng hạng mục', service: 'Hạng mục', notListed: 'Chưa công bố' }
+    : { eyebrow: 'COMPARE ALL', heading: 'Compare every service', service: 'Service', notListed: 'Not listed' }
 
   return (
-    <div className="package-comparison pkg-rv" data-testid="package-comparison">
-      <button
-        type="button"
-        className="package-comparison-toggle"
-        data-testid="package-comparison-toggle"
-        aria-expanded={expanded}
-        aria-controls={panelId}
-        onClick={onToggle}
-      >
-        <span>{toggleLabel}</span>
-        <ChevronDown className={expanded ? 'is-expanded' : ''} size={16} strokeWidth={2.5} aria-hidden="true" />
-      </button>
-      <div
-        id={panelId}
-        className={`package-comparison-panel${expanded ? ' is-open' : ''}`}
-        data-testid="package-comparison-panel"
-        data-expanded={expanded ? 'true' : 'false'}
-      >
-        <h4 className="package-comparison-title">{panelLabel}</h4>
-        <dl className="package-comparison-list">
-          {rows.map((row, index) => {
-            const availability = row.availability ?? 'included'
-            const included = availability === 'included'
-            const value = row.value.replace(/^[✓✗×]\s*/, '')
-            return (
-              <div
-                key={`${row.label}-${index}`}
-                className="package-comparison-row"
-                data-availability={availability}
-              >
-                <dt>{row.label}</dt>
-                <dd>
-                  <span className="package-comparison-status" aria-hidden="true">
-                    {included ? <Check size={12} strokeWidth={3} /> : <X size={12} strokeWidth={3} />}
-                  </span>
-                  <span className="sr-only">{included ? 'Included: ' : 'Not included: '}</span>
-                  <span>{value}</span>
-                </dd>
-              </div>
-            )
-          })}
-        </dl>
+    <section className="package-compare-all pkg-rv" data-testid="package-compare-all" aria-labelledby={headingId}>
+      <header className="package-compare-header">
+        <p>{copy.eyebrow}</p>
+        <h3 id={headingId}>{copy.heading}</h3>
+      </header>
+      <div className="package-compare-table-wrap">
+        <table className="package-compare-table">
+          <thead>
+            <tr>
+              <th scope="col">{copy.service}</th>
+              {cards.map(({ item, tone, id }) => (
+                <th
+                  key={`${id}-compare-heading`}
+                  scope="col"
+                  data-package-tone={tone}
+                  data-mobile-active={activeTone === tone ? 'true' : 'false'}
+                >
+                  {item.title}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          {groups.map((group) => (
+            <tbody key={group.module}>
+                <tr className="package-compare-group-row" data-package-module={group.module}>
+                  <th scope="rowgroup" colSpan={cards.length + 1}>{group.title}</th>
+                </tr>
+                {group.rows.map((row) => (
+                  <tr className="package-comparison-row" data-testid="package-comparison-row" key={`${group.module}-${row.key}`}>
+                    <th scope="row">{row.label}</th>
+                    {cards.map(({ tone, id }) => {
+                      const cell = row.values[tone]
+                      const included = cell?.availability !== 'excluded'
+                      return (
+                        <td
+                          key={`${id}-${row.key}`}
+                          data-package-tone={tone}
+                          data-mobile-active={activeTone === tone ? 'true' : 'false'}
+                          data-availability={cell?.availability ?? 'unlisted'}
+                        >
+                          {cell ? (
+                            <>
+                              <span className="package-comparison-status" aria-hidden="true">
+                                {included ? <Check size={13} strokeWidth={3} /> : <X size={13} strokeWidth={3} />}
+                              </span>
+                              <span className="sr-only">
+                                {included
+                                  ? lang === 'vi' ? 'Bao gồm: ' : 'Included: '
+                                  : lang === 'vi' ? 'Không bao gồm: ' : 'Not included: '}
+                              </span>
+                              <span>{cell.value}</span>
+                            </>
+                          ) : <span className="package-compare-unlisted" aria-label={copy.notListed}>—</span>}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+            </tbody>
+          ))}
+        </table>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -538,25 +743,34 @@ export function PackageCards({
   const componentId = useId().replace(/:/g, '')
   const cardIds = useMemo(() => items.map(resolvePackageId), [items])
   const [highlightedId, setHighlightedId] = useState('')
-  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({})
-  const [viewportOrder, setViewportOrder] = useState({ mobile: false, ready: false })
+  const [selectedTone, setSelectedTone] = useState<PackageTone>('system')
   const chooseLabel = lang === 'vi' ? 'Chọn The One này' : 'Pick this One'
   const caseStudyLabel = lang === 'vi' ? 'Xem tất cả stories' : 'View all stories'
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 899px)')
-    const syncViewportOrder = () => setViewportOrder({ mobile: mediaQuery.matches, ready: true })
-    syncViewportOrder()
-    mediaQuery.addEventListener('change', syncViewportOrder)
-    return () => mediaQuery.removeEventListener('change', syncViewportOrder)
-  }, [])
+  const cardTones = useMemo(() => resolvePackageTones(items, cardIds), [cardIds, items])
+  const cards = useMemo<PackageCardModel[]>(() => items
+    .map((item, sourceIndex) => ({
+      item,
+      id: cardIds[sourceIndex],
+      sourceIndex,
+      tone: cardTones[sourceIndex] ?? packageToneOrder[sourceIndex] ?? 'start',
+    }))
+    .sort((left, right) => {
+      const toneDifference = packageToneOrder.indexOf(left.tone) - packageToneOrder.indexOf(right.tone)
+      return toneDifference || left.sourceIndex - right.sourceIndex
+    }), [cardIds, cardTones, items])
+  const activeTone = cards.some((card) => card.tone === selectedTone)
+    ? selectedTone
+    : cards[0]?.tone ?? 'system'
 
   useEffect(() => {
     let highlightTimer: number | undefined
     const syncHash = () => {
       const hash = safelyDecodeURIComponent(window.location.hash.replace(/^#/, ''))
-      if (!hash || !cardIds.includes(hash)) return
+      const matchingCard = cards.find((card) => card.id === hash)
+      if (!matchingCard) return
       setHighlightedId(hash)
+      setSelectedTone(matchingCard.tone)
       if (highlightTimer) window.clearTimeout(highlightTimer)
       highlightTimer = window.setTimeout(() => setHighlightedId(''), 800)
     }
@@ -567,155 +781,165 @@ export function PackageCards({
       window.removeEventListener('hashchange', syncHash)
       if (highlightTimer) window.clearTimeout(highlightTimer)
     }
-  }, [cardIds])
+  }, [cards])
 
-  const cardTones = useMemo(() => resolvePackageTones(items, cardIds), [cardIds, items])
-  const cards = useMemo(() => items.map((item, sourceIndex) => {
-    const id = cardIds[sourceIndex]
-    return {
-      item,
-      id,
-      sourceIndex,
-      tone: cardTones[sourceIndex] ?? packageToneOrder[sourceIndex] ?? 'start',
-    }
-  }), [cardIds, cardTones, items])
-
-  const orderedCards = useMemo(() => {
-    if (!viewportOrder.mobile) return cards
-    return [...cards].sort((left, right) => Number(right.tone === 'system') - Number(left.tone === 'system'))
-  }, [cards, viewportOrder.mobile])
+  const selectorLabel = lang === 'vi' ? 'Chọn gói để xem chi tiết' : 'Choose a package to view details'
+  const comparisonHeadingId = `${componentId}-compare-title`
 
   return (
-    <div
-      className={`package-grid grid items-stretch gap-5 ${className}`.trim()}
-      data-testid="package-grid"
-      data-package-layout={layout}
-      data-mobile-order-ready={viewportOrder.ready ? 'true' : 'false'}
-      data-mobile-order={viewportOrder.mobile ? 'system-first' : 'standard'}
-    >
-      {orderedCards.map(({ item, id, sourceIndex, tone }, visualIndex) => {
-        const {
-          subtitle,
-          capacity,
-          features: sourceFeatures,
-          priceLabel,
-          priceValue,
-          priceSupportingText,
-          ctaMicrocopy,
-        } = getPackageContent(item)
-        const normalizedPrice = normalizePackagePrice(priceLabel, priceValue, priceSupportingText, tone)
-        const features = withStartExclusions(sourceFeatures, tone, lang)
-        const featured = tone === 'system'
-        const highlight = highlightedId === id
-        const expanded = Boolean(expandedIds[id])
-        const Icon = packageIcons[tone]
-        const badgeLabel = packageBadgeLabel(item, tone, lang)
-        const headingId = `${componentId}-${packageToken(id)}-title`
-        const comparisonPanelId = `${componentId}-${packageToken(id)}-comparison`
-        const caseStudyLink = localizedPath(lang, '/the-one')
-
-        return (
-          <div
-            key={`${id}-${sourceIndex}`}
-            className={`package-card-shell${featured ? ' package-card-shell--featured pkg-card-spring' : ''}${highlight ? ' is-anchor-highlighted' : ''}`}
-            data-reveal="pkg-card"
-            data-reveal-phase="2"
-            data-testid="package-card"
-            data-package-id={id}
+    <div className="package-plans" data-testid="package-plans">
+      <div className="package-tier-selector" role="group" aria-label={selectorLabel} data-testid="package-tier-selector">
+        {cards.map(({ item, tone, id }, selectorIndex) => (
+          <button
+            key={`${id}-selector`}
+            id={`${componentId}-${packageToken(id)}-selector`}
+            type="button"
+            className="package-tier-selector-button"
             data-package-tone={tone}
-            data-featured={featured ? 'true' : 'false'}
-            style={{ '--ri': visualIndex } as CSSProperties}
+            aria-pressed={activeTone === tone}
+            aria-controls={id}
+            onClick={() => setSelectedTone(tone)}
+            onKeyDown={(event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+              event.preventDefault()
+              const nextIndex = event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? cards.length - 1
+                  : (selectorIndex + (event.key === 'ArrowRight' ? 1 : -1) + cards.length) % cards.length
+              const nextCard = cards[nextIndex]
+              if (!nextCard) return
+              setSelectedTone(nextCard.tone)
+              window.requestAnimationFrame(() => {
+                document.getElementById(`${componentId}-${packageToken(nextCard.id)}-selector`)?.focus()
+              })
+            }}
           >
-            <article
-              id={id}
-              className={`package-card home-package-card${featured ? ' package-card--featured home-package-featured' : ''}${highlight ? ' is-anchor-highlighted' : ''}`}
+            <span>{tone === 'start' ? 'Start' : tone === 'system' ? 'System' : 'Scale'}</span>
+            <small>{item.title}</small>
+          </button>
+        ))}
+      </div>
+
+      <div
+        className={`package-grid grid items-stretch gap-5 ${className}`.trim()}
+        data-testid="package-grid"
+        data-package-layout={layout}
+        data-mobile-order-ready="true"
+        data-mobile-order="single-active"
+      >
+        {cards.map(({ item, id, sourceIndex, tone }, visualIndex) => {
+          const {
+            subtitle,
+            metrics,
+            features,
+            priceLabel,
+            priceValue,
+            priceSupportingText,
+            ctaMicrocopy,
+          } = getPackageContent(item, tone, lang)
+          const normalizedPrice = normalizePackagePrice(priceLabel, priceValue, priceSupportingText, tone)
+          const featured = tone === 'system'
+          const highlight = highlightedId === id
+          const Icon = packageIcons[tone]
+          const badgeLabel = packageBadgeLabel(item, tone, lang)
+          const headingId = `${componentId}-${packageToken(id)}-title`
+          const caseStudyLink = item.caseStudyLink?.trim() || localizedPath(lang, '/the-one')
+          const ctaHref = item.ctaHref?.trim()
+          const ctaLabel = normalizePackageCtaLabel(item.ctaText, chooseLabel)
+
+          return (
+            <div
+              key={`${id}-${sourceIndex}`}
+              className={`package-card-shell${featured ? ' package-card-shell--featured pkg-card-spring' : ''}${highlight ? ' is-anchor-highlighted' : ''}`}
+              data-reveal="pkg-card"
+              data-reveal-phase="2"
+              data-testid="package-card"
+              data-package-id={id}
               data-package-tone={tone}
               data-featured={featured ? 'true' : 'false'}
-              aria-labelledby={headingId}
+              data-mobile-active={activeTone === tone ? 'true' : 'false'}
+              style={{ '--ri': visualIndex } as CSSProperties}
             >
-              {badgeLabel && (
-                <span className="package-card-badge pkg-rv" style={{ '--pi': 0 } as CSSProperties}>
-                  {badgeLabel}
-                </span>
-              )}
+              <article
+                id={id}
+                className={`package-card home-package-card${featured ? ' package-card--featured home-package-featured' : ''}${highlight ? ' is-anchor-highlighted' : ''}`}
+                data-package-tone={tone}
+                data-featured={featured ? 'true' : 'false'}
+                aria-labelledby={headingId}
+              >
+                {badgeLabel && (
+                  <span className="package-card-badge pkg-rv" style={{ '--pi': 0 } as CSSProperties}>
+                    {badgeLabel}
+                  </span>
+                )}
 
-              <div className="package-card-heading pkg-rv" style={{ '--pi': 1 } as CSSProperties}>
-                <span className="package-tone-icon" aria-hidden="true">
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt="" className="package-tone-image" />
-                  ) : (
-                    <CmsIcon name={item.icon} fallback={Icon} size={22} />
+                <div className="package-card-summary">
+                  <div className="package-card-heading pkg-rv" style={{ '--pi': 1 } as CSSProperties}>
+                    <span className="package-tone-icon" aria-hidden="true">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt="" className="package-tone-image" />
+                      ) : (
+                        <CmsIcon name={item.icon} fallback={Icon} size={22} />
+                      )}
+                    </span>
+                    <div>
+                      <h3 id={headingId} className="package-card-name">{item.title}</h3>
+                      {subtitle && <p className="package-card-description">{subtitle}</p>}
+                    </div>
+                  </div>
+
+                  {normalizedPrice.priceValue && (
+                    <div
+                      className="package-card-price pkg-rv"
+                      data-testid="package-price"
+                      style={{ '--pi': 2 } as CSSProperties}
+                    >
+                      {normalizedPrice.priceLabel && <p className="package-price-label">{normalizedPrice.priceLabel}</p>}
+                      <p className="package-price-value">
+                        <span>{normalizedPrice.priceValue}</span>
+                        {normalizedPrice.priceSuffix && (
+                          <span className="package-price-suffix">{normalizedPrice.priceSuffix}</span>
+                        )}
+                      </p>
+                      {normalizedPrice.priceSupportingText && (
+                        <p className="package-price-supporting">{normalizedPrice.priceSupportingText}</p>
+                      )}
+                    </div>
                   )}
-                </span>
-                <div>
-                  <h3 id={headingId} className="package-card-name">{item.title}</h3>
-                  {subtitle && <p className="package-card-description">{subtitle}</p>}
-                </div>
-              </div>
 
-              {normalizedPrice.priceValue && (
-                <div
-                  className="package-card-price pkg-rv"
-                  data-testid="package-price"
-                  style={{ '--pi': 2 } as CSSProperties}
-                >
-                  {normalizedPrice.priceLabel && <p className="package-price-label">{normalizedPrice.priceLabel}</p>}
-                  <p className="package-price-value">
-                    <span>{normalizedPrice.priceValue}</span>
-                    {normalizedPrice.priceSuffix && (
-                      <span className="package-price-suffix">{normalizedPrice.priceSuffix}</span>
+                  <div className="package-card-cta-block pkg-rv" style={{ '--pi': 3 } as CSSProperties}>
+                    {ctaHref ? (
+                      <a className="package-cta" data-testid="package-cta" href={ctaHref}>{ctaLabel}</a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="package-cta"
+                        data-testid="package-cta"
+                        onClick={() => openBookingModal(`package-${tone}`)}
+                      >
+                        {ctaLabel}
+                      </button>
                     )}
-                  </p>
-                  {normalizedPrice.priceSupportingText && (
-                    <p className="package-price-supporting">{normalizedPrice.priceSupportingText}</p>
-                  )}
+                    {ctaMicrocopy && <p className="package-cta-microcopy">{ctaMicrocopy}</p>}
+                  </div>
+
+                  <PackageMetricRail metrics={metrics} lang={lang} />
                 </div>
-              )}
 
-              <div className="package-card-cta-block pkg-rv" style={{ '--pi': 3 } as CSSProperties}>
-                <button
-                  type="button"
-                  className="package-cta"
-                  data-testid="package-cta"
-                  onClick={() => openBookingModal(`package-${tone}`)}
-                >
-                  {normalizePackageCtaLabel(item.ctaText, chooseLabel)}
-                </button>
-                {ctaMicrocopy && <p className="package-cta-microcopy">{ctaMicrocopy}</p>}
-              </div>
+                <PackageServiceModules features={features} tone={tone} lang={lang} />
 
-              {capacity && <Capacity row={capacity} />}
+                <a className="package-stories-link pkg-rv" href={caseStudyLink}>
+                  {normalizePackageStoryLabel(item.caseStudyLabel, caseStudyLabel)}
+                  <ArrowRight size={15} aria-hidden="true" />
+                </a>
+              </article>
+            </div>
+          )
+        })}
+      </div>
 
-              {features.length > 0 && (
-                <ul className="package-card-features">
-                  {features.map((feature, featureIndex) => (
-                    <PackageFeatureRowView
-                      key={`${id}-feature-${featureIndex}-${feature.label ?? feature.group ?? ''}`}
-                      row={feature}
-                      tone={tone}
-                      style={{ '--pi': 4 + featureIndex } as CSSProperties}
-                    />
-                  ))}
-                </ul>
-              )}
-
-              <PackageComparison
-                item={item}
-                tone={tone}
-                lang={lang}
-                panelId={comparisonPanelId}
-                expanded={expanded}
-                onToggle={() => setExpandedIds((current) => ({ ...current, [id]: !current[id] }))}
-              />
-
-              <a className="package-stories-link pkg-rv" href={caseStudyLink}>
-                {normalizePackageStoryLabel(item.caseStudyLabel, caseStudyLabel)}
-                <ArrowRight size={15} aria-hidden="true" />
-              </a>
-            </article>
-          </div>
-        )
-      })}
+      <PackageCompareAll cards={cards} activeTone={activeTone} lang={lang} headingId={comparisonHeadingId} />
     </div>
   )
 }

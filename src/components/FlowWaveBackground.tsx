@@ -162,11 +162,14 @@ function settingsForVariant(settings: CmsHomepageBackground, variant: FlowWaveVa
 }
 
 const HOME_TONE_VALUES: Record<string, number> = {
-  hero: 0,
-  light: 0,
-  rose: 0.24,
-  mid: 0.5,
-  dark: 0.74,
+  // Homepage follows one continuous dusk-to-night curve. These are semantic
+  // stops rather than section-specific colours, so sections can be reordered
+  // without reintroducing a hard rose -> ink jump.
+  hero: 0.18,
+  light: 0.28,
+  rose: 0.43,
+  mid: 0.62,
+  dark: 0.78,
   night: 1,
 }
 
@@ -178,7 +181,10 @@ const HOME_TONE_VALUES: Record<string, number> = {
 function readHomepageToneProgress() {
   const markers = Array.from(document.querySelectorAll<HTMLElement>('[data-home-tone]'))
     .map((element) => {
-      const value = HOME_TONE_VALUES[element.dataset.homeTone ?? '']
+      const explicitProgress = Number.parseFloat(element.dataset.homeToneProgress ?? '')
+      const value = Number.isFinite(explicitProgress)
+        ? clamp(explicitProgress, 0, 1)
+        : HOME_TONE_VALUES[element.dataset.homeTone ?? '']
       if (value === undefined) return null
       const rect = element.getBoundingClientRect()
       return {
@@ -234,7 +240,9 @@ function buildAuroraBackground(blobs: CmsHomepageBackground['blobs']) {
     `radial-gradient(800px 550px at 88% 12%, ${rgba(b2.color, b2.alpha)}, transparent 60%)`,
     `radial-gradient(1000px 700px at 82% 82%, ${rgba(b3.color, b3.alpha)}, transparent 62%)`,
     `radial-gradient(900px 650px at 15% 88%, ${rgba(b4.color, b4.alpha)}, transparent 60%)`,
-    'linear-gradient(165deg, #FFF6EE 0%, #FFE9EE 45%, #FFDCE6 100%)',
+    // Warm dusk is the static baseline too: Data Saver / WebGL fallbacks must
+    // still feel like the same page instead of flashing back to near-white.
+    'linear-gradient(165deg, #5A2C47 0%, #351427 48%, #180711 100%)',
   ].join(',')
 }
 
@@ -263,13 +271,18 @@ export function FlowWaveBackground({
   useEffect(() => {
     let rafId = 0
     let disposed = false
+    const host = canvasRef.current?.closest<HTMLElement>('.flow-wave-host') ?? null
 
     const updateTone = () => {
       rafId = 0
       if (disposed) return
-      const progress = storiesVariant ? 1 : smoothstep01(readHomepageToneProgress())
+      // Marker interpolation is already continuous. A restrained easing blend
+      // softens the hand-off without crushing the deliberately darker hero.
+      const rawProgress = storiesVariant ? 1 : readHomepageToneProgress()
+      const progress = lerp(rawProgress, smoothstep01(rawProgress), 0.24)
       toneProgressRef.current = progress
       if (darkBackdropRef.current) darkBackdropRef.current.style.opacity = String(progress)
+      host?.style.setProperty('--flow-wave-tone', progress.toFixed(4))
     }
 
     const scheduleToneUpdate = () => {
@@ -289,6 +302,7 @@ export function FlowWaveBackground({
       window.removeEventListener('scroll', scheduleToneUpdate)
       window.removeEventListener('resize', scheduleToneUpdate)
       window.removeEventListener('load', scheduleToneUpdate)
+      host?.style.removeProperty('--flow-wave-tone')
     }
   }, [storiesVariant])
 
@@ -615,7 +629,8 @@ export function FlowWaveBackground({
       function renderStaticFrame() {
         // prefers-reduced-motion: one fixed frame with the same tone/camera
         // composition as motion mode, but no autonomous animation loop.
-        toneProgressRef.current = storiesVariant ? 1 : smoothstep01(readHomepageToneProgress())
+        const rawProgress = storiesVariant ? 1 : readHomepageToneProgress()
+        toneProgressRef.current = lerp(rawProgress, smoothstep01(rawProgress), 0.24)
         toneCurrent = toneProgressRef.current
         applyTone(toneCurrent, scrollTarget)
         uniforms.uAppear.value = 1

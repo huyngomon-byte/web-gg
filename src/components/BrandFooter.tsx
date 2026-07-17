@@ -17,7 +17,15 @@ const fallbackExploreLinks = [
   { label: 'Insights', href: '/insights' },
 ]
 
-export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; siteSettings?: CmsSiteSettings | null }) {
+export function BrandFooter({
+  lang = 'en',
+  siteSettings,
+  continuousAtmosphere = false,
+}: {
+  lang?: BrandLang
+  siteSettings?: CmsSiteSettings | null
+  continuousAtmosphere?: boolean
+}) {
   const footer = getLocalizedSiteSettings(siteSettings, lang === 'en' ? lang : 'en').footer
   const logoSrc = footer.logoSrc === '/logo-gg.png' ? '/avatars/logo-gg.png' : footer.logoSrc
   const brandName = footer.brandName.trim() || 'The One — GG99'
@@ -33,7 +41,11 @@ export function BrandFooter({ lang = 'en', siteSettings }: { lang?: BrandLang; s
     : fallbackExploreLinks
 
   return (
-    <footer className="brand-footer-v2" data-testid="site-footer">
+    <footer
+      className={`brand-footer-v2${continuousAtmosphere ? ' brand-footer-v2--continuous-atmosphere' : ''}`}
+      data-testid="site-footer"
+      data-atmosphere-continuation={continuousAtmosphere ? 'true' : undefined}
+    >
       <div className="brand-footer-wave" aria-hidden="true" />
 
       <div className="brand-footer-main">

@@ -29,13 +29,16 @@ import type {
   CmsLocalizedBlockItemFields,
   CmsPackageComparisonRow,
   CmsPackageFeature,
+  CmsPackageMetric,
+  CmsPackageModuleId,
+  CmsPackageProcessStep,
   CmsStatChip,
 } from '../../cms/types'
 import { getUnsupportedPreviewVideoMessage } from '../../cms/videoValidation'
 
 type UpdateBlockItem = (pageId: string, blockId: string, itemIndex: number, patch: Partial<CmsBlockItem>) => void
-type BlockTextKey = Exclude<keyof CmsLocalizedBlockFields, 'statChips'>
-type ItemTextKey = Exclude<keyof CmsLocalizedBlockItemFields, 'services' | 'features' | 'comparisonRows' | 'keyMetrics' | 'featuredStats' | 'storyDetail'>
+type BlockTextKey = Exclude<keyof CmsLocalizedBlockFields, 'statChips' | 'packageProcessSteps'>
+type ItemTextKey = Exclude<keyof CmsLocalizedBlockItemFields, 'services' | 'features' | 'packageMetrics' | 'comparisonRows' | 'keyMetrics' | 'featuredStats' | 'storyDetail'>
 
 const storyMetricSlots = Array.from({ length: 10 }, (_, index) => index)
 const packageDetailPageIds = new Set(['the-one-start', 'the-one-system', 'the-one-scale'])
@@ -129,6 +132,10 @@ function getBlockStatChips(block: CmsBlock, lang: BrandLang) {
   return lang === 'vi' ? block.statChips : block.locales?.[lang]?.statChips
 }
 
+function getBlockPackageProcessSteps(block: CmsBlock, lang: BrandLang) {
+  return lang === 'vi' ? block.packageProcessSteps : block.locales?.[lang]?.packageProcessSteps
+}
+
 function patchBlockText(block: CmsBlock, lang: BrandLang, patch: CmsLocalizedBlockFields): Partial<CmsBlock> {
   if (lang === 'vi') return patch as Partial<CmsBlock>
   return {
@@ -157,6 +164,10 @@ function getItemFeatures(item: CmsBlockItem, lang: BrandLang) {
 
 function getItemComparisonRows(item: CmsBlockItem, lang: BrandLang) {
   return lang === 'vi' ? item.comparisonRows : item.locales?.[lang]?.comparisonRows
+}
+
+function getItemPackageMetrics(item: CmsBlockItem, lang: BrandLang) {
+  return lang === 'vi' ? item.packageMetrics : item.locales?.[lang]?.packageMetrics
 }
 
 function getItemKeyMetrics(item: CmsBlockItem, lang: BrandLang) {
@@ -511,6 +522,7 @@ function PackageItemEditor({
   blockId,
   index,
   item,
+  packageItems,
   activeLang,
   updateBlockItem,
   onUploadError,
@@ -519,6 +531,7 @@ function PackageItemEditor({
   blockId: string
   index: number
   item: CmsBlockItem
+  packageItems: CmsBlockItem[]
   activeLang: BrandLang
   updateBlockItem: UpdateBlockItem
   onUploadError: (message: string) => void
@@ -532,9 +545,18 @@ function PackageItemEditor({
   const priceValue = getItemTextValue(item, activeLang, 'priceValue')
   const priceSupportingText = getItemTextValue(item, activeLang, 'priceSupportingText')
   const ctaMicrocopy = getItemTextValue(item, activeLang, 'ctaMicrocopy')
+  const ctaHref = getItemTextValue(item, activeLang, 'ctaHref')
   const body = getItemTextValue(item, activeLang, 'body')
   const features = getItemFeatures(item, activeLang) ?? []
+  const packageMetrics = getItemPackageMetrics(item, activeLang) ?? []
   const comparisonRows = getItemComparisonRows(item, activeLang) ?? []
+  const duplicateTier = item.packageTier
+    ? packageItems.some((candidate, candidateIndex) => candidateIndex !== index && candidate.packageTier === item.packageTier)
+    : false
+  const usedTiers = new Set(packageItems
+    .filter((_, candidateIndex) => candidateIndex !== index)
+    .map((candidate) => candidate.packageTier)
+    .filter(Boolean))
 
   function updateText(patch: CmsLocalizedBlockItemFields) {
     updateBlockItem(pageId, blockId, index, patchItemText(item, activeLang, patch))
@@ -545,6 +567,13 @@ function PackageItemEditor({
     while (next.length <= featureIndex) next.push({ text: '' })
     next[featureIndex] = { ...next[featureIndex], ...patch }
     updateText({ features: next })
+  }
+
+  function updatePackageMetric(metricIndex: number, patch: Partial<CmsPackageMetric>) {
+    const next = [...packageMetrics]
+    while (next.length <= metricIndex) next.push({ value: '', label: '' })
+    next[metricIndex] = { ...next[metricIndex], ...patch }
+    updateText({ packageMetrics: next })
   }
 
   function moveFeature(featureIndex: number, direction: -1 | 1) {
@@ -582,16 +611,24 @@ function PackageItemEditor({
           <TextInput value={title} onChange={(value) => updateText({ title: value })} />
         </Field>
         <Field label="Package tier" hint="Controls the fixed visual identity and mobile ordering. Use each tier once across the three cards.">
-          <select
-            value={item.packageTier ?? ''}
-            onChange={(event) => updateBlockItem(pageId, blockId, index, { packageTier: (event.target.value || undefined) as CmsBlockItem['packageTier'] })}
-            className="h-10 w-full rounded-xl border border-outline-variant bg-surface px-3 text-sm font-bold text-on-surface outline-none focus:border-primary"
-          >
-            <option value="">Auto-detect from package name</option>
-            <option value="start">Start</option>
-            <option value="system">System</option>
-            <option value="scale">Scale</option>
-          </select>
+          <div className="grid gap-2">
+            <select
+              value={item.packageTier ?? ''}
+              onChange={(event) => updateBlockItem(pageId, blockId, index, { packageTier: (event.target.value || undefined) as CmsBlockItem['packageTier'] })}
+              className="h-10 w-full rounded-xl border border-outline-variant bg-surface px-3 text-sm font-bold text-on-surface outline-none focus:border-primary"
+              aria-invalid={duplicateTier}
+            >
+              <option value="">Auto-detect from package name</option>
+              <option value="start" disabled={usedTiers.has('start') && item.packageTier !== 'start'}>Start</option>
+              <option value="system" disabled={usedTiers.has('system') && item.packageTier !== 'system'}>System</option>
+              <option value="scale" disabled={usedTiers.has('scale') && item.packageTier !== 'scale'}>Scale</option>
+            </select>
+            {duplicateTier && (
+              <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
+                This tier is already used. Assign Start, System and Scale once each; the public site will resolve duplicates deterministically until fixed.
+              </p>
+            )}
+          </div>
         </Field>
         <Field label="Subtitle">
           <TextInput value={subtitle} onChange={(value) => updateText({ subtitle: value })} />
@@ -604,6 +641,9 @@ function PackageItemEditor({
         </Field>
         <Field label="CTA text">
           <TextInput value={ctaText} onChange={(value) => updateText({ ctaText: value })} placeholder="Choose this package" />
+        </Field>
+        <Field label="CTA link" hint="Optional plan-specific destination. Leave empty to open the booking dialog.">
+          <TextInput value={ctaHref} onChange={(value) => updateText({ ctaHref: value })} placeholder="/contact or https://..." />
         </Field>
         <Field label="Case study link">
           <TextInput value={item.caseStudyLink ?? ''} onChange={(value) => updateBlockItem(pageId, blockId, index, { caseStudyLink: value })} placeholder="/the-one#curnon" />
@@ -674,9 +714,41 @@ function PackageItemEditor({
       <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
+            <p className="text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Metric rail</p>
+            <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/75">Up to three factual plan highlights. Avoid discounts or unverified performance claims.</p>
+          </div>
+          <button
+            type="button"
+            disabled={packageMetrics.length >= 3}
+            onClick={() => updateText({ packageMetrics: [...packageMetrics, { value: '', label: '' }] })}
+            className="inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-surface px-3 py-2 text-xs font-extrabold text-primary disabled:opacity-40"
+          >
+            <Plus size={15} /> Add metric
+          </button>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {packageMetrics.map((metric, metricIndex) => (
+            <div key={metricIndex} className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface p-3">
+              <TextInput value={metric.value} onChange={(value) => updatePackageMetric(metricIndex, { value })} placeholder="60" />
+              <TextInput value={metric.label} onChange={(value) => updatePackageMetric(metricIndex, { label: value })} placeholder="content units/month" />
+              <button
+                type="button"
+                onClick={() => updateText({ packageMetrics: packageMetrics.filter((_, itemIndex) => itemIndex !== metricIndex) })}
+                className="inline-flex w-fit items-center gap-2 rounded-lg border border-red-200 px-2.5 py-2 text-xs font-bold text-red-700"
+                aria-label={`Remove metric ${metricIndex + 1}`}
+              >
+                <Trash2 size={14} /> Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
             <p className="text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Feature rows</p>
             <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/75">
-              Each row: text + optional group + included/excluded state. Missing availability in older data is treated as included.
+              Assign each row to one of the four service modules. Older rows without a module are categorized from their copy.
             </p>
           </div>
           <button
@@ -689,13 +761,25 @@ function PackageItemEditor({
         </div>
         <div className="grid gap-3">
           {features.map((feature, featureIndex) => (
-            <div key={featureIndex} className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface p-3 md:grid-cols-2 xl:grid-cols-[1.4fr_0.7fr_130px_auto_auto]">
+            <div key={featureIndex} className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface p-3 md:grid-cols-2 xl:grid-cols-[1.35fr_0.7fr_160px_130px_0.65fr_auto_auto]">
               <TextInput value={feature.text} onChange={(value) => updateFeature(featureIndex, { text: value })} placeholder="Feature detail" />
               <TextInput
                 value={feature.group ?? feature.label ?? ''}
                 onChange={(value) => updateFeature(featureIndex, { group: value })}
                 placeholder="Group (optional)"
               />
+              <select
+                value={feature.module ?? ''}
+                onChange={(event) => updateFeature(featureIndex, { module: (event.target.value || undefined) as CmsPackageModuleId | undefined })}
+                aria-label={`Feature ${featureIndex + 1} module`}
+                className="h-9 rounded-lg border border-outline-variant bg-surface px-2.5 text-xs font-extrabold text-on-surface-variant outline-none focus:border-primary"
+              >
+                <option value="">Auto module</option>
+                <option value="output">Output &amp; Cadence</option>
+                <option value="content">Content Engine</option>
+                <option value="web">Web &amp; Commerce</option>
+                <option value="growth">Growth &amp; Activation</option>
+              </select>
               <select
                 value={feature.availability ?? 'included'}
                 onChange={(event) => updateFeature(featureIndex, { availability: event.target.value as CmsPackageFeature['availability'] })}
@@ -705,6 +789,7 @@ function PackageItemEditor({
                 <option value="included">Included</option>
                 <option value="excluded">Excluded</option>
               </select>
+              <TextInput value={feature.statusLabel ?? ''} onChange={(value) => updateFeature(featureIndex, { statusLabel: value })} placeholder="Status pill" />
               <label className="inline-flex h-9 items-center gap-2 rounded-lg border border-outline-variant px-2.5 text-xs font-extrabold text-on-surface-variant">
                 <input
                   type="checkbox"
@@ -739,7 +824,7 @@ function PackageItemEditor({
           <div>
             <p className="text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Comparison rows</p>
             <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/75">
-              Compact service-level comparison shown in the card sub-panel. Missing rows in older data fall back safely on the public site.
+              Rows are merged by label into the single Compare All matrix below the three plans.
             </p>
           </div>
           <button
@@ -752,9 +837,21 @@ function PackageItemEditor({
         </div>
         <div className="grid gap-3">
           {comparisonRows.map((row, rowIndex) => (
-            <div key={rowIndex} className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface p-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_130px_auto]">
+            <div key={rowIndex} className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface p-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_170px_130px_auto]">
               <TextInput value={row.label} onChange={(value) => updateComparisonRow(rowIndex, { label: value })} placeholder="Landing pages" />
               <TextInput value={row.value} onChange={(value) => updateComparisonRow(rowIndex, { value })} placeholder="Unlimited" />
+              <select
+                value={row.module ?? ''}
+                onChange={(event) => updateComparisonRow(rowIndex, { module: (event.target.value || undefined) as CmsPackageModuleId | undefined })}
+                aria-label={`Comparison row ${rowIndex + 1} module`}
+                className="h-9 rounded-lg border border-outline-variant bg-surface px-2.5 text-xs font-extrabold text-on-surface-variant outline-none focus:border-primary"
+              >
+                <option value="">Auto module</option>
+                <option value="output">Output &amp; Cadence</option>
+                <option value="content">Content Engine</option>
+                <option value="web">Web &amp; Commerce</option>
+                <option value="growth">Growth &amp; Activation</option>
+              </select>
               <select
                 value={row.availability ?? 'included'}
                 onChange={(event) => updateComparisonRow(rowIndex, { availability: event.target.value as CmsPackageComparisonRow['availability'] })}
@@ -1517,6 +1614,10 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
   const blockCtaSubtext = getBlockTextValue(currentBlock, activeLang, 'ctaSubtext')
   const blockPricingNote = getBlockTextValue(currentBlock, activeLang, 'pricingNote')
   const blockDisclaimer = getBlockTextValue(currentBlock, activeLang, 'disclaimer')
+  const blockPackageProcessSteps = getBlockPackageProcessSteps(currentBlock, activeLang) ?? []
+  const blockPackageRecommendationTitle = getBlockTextValue(currentBlock, activeLang, 'packageRecommendationTitle')
+  const blockPackageRecommendationBody = getBlockTextValue(currentBlock, activeLang, 'packageRecommendationBody')
+  const blockPackageRecommendationCta = getBlockTextValue(currentBlock, activeLang, 'packageRecommendationCta')
   const blockSubtitle = getBlockTextValue(currentBlock, activeLang, 'subtitle')
   const blockClosingLine1 = getBlockTextValue(currentBlock, activeLang, 'closingLine1')
   const blockClosingLine2 = getBlockTextValue(currentBlock, activeLang, 'closingLine2')
@@ -1524,6 +1625,13 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
 
   function updateBlockText(patch: CmsLocalizedBlockFields) {
     updateBlock(pageId, blockId, patchBlockText(currentBlock, activeLang, patch))
+  }
+
+  function updatePackageProcessStep(stepIndex: number, patch: Partial<CmsPackageProcessStep>) {
+    const next = [...blockPackageProcessSteps]
+    while (next.length <= stepIndex) next.push({ title: '', body: '' })
+    next[stepIndex] = { ...next[stepIndex], ...patch }
+    updateBlockText({ packageProcessSteps: next })
   }
 
   function commitId() {
@@ -1695,6 +1803,50 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                   minHeight={86}
                 />
               </Field>
+              <section className="rounded-xl border border-outline-variant/45 bg-surface p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Package process</p>
+                    <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/75">Truthful steps shown after comparison. Default flow: discovery, setup, monthly operations.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updateBlockText({ packageProcessSteps: [...blockPackageProcessSteps, { title: '', body: '' }] })}
+                    className="inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-surface px-3 py-2 text-xs font-extrabold text-primary"
+                  >
+                    <Plus size={15} /> Add step
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {blockPackageProcessSteps.map((step, stepIndex) => (
+                    <div key={stepIndex} className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface-container-low p-3">
+                      <TextInput value={step.title} onChange={(value) => updatePackageProcessStep(stepIndex, { title: value })} placeholder="Discovery & scoping" />
+                      <TextArea value={step.body} onChange={(value) => updatePackageProcessStep(stepIndex, { body: value })} minHeight={78} />
+                      <button
+                        type="button"
+                        onClick={() => updateBlockText({ packageProcessSteps: blockPackageProcessSteps.filter((_, itemIndex) => itemIndex !== stepIndex) })}
+                        className="inline-flex w-fit items-center gap-2 rounded-lg border border-red-200 px-2.5 py-2 text-xs font-bold text-red-700"
+                        aria-label={`Remove package process step ${stepIndex + 1}`}
+                      >
+                        <Trash2 size={14} /> Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section className="grid gap-4 rounded-xl border border-outline-variant/45 bg-surface p-4 md:grid-cols-2">
+                <Field label="Recommendation title">
+                  <TextInput value={blockPackageRecommendationTitle} onChange={(value) => updateBlockText({ packageRecommendationTitle: value })} placeholder="Not sure which package fits?" />
+                </Field>
+                <Field label="Recommendation CTA">
+                  <TextInput value={blockPackageRecommendationCta} onChange={(value) => updateBlockText({ packageRecommendationCta: value })} placeholder="Get a package recommendation" />
+                </Field>
+                <div className="md:col-span-2">
+                  <Field label="Recommendation body" hint="Do not add unverified results, discounts or response-time promises.">
+                    <TextArea value={blockPackageRecommendationBody} onChange={(value) => updateBlockText({ packageRecommendationBody: value })} minHeight={78} />
+                  </Field>
+                </div>
+              </section>
             </div>
           )}
 
@@ -2025,7 +2177,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
                     ) : isPeopleBlock ? (
                       <PeopleItemEditor pageId={pageId} blockId={blockId} index={index} item={item} activeLang={activeLang} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
                     ) : isPackageList ? (
-                      <PackageItemEditor pageId={pageId} blockId={blockId} index={index} item={item} activeLang={activeLang} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
+                      <PackageItemEditor pageId={pageId} blockId={blockId} index={index} item={item} packageItems={block.items ?? []} activeLang={activeLang} updateBlockItem={updateBlockItem} onUploadError={setUploadError} />
                     ) : isFaqBlock ? (
                       <FaqItemEditor pageId={pageId} blockId={blockId} index={index} item={item} activeLang={activeLang} updateBlockItem={updateBlockItem} />
                     ) : isRedFlagsBlock ? (

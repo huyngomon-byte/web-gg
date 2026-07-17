@@ -89,7 +89,10 @@ test.describe('Homepage centered hero and control-free showcases', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    await expect(page.locator('#main-content')).toHaveClass(/flow-wave-host/)
+    const atmosphere = page.locator('.brand-atmosphere-shell.flow-wave-host[data-continuous-atmosphere="true"]')
+    await expect(atmosphere).toHaveCount(1)
+    await expect(atmosphere.locator(':scope > #main-content')).toHaveClass(/flow-wave-main/)
+    await expect(atmosphere.locator('.flow-wave-canvas--home')).toHaveCount(1)
     const cta = page.locator('.home-hero').getByRole('button', { name: 'Schedule Our Date' })
     const sheenAnimation = await cta.evaluate((element) => getComputedStyle(element, '::before').animationName)
     expect(sheenAnimation).toBe('none')

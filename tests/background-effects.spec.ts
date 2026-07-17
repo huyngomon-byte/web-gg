@@ -68,6 +68,31 @@ test.describe('CSS-only background stages', () => {
     await expect.poll(async () => hasRunningAnimation(await readDecorationStyles(stage))).toBe(false)
   })
 
+  test('keeps the shared Homepage atmosphere static and both video stages poster-only for Save Data', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'connection', {
+        configurable: true,
+        get: () => ({ saveData: true }),
+      })
+    })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    const shell = page.locator('.brand-atmosphere-shell[data-continuous-atmosphere="true"]')
+    const canvas = page.locator('.flow-wave-canvas--home')
+    await expect(shell).toHaveCount(1)
+    await expect(canvas).toHaveCount(1)
+    await expect(canvas).toHaveAttribute('data-motion', 'static', { timeout: 8_000 })
+    await expect(page.locator('.home-hero video')).toHaveCount(0)
+    await expect(page.locator('.home-hero picture img')).toHaveCount(1)
+
+    const portal = page.locator('.closing-portal-section')
+    await portal.scrollIntoViewIfNeeded()
+    await page.waitForTimeout(700)
+    await expect(portal.locator('video')).toHaveCount(0)
+    await expect(portal.locator('.closing-portal-poster')).toHaveCount(1)
+  })
+
   test('uses one dark Stories canvas, no video background, and a static reduced-motion frame', async ({ page }) => {
     test.setTimeout(45_000)
     await page.emulateMedia({ reducedMotion: 'no-preference' })

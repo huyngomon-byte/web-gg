@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { getHomepageVideoDeliveryWidth, retargetCloudinaryVideoWidth } from '../lib/cloudinaryVideo'
 
 export type HeroVideoSources = {
@@ -21,8 +21,74 @@ type ActiveSources = {
 
 function prefersStaticHero() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return true
+  if (window.matchMedia('(prefers-reduced-data: reduce)').matches) return true
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
   return connection?.saveData === true
+}
+
+function HeroPosterPicture({
+  sources,
+  imageClassName,
+}: {
+  sources: HeroVideoSources
+  imageClassName: string
+}) {
+  if (!sources.poster && !sources.mobilePoster) return null
+
+  return (
+    <picture>
+      {sources.mobilePoster && (
+        <source
+          media="(max-width: 767px)"
+          srcSet={sources.mobilePosterSrcSet || sources.mobilePoster}
+          sizes="100vw"
+        />
+      )}
+      <img
+        src={sources.poster || sources.mobilePoster}
+        srcSet={sources.posterSrcSet}
+        sizes="100vw"
+        alt=""
+        className={imageClassName}
+      />
+    </picture>
+  )
+}
+
+/**
+ * A static, flipped continuation of the hero poster for the first content
+ * zone. It deliberately reuses the poster rather than mounting a second
+ * video, and therefore remains safe for reduced motion, Data Saver and weak
+ * devices. Position and height belong to the consuming transition zone.
+ */
+export function HeroPosterReflection({
+  sources,
+  className = '',
+  style,
+}: {
+  sources: HeroVideoSources
+  className?: string
+  style?: CSSProperties
+}) {
+  if (!sources.poster && !sources.mobilePoster) return null
+
+  return (
+    <div
+      aria-hidden="true"
+      className={`hero-poster-reflection pointer-events-none relative overflow-hidden ${className}`.trim()}
+      style={{
+        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.58), rgba(0,0,0,0.2) 48%, transparent 100%)',
+        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.58), rgba(0,0,0,0.2) 48%, transparent 100%)',
+        ...style,
+      }}
+    >
+      <HeroPosterPicture
+        sources={sources}
+        imageClassName="hero-poster-reflection__image absolute inset-0 h-full w-full scale-y-[-1] object-cover object-[center_82%] opacity-30 blur-[2px] saturate-[.75]"
+      />
+      <span className="hero-poster-reflection__veil absolute inset-0 bg-gradient-to-b from-[#5a2c47]/15 via-[#301225]/50 to-transparent" />
+    </div>
+  )
 }
 
 // Spec section 5: video lives only inside the hero frame, object-fit cover,
@@ -92,22 +158,10 @@ export function HeroBackgroundVideo({ sources }: { sources: HeroVideoSources }) 
       {(sources.poster || sources.mobilePoster) && (
         // Poster paints immediately (SSR) and is the permanent fallback for
         // reduced-motion / Data Saver, where the <video> never mounts.
-        <picture>
-          {sources.mobilePoster && (
-            <source
-              media="(max-width: 767px)"
-              srcSet={sources.mobilePosterSrcSet || sources.mobilePoster}
-              sizes="100vw"
-            />
-          )}
-          <img
-            src={sources.poster || sources.mobilePoster}
-            srcSet={sources.posterSrcSet}
-            sizes="100vw"
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover [object-position:center_65%]"
-          />
-        </picture>
+        <HeroPosterPicture
+          sources={sources}
+          imageClassName="absolute inset-0 h-full w-full object-cover [object-position:center_65%]"
+        />
       )}
       {active && (
         <video

@@ -163,3 +163,58 @@ test.describe('Homepage one-shot package reveal', () => {
     await expect(page.getByTestId('package-card')).toHaveCount(3)
   })
 })
+
+test.describe('Threads-style Red Flags reveal direction', () => {
+  test('keeps the thread layout and reverses its reveal rhythm when entered from below', async ({ page }) => {
+    test.setTimeout(60_000)
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForIntroToFinish(page)
+
+    const stage = page.getByTestId('red-flags-stage')
+    await expect(stage.getByTestId('red-flags-feed')).toHaveCount(1)
+    await expect(stage.locator('.thread-line')).toHaveCount(1)
+
+    // Arm the scene well above the viewport first, then enter while scrolling
+    // downward. This avoids an observer/startup race under a fully parallel run.
+    await page.evaluate((testId) => {
+      const section = document.querySelector<HTMLElement>(`[data-testid="${testId}"]`)
+      if (!section) return
+      window.scrollTo(0, Math.max(0, section.offsetTop - window.innerHeight * 1.25))
+    }, 'red-flags-stage')
+    await waitForTwoFrames(page)
+    await page.evaluate((testId) => {
+      const section = document.querySelector<HTMLElement>(`[data-testid="${testId}"]`)
+      if (!section) return
+      window.scrollTo(0, section.offsetTop - window.innerHeight * 0.28)
+    }, 'red-flags-stage')
+    await expect(stage).toHaveAttribute('data-reveal-direction', 'down', { timeout: 10_000 })
+    const down = await sceneSnapshot(stage)
+    const downRoot = down.steps.find((step) => step.testId === 'red-flags-root-post')
+    const downReplies = down.steps.filter((step) => step.testId === 'red-flag-reply')
+    expect(downRoot).toBeDefined()
+    expect(downReplies.length).toBeGreaterThan(2)
+    expect(downRoot!.order).toBeLessThan(downReplies.at(-1)!.order)
+
+    await page.evaluate((testId) => {
+      const section = document.querySelector<HTMLElement>(`[data-testid="${testId}"]`)
+      if (!section) return
+      window.scrollTo(0, section.offsetTop + section.offsetHeight + window.innerHeight)
+    }, 'red-flags-stage')
+    await waitForTwoFrames(page)
+    await expect(stage).not.toHaveAttribute('data-reveal-played', 'true')
+
+    await page.evaluate((testId) => {
+      const section = document.querySelector<HTMLElement>(`[data-testid="${testId}"]`)
+      if (!section) return
+      window.scrollTo(0, section.offsetTop + section.offsetHeight - window.innerHeight * 0.18)
+    }, 'red-flags-stage')
+    await expect(stage).toHaveAttribute('data-reveal-direction', 'up')
+    const up = await sceneSnapshot(stage)
+    const upRoot = up.steps.find((step) => step.testId === 'red-flags-root-post')
+    const upReplies = up.steps.filter((step) => step.testId === 'red-flag-reply')
+    expect(upRoot).toBeDefined()
+    expect(upRoot!.order).toBeGreaterThan(upReplies.at(-1)!.order)
+  })
+})

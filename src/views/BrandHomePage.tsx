@@ -84,6 +84,12 @@ function highlightPackageTerms(text: string): ReactNode[] {
   })
 }
 
+function cssBackgroundUrl(value?: string) {
+  const url = value?.trim()
+  if (!url) return 'none'
+  return `url("${url.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`
+}
+
 function isCloudinaryVideo(url: string | undefined) {
   return Boolean(url?.includes('res.cloudinary.com/') && url.includes(cloudinaryVideoUploadMarker))
 }
@@ -828,7 +834,19 @@ function CaseStudyPreviewPopover({ story, lang }: { story: CaseStudy; lang: Bran
   )
 }
 
-function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { stories: CaseStudy[]; lang: BrandLang; block?: CmsBlock | null; openingBaseMs?: number }) {
+function CaseStudyShowcase({
+  stories,
+  lang,
+  block,
+  openingBaseMs = 0,
+  heroReflection,
+}: {
+  stories: CaseStudy[]
+  lang: BrandLang
+  block?: CmsBlock | null
+  openingBaseMs?: number
+  heroReflection?: Pick<HeroVideoSources, 'poster' | 'mobilePoster'>
+}) {
   const railRef = useRef<HTMLDivElement | null>(null)
   const showcaseStories = useMemo(() => getHomepageCaseStudies(stories), [stories])
   const [bannerIndex, setBannerIndex] = useState(0)
@@ -956,13 +974,18 @@ function CaseStudyShowcase({ stories, lang, block, openingBaseMs = 0 }: { storie
       id="featured-cases"
       data-reveal-scene
       data-home-tone="light"
-      className="home-tone-zone home-section-pad home-section-pad--featured relative overflow-hidden px-5 lg:px-10"
+      className="home-tone-zone home-section-pad home-section-pad--featured featured-continuation relative overflow-hidden px-5 lg:px-10"
+      style={{
+        '--hero-reflection-desktop': cssBackgroundUrl(heroReflection?.poster || heroReflection?.mobilePoster),
+        '--hero-reflection-mobile': cssBackgroundUrl(heroReflection?.mobilePoster || heroReflection?.poster),
+      } as CSSProperties}
       onMouseLeave={closePreviewSoon}
       onPointerDown={() => pauseAuto(12000)}
     >
       {/* Round 7 A2.1: warm bridge from the video's bottom tone into the shared wave background */}
       <div
         aria-hidden="true"
+        data-testid="hero-transition"
         className="featured-top-bridge pointer-events-none absolute inset-x-0 top-0 h-[180px]"
       />
       <div className="relative mx-auto max-w-6xl">
@@ -1257,6 +1280,7 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
     <section
       data-reveal-scene
       data-home-tone="rose"
+      data-reveal-step-ms="84"
       data-testid="red-flags-stage"
       className="red-flags-stage home-tone-zone home-section-pad px-5 lg:px-10"
     >
@@ -1287,10 +1311,10 @@ function RedFlagsSection({ block }: { block?: ReturnType<typeof getCmsBlock> }) 
           </div>
         </div>
 
-        <div className="red-flags-feed glass-panel quiet-zone relative w-full p-5 md:p-6">
+        <div data-testid="red-flags-feed" className="red-flags-feed glass-panel quiet-zone relative w-full p-5 md:p-6">
           <div className="thread-line" aria-hidden="true" />
 
-          <article data-reveal="tile-in" data-reveal-phase="1" data-tile-direction="bottom" style={{ '--ri': 0, '--rd': `${headingRevealDelay}ms` } as CSSProperties} className="relative grid grid-cols-[40px_1fr] gap-3">
+          <article data-testid="red-flags-root-post" data-reveal="tile-in" data-reveal-phase="1" data-tile-direction="bottom" style={{ '--ri': 0, '--rd': `${headingRevealDelay}ms` } as CSSProperties} className="relative grid grid-cols-[40px_1fr] gap-3">
             <img src="/avatars/logo-gg.png" alt="" aria-hidden="true" className="relative z-10 h-10 w-10 rounded-full border border-white/80 bg-white object-contain p-1 shadow-sm" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -1819,13 +1843,22 @@ function ClosingBanner({
   const line1 = block.closingLine1?.trim() || 'We quit our 9-5 and started our own business.'
   const line2 = block.closingLine2?.trim() || "Isn't it your turn now?"
   const prefooterLine = block.ctaSubtext?.trim() || 'See you on our first date?'
+  const portalBridgeStyle = {
+    '--closing-portal-poster': cssBackgroundUrl(portalSources.poster || portalSources.mobilePoster),
+    '--closing-portal-poster-mobile': cssBackgroundUrl(portalSources.mobilePoster || portalSources.poster),
+  } as CSSProperties
   // Round 7 A5: no solid gradient background and no logo marquee — glass items float
   // directly on the shared aurora + wave background.
   return (
     <>
-      <section data-reveal-scene data-home-tone="night" className="home-tone-zone closing-section home-section-pad px-5 lg:px-10">
+      <section
+        data-reveal-scene
+        data-home-tone="night"
+        className={`home-tone-zone closing-section home-section-pad px-5 lg:px-10${hasPortalVideo ? ' closing-section--portal-connected' : ''}`}
+        style={portalBridgeStyle}
+      >
         <div
-          className="closing-content quiet-zone quiet-zone--faq relative mx-auto w-full max-w-[880px]"
+          className="closing-content quiet-zone quiet-zone--faq relative mx-auto w-full max-w-[1080px]"
           data-reveal="closing-content"
           data-reveal-phase="0"
           style={{
@@ -1889,9 +1922,10 @@ function ClosingBanner({
             </div>
           )}
         </div>
+        {hasPortalVideo && <div className="closing-portal-bridge" data-testid="faq-portal-bridge" aria-hidden="true" />}
       </section>
       {hasPortalVideo && (
-        <section className="closing-portal-section" data-reveal-scene data-home-tone="night">
+        <section className="closing-portal-section closing-portal-section--connected" data-reveal-scene data-home-tone="night">
           <div className="closing-portal-media-stage" data-reveal="closing-portal" data-reveal-phase="0">
             <ClosingPortalVideo sources={portalSources} />
             <div className="closing-portal-scrim" aria-hidden="true" />
@@ -1939,7 +1973,9 @@ export default function BrandHomePage({
   const homeMeta = getLocalizedPageMeta(cmsPage, lang, homeMetaByLang[lang])
   const heroBlock = getLocalizedCmsBlock(cmsPage, 'hero', lang)
   const showcaseBlock = getLocalizedCmsBlock(cmsPage, 'what-is', lang)
+  const rawPackagesBlock = getCmsBlock(cmsPage, 'packages')
   const packagesBlock = getLocalizedCmsBlock(cmsPage, 'packages', lang)
+  const packagesLocaleExtras = lang === 'vi' ? undefined : rawPackagesBlock?.locales?.[lang]
   const redFlagsBlock = getLocalizedCmsBlock(cmsPage, 'red-flags', lang)
   const peopleBlock = getLocalizedCmsBlock(cmsPage, 'people', lang)
   const closingBlock = getLocalizedCmsBlock(cmsPage, 'closing', lang)
@@ -1981,6 +2017,43 @@ export default function BrandHomePage({
       icon: ['Rocket', 'Workflow', 'TrendingUp'][index],
       href: item.href,
     }))
+  const configuredPackageProcessSteps = (
+    lang === 'vi' ? packagesBlock?.packageProcessSteps : packagesLocaleExtras?.packageProcessSteps
+  )?.filter((step) => step.title.trim() || step.body.trim()) ?? []
+  const packageProcessSteps = configuredPackageProcessSteps.length > 0
+    ? configuredPackageProcessSteps
+    : lang === 'vi'
+      ? [
+          { title: 'Khám phá & chốt phạm vi', body: 'Cùng làm rõ mục tiêu, hiện trạng và gói phù hợp trước khi bắt đầu.' },
+          { title: 'Thiết lập hệ thống', body: 'Chốt workflow, quyền truy cập, người phụ trách và nhịp phối hợp.' },
+          { title: 'Vận hành & cải thiện', body: 'Triển khai, đo lường và tối ưu theo nhịp làm việc hàng tháng.' },
+        ]
+      : [
+          { title: 'Discover & scope', body: 'Align on goals, current setup and the right package before work begins.' },
+          { title: 'Set up the system', body: 'Define workflows, access, ownership and the working cadence.' },
+          { title: 'Operate & improve', body: 'Execute, measure and optimize through a monthly operating loop.' },
+        ]
+  const packageRecommendation = {
+    eyebrow: lang === 'vi' ? 'CHỌN ĐÚNG TRƯỚC KHI BẮT ĐẦU' : 'CHOOSE WITH CONFIDENCE',
+    title: (lang === 'vi' ? packagesBlock?.packageRecommendationTitle : packagesLocaleExtras?.packageRecommendationTitle)?.trim()
+      || (lang === 'vi' ? 'Chưa chắc gói nào phù hợp?' : 'Not sure which package fits?'),
+    body: (lang === 'vi' ? packagesBlock?.packageRecommendationBody : packagesLocaleExtras?.packageRecommendationBody)?.trim() || (lang === 'vi'
+      ? 'Chia sẻ mục tiêu và hiện trạng; The One sẽ đề xuất gói theo đúng phạm vi thực tế.'
+      : 'Share your goals and current setup; The One will recommend a package based on the real scope.'),
+    cta: (lang === 'vi' ? packagesBlock?.packageRecommendationCta : packagesLocaleExtras?.packageRecommendationCta)?.trim()
+      || (lang === 'vi' ? 'Nhận đề xuất gói' : 'Get a package recommendation'),
+    proof: lang === 'vi' ? 'Chốt phạm vi trước, chọn gói sau.' : 'Scope first. Package second.',
+    stories: lang === 'vi' ? 'Xem kết quả thực tế' : 'See real package outcomes',
+  }
+  const packageTermsCopy = lang === 'vi'
+    ? {
+        title: 'Điều khoản quan trọng',
+        hint: 'Phạm vi, cam kết và kỳ vọng hiệu quả được trình bày minh bạch.',
+      }
+    : {
+        title: 'Important package terms',
+        hint: 'Transparent scope, commitments and performance expectations.',
+      }
 
   useEffect(() => {
     if (reducedMotion) {
@@ -2026,13 +2099,14 @@ export default function BrandHomePage({
     <BrandLayout
       lang={lang}
       siteSettings={siteSettings}
+      atmosphereLayer={flowWaveActive ? <FlowWaveBackground settings={homeBackground} /> : undefined}
       flushTop
       transparentBackground={flowWaveActive}
+      chromeTone="dark"
       floatingCtaRevealSelector="[data-floating-cta-threshold='hero']"
       resolveNavHref={(href, label) => (href === '/#packages' || label.toLowerCase().includes('packages') ? '#packages' : href)}
     >
       <SeoHead meta={homeMeta} schema={homeSchemas} lang={lang} />
-      {flowWaveActive && <FlowWaveBackground settings={homeBackground} />}
 
       <section
         data-reveal-scene
@@ -2044,13 +2118,13 @@ export default function BrandHomePage({
       >
         {!heroHasVideo && <StaticHeroBackground block={heroBlock} />}
         {heroHasVideo && <HeroBackgroundVideo sources={heroVideoSources} />}
+        {heroHasVideo && <div className="home-hero-wine-scrim pointer-events-none absolute inset-0" aria-hidden="true" />}
         {heroHasVideo && (
           // Round 7 A1.5: soft radial scrim right behind the text cluster only —
           // the sub-line sits on the brightest part of the sky.
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute left-1/2 top-[6%] h-[58%] w-[min(980px,96vw)] -translate-x-1/2"
-            style={{ background: 'radial-gradient(closest-side, rgba(40,10,25,0.34), transparent 100%)' }}
+            className="home-hero-copy-scrim pointer-events-none absolute left-1/2 top-[6%] h-[58%] w-[min(980px,96vw)] -translate-x-1/2"
           />
         )}
         {heroHasOwnBackground && (
@@ -2158,7 +2232,13 @@ export default function BrandHomePage({
         </button>
       </section>
 
-      <CaseStudyShowcase stories={storyTargets} lang={lang} block={showcaseBlock} openingBaseMs={heroDelays.cta + 200} />
+      <CaseStudyShowcase
+        stories={storyTargets}
+        lang={lang}
+        block={showcaseBlock}
+        openingBaseMs={heroDelays.cta + 200}
+        heroReflection={heroVideoSources}
+      />
       <RedFlagsSection block={redFlagsBlock} />
 
       <section
@@ -2166,7 +2246,7 @@ export default function BrandHomePage({
         data-reveal-scene
         data-reveal-once
         data-reveal-step-ms="100"
-        data-home-tone="dark"
+        data-home-tone="mid"
         className="packages-section home-tone-zone"
       >
         <div className="packages-section-inner mx-auto">
@@ -2183,21 +2263,79 @@ export default function BrandHomePage({
           <div style={{ '--rd': `${packagesHeaderDelay + 260}ms` } as CSSProperties}>
             <PackageCards items={packageItems} lang={lang} layout={packagesBlock?.layout === 'cards' ? 'cards' : 'horizontal'} />
           </div>
-          {(packagesBlock?.packagesNote?.trim() || packagesBlock?.pricingNote?.trim() || packagesBlock?.disclaimer?.trim()) && (
-            <aside
-              role="note"
-              aria-labelledby="package-terms-title"
+          {packageProcessSteps.length > 0 && (
+            <section
+              className="package-process pkg-rv"
+              data-testid="package-process"
               data-reveal="soft"
               data-reveal-phase="3"
-              style={{ '--rd': `${packagesHeaderDelay + 540}ms` } as CSSProperties}
-              className="package-terms-note quiet-zone mx-auto mt-8 flex max-w-[820px] items-start gap-3.5 rounded-[18px] px-5 py-5 md:px-6"
+              aria-labelledby="package-process-title"
             >
-              <span className="package-terms-icon" aria-hidden="true">
-                <Info size={17} strokeWidth={2.5} />
-              </span>
-              <div className="min-w-0 text-left">
-                <h3 id="package-terms-title" className="package-terms-title">Important package terms</h3>
-                <div className="package-terms-copy mt-2 grid gap-2">
+              <header className="package-process-header">
+                <p>{lang === 'vi' ? 'CÁCH CHÚNG TA BẮT ĐẦU' : 'HOW WE START'}</p>
+                <h3 id="package-process-title">{lang === 'vi' ? 'Một nhịp vận hành rõ ràng' : 'A clear operating rhythm'}</h3>
+              </header>
+              <ol className="package-process-list">
+                {packageProcessSteps.slice(0, 4).map((step, index) => (
+                  <li key={`${step.title}-${index}`} className="package-process-step">
+                    <span className="package-process-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="package-process-copy">
+                      <strong>{step.title}</strong>
+                      {step.body && <span>{step.body}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+          <aside
+            className="package-recommendation pkg-rv"
+            data-testid="package-recommendation"
+            data-reveal="soft"
+            data-reveal-phase="3"
+            aria-labelledby="package-recommendation-title"
+          >
+            <div className="package-recommendation-copy">
+              <p className="package-recommendation-eyebrow">{packageRecommendation.eyebrow}</p>
+              <h3 id="package-recommendation-title">{packageRecommendation.title}</h3>
+              <p>{packageRecommendation.body}</p>
+              <span className="package-recommendation-proof">{packageRecommendation.proof}</span>
+            </div>
+            <div className="package-recommendation-actions">
+              <button
+                type="button"
+                className="package-recommendation-cta"
+                onClick={() => openBookingModal('package-recommendation')}
+              >
+                {packageRecommendation.cta}
+                <ArrowUpRight size={17} aria-hidden="true" />
+              </button>
+              <a className="package-recommendation-link" href={localizedPath(lang, '/the-one')}>
+                {packageRecommendation.stories}
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </a>
+            </div>
+          </aside>
+          {(packagesBlock?.packagesNote?.trim() || packagesBlock?.pricingNote?.trim() || packagesBlock?.disclaimer?.trim()) && (
+            <details
+              data-reveal="soft"
+              data-reveal-phase="3"
+              data-testid="package-terms-disclosure"
+              style={{ '--rd': `${packagesHeaderDelay + 540}ms` } as CSSProperties}
+              className="package-terms-note quiet-zone mx-auto mt-8 max-w-[900px] rounded-[18px]"
+            >
+              <summary className="package-terms-summary">
+                <span className="package-terms-icon" aria-hidden="true">
+                  <Info size={17} strokeWidth={2.5} />
+                </span>
+                <span className="min-w-0 flex-1 text-left">
+                  <span id="package-terms-title" className="package-terms-title block">{packageTermsCopy.title}</span>
+                  <span className="package-terms-hint">{packageTermsCopy.hint}</span>
+                </span>
+                <ChevronDown className="package-terms-chevron" size={18} strokeWidth={2.5} aria-hidden="true" />
+              </summary>
+              <div className="package-terms-panel" role="note" aria-labelledby="package-terms-title">
+                <div className="package-terms-copy grid gap-2">
                   {splitCmsParagraphs(
                     packagesBlock.packagesNote?.trim() ||
                     [packagesBlock.pricingNote?.trim(), packagesBlock.disclaimer?.trim()].filter(Boolean).join('\n'),
@@ -2206,7 +2344,7 @@ export default function BrandHomePage({
                   ))}
                 </div>
               </div>
-            </aside>
+            </details>
           )}
         </div>
       </section>

@@ -31,7 +31,7 @@ async function packageCardBoxes(page: Page) {
       top: rect.top,
       width: rect.width,
     }
-  }))
+  }).filter(({ width }) => width > 0))
 }
 
 test.describe('responsive UI matrix', () => {
@@ -64,16 +64,12 @@ test.describe('responsive UI matrix', () => {
     await expect(packageCards).toHaveCount(3)
     await expect(page.locator('[data-testid="package-card"][data-featured="true"]')).toHaveAttribute('data-package-tone', 'system')
     await expect(page.getByTestId('package-cta')).toHaveCount(3)
-    await expect(page.getByTestId('package-comparison-toggle')).toHaveCount(3)
-    for (let index = 0; index < 3; index += 1) {
-      await expect(page.getByTestId('package-cta').nth(index)).toBeVisible()
-      await expect(page.getByTestId('package-comparison-toggle').nth(index)).toBeVisible()
-    }
-
-    const visualOrder = (await packageCardBoxes(page))
-      .sort((left, right) => left.top - right.top)
-      .map(({ tone }) => tone)
-    expect(visualOrder).toEqual(['system', 'start', 'scale'])
+    await expect(page.getByTestId('package-cta').filter({ visible: true })).toHaveCount(1)
+    await expect(page.getByTestId('package-tier-selector')).toBeVisible()
+    await expect(page.getByTestId('package-tier-selector').getByRole('button')).toHaveCount(3)
+    await expect(page.getByTestId('package-compare-all')).toBeVisible()
+    await expect(page.getByTestId('package-comparison-toggle')).toHaveCount(0)
+    expect((await packageCardBoxes(page)).map(({ tone }) => tone)).toEqual(['system'])
 
     const redFlagReplies = page.getByTestId('red-flag-reply')
     expect(await redFlagReplies.count()).toBeGreaterThan(3)
@@ -85,16 +81,13 @@ test.describe('responsive UI matrix', () => {
     expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll)
   })
 
-  test('uses three columns from 900px and a System-first stack below 900px', async ({ page }) => {
+  test('uses three columns from 1024px and one System detail panel below 1024px', async ({ page }) => {
     test.setTimeout(90_000)
 
-    for (const width of [1024, 1023, 900, 899, 768, 767, 390]) {
-      await openAt(page, '/#packages', width, width < 900 ? 844 : 900)
+    for (const width of [1280, 1024, 1023, 900, 768, 767, 390]) {
+      await openAt(page, '/#packages', width, width < 1024 ? 844 : 900)
       await expect(page.getByTestId('package-grid')).toBeVisible()
-      await expect(page.getByTestId('package-grid')).toHaveAttribute(
-        'data-mobile-order',
-        width < 900 ? 'system-first' : 'standard',
-      )
+      await expect(page.getByTestId('package-grid')).toHaveAttribute('data-mobile-order', 'single-active')
       await expect(page.getByTestId('package-card')).toHaveCount(3)
       await expectNoPageOverflow(page, width)
 
@@ -103,23 +96,17 @@ test.describe('responsive UI matrix', () => {
         left >= -1 && right <= width + 1 && cardWidth > 0
       ))).toBe(true)
 
-      if (width >= 900) {
+      if (width >= 1024) {
         const byTone = Object.fromEntries(boxes.map((box) => [box.tone, box]))
         expect(byTone.start.left).toBeLessThan(byTone.system.left)
         expect(byTone.system.left).toBeLessThan(byTone.scale.left)
         expect(Math.max(...boxes.map(({ top }) => top)) - Math.min(...boxes.map(({ top }) => top))).toBeLessThanOrEqual(48)
         expect(boxes.every(({ width: cardWidth }) => cardWidth < width / 2)).toBe(true)
       } else {
-        const byVisualPosition = [...boxes].sort((left, right) => left.top - right.top)
-        expect(byVisualPosition.map(({ tone }) => tone)).toEqual(['system', 'start', 'scale'])
-        expect(Math.max(...boxes.map(({ left }) => left)) - Math.min(...boxes.map(({ left }) => left))).toBeLessThanOrEqual(2)
+        expect(boxes.map(({ tone }) => tone)).toEqual(['system'])
         expect(boxes.every(({ width: cardWidth }) => cardWidth >= width - 48)).toBe(true)
-        for (let index = 1; index < byVisualPosition.length; index += 1) {
-          expect(byVisualPosition[index].top).toBeGreaterThanOrEqual(byVisualPosition[index - 1].bottom - 1)
-        }
-
-        const ctas = page.getByTestId('package-cta')
-        for (let index = 0; index < 3; index += 1) await expect(ctas.nth(index)).toBeVisible()
+        await expect(page.getByTestId('package-cta').filter({ visible: true })).toHaveCount(1)
+        await expect(page.getByTestId('package-tier-selector')).toBeVisible()
       }
     }
   })

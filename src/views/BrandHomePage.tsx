@@ -6,8 +6,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Heart,
-  Info,
   MessageCircle,
   Repeat2,
   Send,
@@ -70,6 +70,21 @@ const packageTermsHighlights = [
   'is not a representative of Meta, TikTok, Google or Shopee',
 ] as const
 
+const packageTermSummariesByLang: Record<BrandLang, Array<{ label: string; text: string }>> = {
+  en: [
+    { label: 'Pricing', text: 'Transparent, with no hidden fees.' },
+    { label: 'Commitment', text: 'Quarterly; continue only when the fit is right.' },
+    { label: 'Ownership', text: 'Your data and accounts remain yours.' },
+    { label: 'Performance', text: 'Revenue is never guaranteed.' },
+  ],
+  vi: [
+    { label: 'Giá', text: 'Minh bạch, không phí ẩn.' },
+    { label: 'Cam kết', text: 'Theo quý; tiếp tục khi hai bên phù hợp.' },
+    { label: 'Sở hữu', text: 'Dữ liệu và tài khoản luôn thuộc về bạn.' },
+    { label: 'Hiệu quả', text: 'The One không cam kết doanh thu.' },
+  ],
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -82,6 +97,66 @@ function highlightPackageTerms(text: string): ReactNode[] {
       ? <strong key={`${part}-${index}`} className="package-terms-emphasis">{part}</strong>
       : part
   })
+}
+
+function highlightFirstPhrase(text: string, phrases: string[], className: string): ReactNode {
+  const normalized = text.toLocaleLowerCase()
+  const match = phrases
+    .map((phrase) => ({ phrase, index: normalized.indexOf(phrase.toLocaleLowerCase()) }))
+    .filter(({ index }) => index >= 0)
+    .sort((left, right) => left.index - right.index)[0]
+
+  if (!match) return text
+  const matchedText = text.slice(match.index, match.index + match.phrase.length)
+  return (
+    <>
+      {text.slice(0, match.index)}
+      <mark className={className}>{matchedText}</mark>
+      {text.slice(match.index + match.phrase.length)}
+    </>
+  )
+}
+
+function highlightPackageProcessBody(text: string, index: number, lang: BrandLang) {
+  const phrases = lang === 'vi'
+    ? [
+        ['mục tiêu', 'gói phù hợp'],
+        ['workflow', 'nhịp phối hợp'],
+        ['hàng tháng', 'tối ưu'],
+      ]
+    : [
+        ['goals', 'right package'],
+        ['workflows', 'working cadence'],
+        ['monthly rhythm', 'optimize'],
+      ]
+  return highlightFirstPhrase(text, phrases[index] ?? phrases[phrases.length - 1], 'package-process-highlight')
+}
+
+function highlightPackageRecommendation(text: string, lang: BrandLang) {
+  return highlightFirstPhrase(
+    text,
+    lang === 'vi' ? ['đề xuất gói phù hợp', 'đề xuất gói'] : ['recommend a package', 'right package'],
+    'package-recommendation-highlight',
+  )
+}
+
+function ZoneBridge({
+  boundary,
+  tone = 'base',
+  testId,
+}: {
+  boundary: string
+  tone?: 'base' | 'hero' | 'portal'
+  testId?: string
+}) {
+  return (
+    <div
+      className={`zone-bridge zone-bridge--${tone}`}
+      data-zone-boundary={boundary}
+      data-testid={testId}
+      aria-hidden="true"
+    />
+  )
 }
 
 function cssBackgroundUrl(value?: string) {
@@ -1587,11 +1662,12 @@ function PeopleSection({ block, showClosingLines = true }: { block?: ReturnType<
     <section
       data-reveal-scene
       data-home-tone="dark"
-      className="home-tone-zone home-section-pad px-5 lg:px-10"
+      data-testid="people-section"
+      className="people-section home-tone-zone home-section-pad px-5 lg:px-10"
       onMouseLeave={closeMemberPreviewSoon}
       onPointerDown={() => pauseAuto(12000)}
     >
-      <div className="mx-auto max-w-6xl">
+      <div className="people-section-content mx-auto max-w-6xl" data-section-content="people">
         {/* Round 12 A5: the CMS body ("Teamwork makes the dream work.") renders as an editorial pull-quote */}
         <SectionHeader
           title={peopleTitle}
@@ -1922,8 +1998,9 @@ function ClosingBanner({
             </div>
           )}
         </div>
-        {hasPortalVideo && <div className="closing-portal-bridge" data-testid="faq-portal-bridge" aria-hidden="true" />}
+        {hasPortalVideo && <div className="closing-portal-bridge" aria-hidden="true" />}
       </section>
+      {hasPortalVideo && <ZoneBridge boundary="faq-portal" tone="portal" testId="faq-portal-bridge" />}
       {hasPortalVideo && (
         <section className="closing-portal-section closing-portal-section--connected" data-reveal-scene data-home-tone="night">
           <div className="closing-portal-media-stage" data-reveal="closing-portal" data-reveal-phase="0">
@@ -2006,7 +2083,6 @@ export default function BrandHomePage({
   const closingPortalSources = getClosingPortalSources(closingBlock)
   const closingHasPortal = hasVideoSource(closingPortalSources)
   const packagesTitle = packagesBlock?.heading || 'The One Packages'
-  const packagesHeaderDelay = countStaggerWords(packagesTitle) * 70 + 240
   const closingFaqItems = getHomeClosingFaqItems(cmsPage, lang)
   const homeSchemas = [organizationSchema, websiteSchema, homeWebPageSchema, buildHomeFaqSchema(cmsPage, lang)].filter(Boolean)
   const packageItems: CmsBlockItem[] = packagesBlock?.items?.length
@@ -2232,6 +2308,7 @@ export default function BrandHomePage({
         </button>
       </section>
 
+      <ZoneBridge boundary="hero-featured" tone="hero" />
       <CaseStudyShowcase
         stories={storyTargets}
         lang={lang}
@@ -2239,13 +2316,15 @@ export default function BrandHomePage({
         openingBaseMs={heroDelays.cta + 200}
         heroReflection={heroVideoSources}
       />
+      <ZoneBridge boundary="featured-red-flags" />
       <RedFlagsSection block={redFlagsBlock} />
+      <ZoneBridge boundary="red-flags-packages" />
 
       <section
         id="packages"
         data-reveal-scene
         data-reveal-once
-        data-reveal-step-ms="100"
+        data-reveal-step-ms="50"
         data-home-tone="mid"
         className="packages-section home-tone-zone"
       >
@@ -2260,7 +2339,7 @@ export default function BrandHomePage({
             className="packages-section-header"
             titleClassName="packages-section-title"
           />
-          <div style={{ '--rd': `${packagesHeaderDelay + 260}ms` } as CSSProperties}>
+          <div>
             <PackageCards items={packageItems} lang={lang} layout={packagesBlock?.layout === 'cards' ? 'cards' : 'horizontal'} />
           </div>
           {packageProcessSteps.length > 0 && (
@@ -2269,6 +2348,7 @@ export default function BrandHomePage({
               data-testid="package-process"
               data-reveal="soft"
               data-reveal-phase="3"
+              data-highlight-tone="magenta"
               aria-labelledby="package-process-title"
             >
               <header className="package-process-header">
@@ -2281,7 +2361,7 @@ export default function BrandHomePage({
                     <span className="package-process-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
                     <span className="package-process-copy">
                       <strong>{step.title}</strong>
-                      {step.body && <span>{step.body}</span>}
+                      {step.body && <span>{highlightPackageProcessBody(step.body, index, lang)}</span>}
                     </span>
                   </li>
                 ))}
@@ -2293,12 +2373,13 @@ export default function BrandHomePage({
             data-testid="package-recommendation"
             data-reveal="soft"
             data-reveal-phase="3"
+            data-highlight-tone="magenta"
             aria-labelledby="package-recommendation-title"
           >
             <div className="package-recommendation-copy">
               <p className="package-recommendation-eyebrow">{packageRecommendation.eyebrow}</p>
               <h3 id="package-recommendation-title">{packageRecommendation.title}</h3>
-              <p>{packageRecommendation.body}</p>
+              <p>{highlightPackageRecommendation(packageRecommendation.body, lang)}</p>
               <span className="package-recommendation-proof">{packageRecommendation.proof}</span>
             </div>
             <div className="package-recommendation-actions">
@@ -2317,39 +2398,56 @@ export default function BrandHomePage({
             </div>
           </aside>
           {(packagesBlock?.packagesNote?.trim() || packagesBlock?.pricingNote?.trim() || packagesBlock?.disclaimer?.trim()) && (
-            <details
+            <aside
               data-reveal="soft"
               data-reveal-phase="3"
-              data-testid="package-terms-disclosure"
-              style={{ '--rd': `${packagesHeaderDelay + 540}ms` } as CSSProperties}
+              data-testid="package-terms-block"
+              data-highlight-tone="gold"
               className="package-terms-note quiet-zone mx-auto mt-8 max-w-[900px] rounded-[18px]"
+              aria-labelledby="package-terms-title"
             >
-              <summary className="package-terms-summary">
+              <header className="package-terms-overview">
                 <span className="package-terms-icon" aria-hidden="true">
-                  <Info size={17} strokeWidth={2.5} />
+                  <ClipboardList size={18} strokeWidth={2.4} />
                 </span>
                 <span className="min-w-0 flex-1 text-left">
+                  <span className="package-terms-eyebrow">{lang === 'vi' ? 'ĐIỀU KHOẢN GÓI QUAN TRỌNG' : 'IMPORTANT PACKAGE TERMS'}</span>
                   <span id="package-terms-title" className="package-terms-title block">{packageTermsCopy.title}</span>
                   <span className="package-terms-hint">{packageTermsCopy.hint}</span>
                 </span>
-                <ChevronDown className="package-terms-chevron" size={18} strokeWidth={2.5} aria-hidden="true" />
-              </summary>
-              <div className="package-terms-panel" role="note" aria-labelledby="package-terms-title">
-                <div className="package-terms-copy grid gap-2">
-                  {splitCmsParagraphs(
-                    packagesBlock.packagesNote?.trim() ||
-                    [packagesBlock.pricingNote?.trim(), packagesBlock.disclaimer?.trim()].filter(Boolean).join('\n'),
-                  ).map((paragraph, index) => (
-                    <p key={`${paragraph}-${index}`}>{highlightPackageTerms(paragraph)}</p>
-                  ))}
+              </header>
+              <ul className="package-terms-highlights">
+                {packageTermSummariesByLang[lang].map((item) => (
+                  <li key={item.label}>
+                    <span className="package-term-key-pill">{item.label}</span>
+                    <span>{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <details className="package-terms-details" data-testid="package-terms-disclosure">
+                <summary className="package-terms-summary">
+                  <span>{lang === 'vi' ? 'Đọc đầy đủ điều khoản' : 'Read full terms'}</span>
+                  <ChevronDown className="package-terms-chevron" size={18} strokeWidth={2.5} aria-hidden="true" />
+                </summary>
+                <div className="package-terms-panel" role="note" aria-labelledby="package-terms-title">
+                  <div className="package-terms-copy grid gap-2">
+                    {splitCmsParagraphs(
+                      packagesBlock.packagesNote?.trim() ||
+                      [packagesBlock.pricingNote?.trim(), packagesBlock.disclaimer?.trim()].filter(Boolean).join('\n'),
+                    ).map((paragraph, index) => (
+                      <p key={`${paragraph}-${index}`}>{highlightPackageTerms(paragraph)}</p>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </details>
+              </details>
+            </aside>
           )}
         </div>
       </section>
 
+      <ZoneBridge boundary="packages-people" />
       <PeopleSection block={peopleBlock} showClosingLines={!closingHasPortal} />
+      <ZoneBridge boundary="people-faq" />
       <ClosingBanner block={closingBlock} stories={storyTargets} faqItems={closingFaqItems} />
     </BrandLayout>
   )

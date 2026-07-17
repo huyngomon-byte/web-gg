@@ -49,6 +49,46 @@ test('keeps Homepage seams soft and the Sounds Familiar stage media-free', async
   expect(packageBackground.color).toBe('rgba(0, 0, 0, 0)')
   expect(packageBackground.image).toContain('gradient')
 
+  const boundaries = [
+    'hero-featured',
+    'featured-red-flags',
+    'red-flags-packages',
+    'packages-people',
+    'people-faq',
+    'faq-portal',
+  ]
+  for (const boundary of boundaries) {
+    const bridge = page.locator(`[data-zone-boundary="${boundary}"]`)
+    await expect(bridge).toHaveCount(1)
+    await expect(bridge).toHaveAttribute('aria-hidden', 'true')
+    await expect(bridge).toHaveCSS('pointer-events', 'none')
+    await expect(bridge.locator('video, canvas, img')).toHaveCount(0)
+    const overlay = await bridge.evaluate((element) => {
+      const box = element.getBoundingClientRect()
+      const style = getComputedStyle(element, '::before')
+      const top = Number.parseFloat(style.top)
+      const height = Number.parseFloat(style.height)
+      return {
+        background: style.backgroundImage,
+        bottom: top + height,
+        layoutHeight: box.height,
+        top,
+      }
+    })
+    expect(overlay.layoutHeight).toBeLessThanOrEqual(1)
+    expect(overlay.top).toBeLessThan(0)
+    expect(overlay.bottom).toBeGreaterThan(0)
+    expect(overlay.background).toContain('linear-gradient')
+  }
+
+  const peopleBackground = await page.getByTestId('people-section').evaluate((element) => getComputedStyle(element).backgroundImage)
+  expect(peopleBackground).toContain('radial-gradient')
+
+  await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' })
+  const forcedColorBridges = await page.locator('[data-zone-boundary]').evaluateAll((bridges) => bridges.map((bridge) => getComputedStyle(bridge, '::before').backgroundImage))
+  expect(forcedColorBridges).toEqual(boundaries.map(() => 'none'))
+  await page.emulateMedia({ forcedColors: 'none', reducedMotion: 'reduce' })
+
   const faq = page.locator('.closing-section--portal-connected')
   const portal = page.locator('.closing-portal-section--connected')
   const faqBridge = page.getByTestId('faq-portal-bridge')
@@ -58,9 +98,11 @@ test('keeps Homepage seams soft and the Sounds Familiar stage media-free', async
     faq.evaluate((element) => element.getBoundingClientRect().bottom),
     portal.evaluate((element) => element.getBoundingClientRect().top),
     faqBridge.evaluate((element) => element.getBoundingClientRect().height),
+    faq.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom)),
   ])
   expect(Math.abs(seamGeometry[0] - seamGeometry[1])).toBeLessThanOrEqual(1)
-  expect(seamGeometry[2]).toBeGreaterThanOrEqual(180)
+  expect(seamGeometry[2]).toBeLessThanOrEqual(1)
+  expect(seamGeometry[3]).toBeLessThanOrEqual(112)
 
   const portalFadeHeight = await page.locator('.closing-portal-section').evaluate((element) => Number.parseFloat(getComputedStyle(element, '::after').height))
   expect(portalFadeHeight).toBeGreaterThan(120)

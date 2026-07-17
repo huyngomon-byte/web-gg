@@ -51,7 +51,8 @@ async function sceneSnapshot(sceneLocator: Locator): Promise<SceneSnapshot> {
 
 function expectValidSequence(snapshot: SceneSnapshot) {
   expect(snapshot.steps.length).toBeGreaterThan(5)
-  expect(snapshot.stepMs).toBe(100)
+  expect(snapshot.stepMs).toBeGreaterThanOrEqual(40)
+  expect(snapshot.stepMs).toBeLessThanOrEqual(60)
 
   const byOrder = [...snapshot.steps].sort((left, right) => left.order - right.order)
   expect(byOrder.map((step) => step.order)).toEqual(
@@ -99,8 +100,8 @@ test.describe('Homepage one-shot package reveal', () => {
     expect(downCards).toHaveLength(3)
     expect(downCards.map((step) => step.tone).sort()).toEqual(['scale', 'start', 'system'])
     const orderedCards = [...downCards].sort((left, right) => left.order - right.order)
-    expect(orderedCards[1].delayMs - orderedCards[0].delayMs).toBe(100)
-    expect(orderedCards[2].delayMs - orderedCards[1].delayMs).toBe(100)
+    expect(orderedCards[1].delayMs - orderedCards[0].delayMs).toBe(down.stepMs)
+    expect(orderedCards[2].delayMs - orderedCards[1].delayMs).toBe(down.stepMs)
     const downTitle = down.steps.find((step) => step.reveal === 'words' && step.text.includes('The One Packages'))
     expect(downTitle).toBeDefined()
     expect(downTitle!.order).toBeLessThan(Math.min(...downCards.map((step) => step.order)))

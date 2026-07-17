@@ -659,17 +659,38 @@ function PackageCompareAll({
   const groups = buildPackageComparisonGroups(cards, lang)
   if (!groups.length) return null
   const copy = lang === 'vi'
-    ? { eyebrow: 'SO SÁNH TẤT CẢ', heading: 'So sánh từng hạng mục', service: 'Hạng mục', notListed: 'Chưa công bố' }
-    : { eyebrow: 'COMPARE ALL', heading: 'Compare every service', service: 'Service', notListed: 'Not listed' }
+    ? {
+        eyebrow: 'ĐẶT CẠNH NHAU',
+        heading: 'So sánh tất cả gói',
+        body: 'Xem chính xác phạm vi của từng gói.',
+        service: 'Hạng mục',
+        notListed: 'Chưa công bố',
+      }
+    : {
+        eyebrow: 'SIDE BY SIDE',
+        heading: 'Compare all packages',
+        body: 'See exactly what each package covers.',
+        service: 'Service',
+        notListed: 'Not listed',
+      }
 
   return (
     <section className="package-compare-all pkg-rv" data-testid="package-compare-all" aria-labelledby={headingId}>
       <header className="package-compare-header">
-        <p>{copy.eyebrow}</p>
-        <h3 id={headingId}>{copy.heading}</h3>
+        <div>
+          <p>{copy.eyebrow}</p>
+          <h3 id={headingId}>{copy.heading}</h3>
+          <span>{copy.body}</span>
+        </div>
       </header>
       <div className="package-compare-table-wrap">
         <table className="package-compare-table">
+          <colgroup>
+            <col className="package-compare-service-column" />
+            {cards.map(({ tone, id }) => (
+              <col key={`${id}-compare-column`} data-package-tone={tone} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
               <th scope="col">{copy.service}</th>
@@ -691,15 +712,16 @@ function PackageCompareAll({
                   <th scope="rowgroup" colSpan={cards.length + 1}>{group.title}</th>
                 </tr>
                 {group.rows.map((row) => (
-                  <tr className="package-comparison-row" data-testid="package-comparison-row" key={`${group.module}-${row.key}`}>
+                  <tr className="package-compare-service-row" data-testid="package-comparison-row" key={`${group.module}-${row.key}`}>
                     <th scope="row">{row.label}</th>
-                    {cards.map(({ tone, id }) => {
+                    {cards.map(({ item, tone, id }) => {
                       const cell = row.values[tone]
                       const included = cell?.availability !== 'excluded'
                       return (
                         <td
                           key={`${id}-${row.key}`}
                           data-package-tone={tone}
+                          data-package-label={item.title}
                           data-mobile-active={activeTone === tone ? 'true' : 'false'}
                           data-availability={cell?.availability ?? 'unlisted'}
                         >
@@ -724,6 +746,59 @@ function PackageCompareAll({
             </tbody>
           ))}
         </table>
+      </div>
+      <div className="package-compare-mobile" data-testid="package-comparison-stack">
+        {groups.map((group) => {
+          const groupId = `${headingId}-${group.module}`
+          return (
+            <section className="package-compare-mobile-group" key={`${group.module}-mobile`} aria-labelledby={groupId}>
+              <h4 id={groupId}>{group.title}</h4>
+              <div className="package-compare-mobile-services">
+                {group.rows.map((row) => (
+                  <article
+                    className="package-compare-mobile-service"
+                    data-testid="package-comparison-service-card"
+                    key={`${group.module}-${row.key}-mobile`}
+                  >
+                    <h5>{row.label}</h5>
+                    <dl>
+                      {cards.map(({ item, tone, id }) => {
+                        const cell = row.values[tone]
+                        const included = cell?.availability !== 'excluded'
+                        return (
+                          <div
+                            className="package-compare-mobile-plan"
+                            data-testid="package-comparison-plan-row"
+                            data-package-tone={tone}
+                            data-availability={cell?.availability ?? 'unlisted'}
+                            key={`${id}-${row.key}-mobile`}
+                          >
+                            <dt>{item.title}</dt>
+                            <dd>
+                              {cell ? (
+                                <>
+                                  <span className="package-comparison-status" aria-hidden="true">
+                                    {included ? <Check size={13} strokeWidth={3} /> : <X size={13} strokeWidth={3} />}
+                                  </span>
+                                  <span className="sr-only">
+                                    {included
+                                      ? lang === 'vi' ? 'Bao gồm: ' : 'Included: '
+                                      : lang === 'vi' ? 'Không bao gồm: ' : 'Not included: '}
+                                  </span>
+                                  <span>{cell.value}</span>
+                                </>
+                              ) : <span className="package-compare-unlisted" aria-label={copy.notListed}>—</span>}
+                            </dd>
+                          </div>
+                        )
+                      })}
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )
+        })}
       </div>
     </section>
   )
@@ -826,7 +901,7 @@ export function PackageCards({
         data-testid="package-grid"
         data-package-layout={layout}
         data-mobile-order-ready="true"
-        data-mobile-order="single-active"
+        data-mobile-order="system-first-mobile-stack"
       >
         {cards.map(({ item, id, sourceIndex, tone }, visualIndex) => {
           const {

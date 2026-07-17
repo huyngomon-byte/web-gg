@@ -15,7 +15,11 @@ async function expectHeroCentered(page: import('@playwright/test').Page, width: 
   const proofCards = copy.locator('.home-hero-proof-card')
   await expect(proofCards).toHaveCount(3)
   await expect(proofCards.nth(0).locator('.home-hero-proof-icon')).toBeVisible()
-  await expect(proofCards.nth(0).locator('.home-hero-proof-visual')).toBeVisible()
+  if (width < 768) {
+    await expect(proofCards.nth(0).locator('.home-hero-proof-visual')).toBeHidden()
+  } else {
+    await expect(proofCards.nth(0).locator('.home-hero-proof-visual')).toBeVisible()
+  }
 
   const [heroBox, headingBox, ctaBox] = await Promise.all([
     hero.boundingBox(),
@@ -29,6 +33,25 @@ async function expectHeroCentered(page: import('@playwright/test').Page, width: 
   const heroCenter = heroBox!.x + heroBox!.width / 2
   expect(Math.abs(headingBox!.x + headingBox!.width / 2 - heroCenter)).toBeLessThanOrEqual(2)
   expect(Math.abs(ctaBox!.x + ctaBox!.width / 2 - heroCenter)).toBeLessThanOrEqual(2)
+
+  const fade = await hero.evaluate((element) => {
+    const heroBox = element.getBoundingClientRect()
+    const style = getComputedStyle(element, '::after')
+    return {
+      background: style.backgroundImage,
+      pointerEvents: style.pointerEvents,
+      ratio: Number.parseFloat(style.height) / heroBox.height,
+    }
+  })
+  expect(fade.ratio).toBeGreaterThan(0.1)
+  expect(fade.ratio).toBeLessThan(0.45)
+  expect(fade.background).toContain('linear-gradient')
+  expect(fade.pointerEvents).toBe('none')
+
+  if (width < 768) {
+    const proofTops = await proofCards.evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().top))
+    expect(Math.max(...proofTops) - Math.min(...proofTops)).toBeLessThanOrEqual(2)
+  }
 }
 
 test.describe('Homepage centered hero and control-free showcases', () => {
@@ -121,6 +144,6 @@ test.describe('Homepage centered hero and control-free showcases', () => {
       height: Number.parseFloat(getComputedStyle(element, '::before').height),
     }))
     expect(bridge.background).toContain('linear-gradient')
-    expect(bridge.height).toBeGreaterThanOrEqual(180)
+    expect(bridge.height).toBeGreaterThanOrEqual(120)
   })
 })

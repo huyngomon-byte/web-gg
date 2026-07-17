@@ -89,13 +89,26 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function highlightPackageTermQuantities(text: string, keyPrefix: string): ReactNode[] {
+  const quantityMatcher = /(\b\d+(?:[.,]\d+)?%?(?:\s+(?:hours?|days?|weeks?|months?|quarters?|giờ|ngày|tuần|tháng|quý))?)/gi
+  return text.split(quantityMatcher).filter(Boolean).map((part, index) => (
+    /^\d/.test(part)
+      ? <span key={`${keyPrefix}-quantity-${index}`} className="package-terms-quantity">{part}</span>
+      : part
+  ))
+}
+
 function highlightPackageTerms(text: string): ReactNode[] {
   const matcher = new RegExp(`(${packageTermsHighlights.map(escapeRegExp).join('|')})`, 'gi')
   return text.split(matcher).filter(Boolean).map((part, index) => {
     const isHighlight = packageTermsHighlights.some((phrase) => phrase.toLocaleLowerCase('en') === part.toLocaleLowerCase('en'))
     return isHighlight
-      ? <strong key={`${part}-${index}`} className="package-terms-emphasis">{part}</strong>
-      : part
+      ? (
+          <strong key={`${part}-${index}`} className="package-terms-emphasis">
+            {highlightPackageTermQuantities(part, `highlight-${index}`)}
+          </strong>
+        )
+      : highlightPackageTermQuantities(part, `copy-${index}`)
   })
 }
 
@@ -2357,7 +2370,11 @@ export default function BrandHomePage({
               </header>
               <ol className="package-process-list">
                 {packageProcessSteps.slice(0, 4).map((step, index) => (
-                  <li key={`${step.title}-${index}`} className="package-process-step">
+                  <li
+                    key={`${step.title}-${index}`}
+                    className="package-process-step"
+                    data-package-step={index + 1}
+                  >
                     <span className="package-process-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
                     <span className="package-process-copy">
                       <strong>{step.title}</strong>
@@ -2429,14 +2446,18 @@ export default function BrandHomePage({
                   <span>{lang === 'vi' ? 'Đọc đầy đủ điều khoản' : 'Read full terms'}</span>
                   <ChevronDown className="package-terms-chevron" size={18} strokeWidth={2.5} aria-hidden="true" />
                 </summary>
-                <div className="package-terms-panel" role="note" aria-labelledby="package-terms-title">
-                  <div className="package-terms-copy grid gap-2">
-                    {splitCmsParagraphs(
-                      packagesBlock.packagesNote?.trim() ||
-                      [packagesBlock.pricingNote?.trim(), packagesBlock.disclaimer?.trim()].filter(Boolean).join('\n'),
-                    ).map((paragraph, index) => (
-                      <p key={`${paragraph}-${index}`}>{highlightPackageTerms(paragraph)}</p>
-                    ))}
+                <div className="terms-details-body">
+                  <div>
+                    <div className="package-terms-panel" role="note" aria-labelledby="package-terms-title">
+                      <div className="package-terms-copy grid gap-2">
+                        {splitCmsParagraphs(
+                          packagesBlock.packagesNote?.trim() ||
+                          [packagesBlock.pricingNote?.trim(), packagesBlock.disclaimer?.trim()].filter(Boolean).join('\n'),
+                        ).map((paragraph, index) => (
+                          <p key={`${paragraph}-${index}`}>{highlightPackageTerms(paragraph)}</p>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </details>

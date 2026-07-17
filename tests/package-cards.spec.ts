@@ -7,6 +7,7 @@ import {
   resolvePackageModule,
   resolvePackageTone,
   resolvePackageTones,
+  resolvePackageValueKind,
   type PackageFeatureRow,
 } from '../src/components/PackageCards'
 
@@ -87,17 +88,125 @@ test.describe('package information architecture', () => {
       priceValue: '30,000,000 VND',
       priceSuffix: '/month',
       priceSupportingText: 'All-in-one: content + web + ads',
+      pricePanelSupportingText: '',
     })
     expect(normalizePackagePrice('From', 'Custom package — based on project scope.', 'Approved scope note', 'scale')).toEqual({
       priceLabel: 'Custom',
       priceValue: 'Custom package',
       priceSuffix: '',
-      priceSupportingText: 'Approved scope note',
+      priceSupportingText: '',
+      pricePanelSupportingText: 'Approved scope note',
     })
+
+    expect(resolvePackageValueKind('60/month')).toBe('quantity')
+    expect(resolvePackageValueKind('Unlimited')).toBe('unlimited')
+    expect(resolvePackageValueKind('Full access')).toBe('full')
+    expect(resolvePackageValueKind('On-site')).toBe('onsite')
+    expect(resolvePackageValueKind('No access', 'excluded')).toBe('none')
   })
 })
 
 test.describe('homepage package cards', () => {
+  test('shares all eight pricing rows at 1440, 1280 and 1024px', async ({ page }) => {
+    test.setTimeout(60_000)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/#packages', { waitUntil: 'domcontentloaded' })
+    await page.waitForLoadState('networkidle')
+
+    for (const width of [1440, 1280, 1024]) {
+      await page.setViewportSize({ width, height: 1000 })
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+      const geometry = await page.getByTestId('package-card').evaluateAll((shells) => shells.map((shell) => {
+        const article = shell.querySelector<HTMLElement>('.package-card')!
+        const rect = (selector: string) => article.querySelector<HTMLElement>(selector)!.getBoundingClientRect()
+        const card = article.getBoundingClientRect()
+        const name = rect('.package-card-name')
+        const icon = rect('.package-tone-icon')
+        const price = rect('[data-testid="package-price"]')
+        const micro = rect('[data-testid="package-alignment-microcopy"]')
+        const cta = rect('[data-testid="package-cta"]')
+        const metrics = rect('[data-testid="package-metric-rail"]')
+        const modules = rect('[data-testid="package-service-modules"]')
+        const footer = rect('.package-stories-row')
+        return {
+          cardTop: card.top,
+          cardBottom: card.bottom,
+          nameTop: name.top,
+          iconWidth: icon.width,
+          iconHeight: icon.height,
+          priceTop: price.top,
+          priceHeight: price.height,
+          microTop: micro.top,
+          microHeight: micro.height,
+          ctaTop: cta.top,
+          ctaHeight: cta.height,
+          metricsTop: metrics.top,
+          modulesTop: modules.top,
+          footerBottom: footer.bottom,
+        }
+      }))
+
+      for (const key of ['cardTop', 'cardBottom', 'nameTop', 'priceTop', 'microTop', 'ctaTop', 'metricsTop', 'modulesTop', 'footerBottom'] as const) {
+        const values = geometry.map((row) => row[key])
+        expect(Math.max(...values) - Math.min(...values), `${key} at ${width}px`).toBeLessThanOrEqual(1)
+      }
+      expect(geometry.every(({ priceHeight }) => priceHeight >= 127 && priceHeight <= 129)).toBe(true)
+      expect(geometry.every(({ microHeight }) => microHeight >= 23 && microHeight <= 25)).toBe(true)
+      expect(geometry.every(({ ctaHeight }) => ctaHeight >= 51 && ctaHeight <= 53)).toBe(true)
+      expect(geometry.every(({ iconWidth, iconHeight }) => iconWidth >= 39 && iconWidth <= 41 && iconHeight >= 39 && iconHeight <= 41)).toBe(true)
+    }
+
+    await expect(page.locator('[data-package-tone="system"] .package-card-description').last()).toHaveText('Content, website and paid media running as one stable system.')
+    await expect(page.locator('[data-package-tone="scale"] .package-card-description').last()).toHaveText('For strong growth: big campaigns, events, expansion or revenue targets.')
+    await expect(page.getByTestId('package-alignment-microcopy')).toHaveText([
+      'The essentials, live in weeks',
+      'All-in-one: content + web + ads',
+      'Scoped around your target',
+    ])
+  })
+
+  test('uses stable desktop hover motion and spotlight without layout shift', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/#packages', { waitUntil: 'domcontentloaded' })
+    await page.waitForLoadState('networkidle')
+    const systemShell = page.locator('[data-testid="package-card"][data-package-tone="system"]')
+    const systemCard = systemShell.locator('.package-card')
+    await systemShell.scrollIntoViewIfNeeded()
+    await page.waitForTimeout(500)
+    const before = await page.evaluate(() => ({ height: document.documentElement.scrollHeight }))
+    const shellBefore = await systemShell.boundingBox()
+
+    await systemCard.hover()
+    await page.waitForTimeout(250)
+    const hovered = await systemCard.evaluate((card) => {
+      const style = getComputedStyle(card)
+      const matrix = new DOMMatrixReadOnly(style.transform)
+      return { y: matrix.m42, duration: style.transitionDuration }
+    })
+    expect(hovered.y).toBeGreaterThanOrEqual(-6.75)
+    expect(hovered.y).toBeLessThanOrEqual(-5.25)
+    expect(hovered.duration).toContain('0.22s')
+    await expect(page.locator('[data-testid="package-card"][data-package-tone="start"] .package-card')).toHaveCSS('opacity', '0.88')
+    expect(await systemCard.evaluate((card) => getComputedStyle(card, '::after').animationPlayState)).toBe('paused')
+
+    const featureRow = systemShell.locator('.package-feature-row:not([data-availability="excluded"])').first()
+    const featureText = featureRow.locator('.package-feature-text')
+    expect(await featureText.evaluate((element) => getComputedStyle(element).transitionDuration)).toContain('0.15s')
+    await featureRow.hover()
+    expect(await featureText.evaluate((element) => getComputedStyle(element).transitionDuration)).toContain('0.22s')
+
+    await page.mouse.move(4, 4)
+    await page.waitForTimeout(180)
+    expect(await featureText.evaluate((element) => getComputedStyle(element).transitionDuration)).toContain('0.15s')
+    const after = await systemCard.evaluate((card) => new DOMMatrixReadOnly(getComputedStyle(card).transform).m42)
+    expect(Math.abs(after)).toBeLessThanOrEqual(0.75)
+    const shellAfter = await systemShell.boundingBox()
+    const pageAfter = await page.evaluate(() => ({ height: document.documentElement.scrollHeight }))
+    expect(Math.abs((shellAfter?.height ?? 0) - (shellBefore?.height ?? 0))).toBeLessThanOrEqual(1)
+    expect(Math.abs(pageAfter.height - before.height)).toBeLessThanOrEqual(1)
+  })
+
   test('renders compact summaries, metric rails, grouped modules and one shared matrix', async ({ page }) => {
     test.setTimeout(60_000)
     await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -152,9 +261,9 @@ test.describe('homepage package cards', () => {
     })
     expect(aligned).toBe(true)
 
-    const systemColumnBackgrounds = await page.locator('.package-compare-table th[data-package-tone="system"], .package-compare-table td[data-package-tone="system"]').evaluateAll((cells) => cells.map((cell) => getComputedStyle(cell).backgroundImage))
+    const systemColumnBackgrounds = await page.locator('.package-compare-table th[data-package-tone="system"], .package-compare-table td[data-package-tone="system"]').evaluateAll((cells) => cells.map((cell) => getComputedStyle(cell).backgroundColor))
     expect(systemColumnBackgrounds.length).toBeGreaterThan(1)
-    expect(systemColumnBackgrounds.every((background) => background !== 'none')).toBe(true)
+    expect(systemColumnBackgrounds.every((background) => /rgba\(255, 45, 135, 0\.07\)/.test(background))).toBe(true)
 
     const process = page.getByTestId('package-process')
     await expect(process).toBeVisible()
@@ -169,7 +278,10 @@ test.describe('homepage package cards', () => {
     await expect(recommendation).toContainText('Not sure which package fits?')
     await expect(recommendation.locator('.package-recommendation-highlight')).toHaveCount(1)
     await expect(recommendation.getByRole('button')).toBeVisible()
-    await expect(page.getByText(/might be cheaper than/i)).toHaveCount(0)
+    const savings = page.getByTestId('package-scale-savings')
+    await expect(savings).toHaveCount(1)
+    await expect(savings).toContainText('Might be cheaper than The One Start')
+    await expect(savings.locator('strong')).toHaveText('cheaper')
 
     const termsBlock = page.getByTestId('package-terms-block')
     await expect(termsBlock).toHaveAttribute('data-highlight-tone', 'gold')
@@ -267,5 +379,64 @@ test.describe('homepage package cards', () => {
     await expect(toggles.nth(0)).toHaveAttribute('aria-expanded', 'false')
     await expect(toggles.nth(1)).toHaveAttribute('aria-expanded', 'true')
     await expect(page.locator(`#${targetId}`)).toHaveClass(/is-open/)
+  })
+
+  test('keeps semantic feedback but removes motion when reduced motion is requested', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/#packages', { waitUntil: 'domcontentloaded' })
+    await page.waitForLoadState('networkidle')
+
+    const startCard = page.locator('[data-testid="package-card"][data-package-tone="start"] .package-card')
+    await startCard.scrollIntoViewIfNeeded()
+    const borderBefore = await startCard.evaluate((card) => getComputedStyle(card).borderColor)
+    await startCard.hover()
+    const state = await startCard.evaluate((card) => {
+      const style = getComputedStyle(card)
+      return { transform: style.transform, border: style.borderColor }
+    })
+    expect(state.transform).toBe('none')
+    expect(state.border).not.toBe(borderBefore)
+    expect(await page.locator('.package-card--featured').evaluate((card) => getComputedStyle(card, '::after').animationName)).toBe('none')
+  })
+})
+
+test.describe('package touch states', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('uses color-only active feedback without spotlight or geometry changes', async ({ page }) => {
+    await page.goto('/#packages', { waitUntil: 'domcontentloaded' })
+    await page.waitForLoadState('networkidle')
+    expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true)
+
+    const systemShell = page.locator('[data-testid="package-card"][data-package-tone="system"]')
+    const metric = systemShell.locator('.package-metric:not([data-metric-kind="none"])').first()
+    await metric.scrollIntoViewIfNeeded()
+    const box = await metric.boundingBox()
+    expect(box).not.toBeNull()
+    const before = await metric.evaluate((element) => ({
+      background: getComputedStyle(element).backgroundColor,
+      rect: element.getBoundingClientRect().toJSON(),
+      scrollHeight: document.documentElement.scrollHeight,
+    }))
+
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    await page.mouse.down()
+    await page.waitForTimeout(40)
+    const active = await metric.evaluate((element) => ({
+      background: getComputedStyle(element).backgroundColor,
+      transform: getComputedStyle(element).transform,
+      rect: element.getBoundingClientRect().toJSON(),
+      scrollHeight: document.documentElement.scrollHeight,
+      siblingOpacity: getComputedStyle(document.querySelector('[data-package-tone="start"] .package-card')!).opacity,
+    }))
+    await page.mouse.up()
+
+    expect(active.background).not.toBe(before.background)
+    expect(active.transform).toBe('none')
+    expect(active.siblingOpacity).toBe('1')
+    expect(Math.abs(active.rect.top - before.rect.top)).toBeLessThanOrEqual(1)
+    expect(Math.abs(active.rect.height - before.rect.height)).toBeLessThanOrEqual(1)
+    expect(Math.abs(active.scrollHeight - before.scrollHeight)).toBeLessThanOrEqual(1)
   })
 })

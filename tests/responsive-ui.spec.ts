@@ -103,7 +103,7 @@ test.describe('responsive UI matrix', () => {
         const byTone = Object.fromEntries(boxes.map((box) => [box.tone, box]))
         expect(byTone.start.left).toBeLessThan(byTone.system.left)
         expect(byTone.system.left).toBeLessThan(byTone.scale.left)
-        expect(Math.max(...boxes.map(({ top }) => top)) - Math.min(...boxes.map(({ top }) => top))).toBeLessThanOrEqual(48)
+        expect(Math.max(...boxes.map(({ top }) => top)) - Math.min(...boxes.map(({ top }) => top))).toBeLessThanOrEqual(1)
         expect(boxes.every(({ width: cardWidth }) => cardWidth < width / 2)).toBe(true)
       } else if (width >= 768) {
         expect(boxes.map(({ tone }) => tone)).toEqual(['system'])

@@ -149,7 +149,7 @@ const theOnePackageItems: CmsBlockItem[] = [
     locales: {
       en: {
         label: 'Most Popular',
-        subtitle: 'For brands that need content, website and paid media running as one stable system.',
+        subtitle: 'Content, website and paid media running as one stable system.',
         packageMetrics: [
           { value: '60', label: 'content units/month' },
           { value: '20+', label: 'short videos/month' },
@@ -176,7 +176,7 @@ const theOnePackageItems: CmsBlockItem[] = [
         priceValue: '30,000,000 VND/month',
         priceSupportingText: 'All-in-one: content + web + ads',
         body: [
-          'For brands that need content, website and paid media running as one stable system.',
+          'Content, website and paid media running as one stable system.',
           '60 content units/month (minimum 20 reels/short-form videos)',
           'Content strategy, content calendar, production, posting and optimization.',
           'Booking/sales website, unlimited landing pages.',
@@ -235,7 +235,7 @@ const theOnePackageItems: CmsBlockItem[] = [
     locales: {
       en: {
         label: 'CUSTOM',
-        subtitle: 'For brands ready for strong growth: large campaigns, event execution, branch expansion or specific revenue targets.',
+        subtitle: 'For strong growth: big campaigns, events, expansion or revenue targets.',
         packageMetrics: [
           { value: 'System', label: 'included' },
           { value: 'On-site', label: 'event operations' },
@@ -260,7 +260,7 @@ const theOnePackageItems: CmsBlockItem[] = [
         priceValue: 'Custom package',
         priceSupportingText: 'based on project scope.',
         body: [
-          'For brands ready for strong growth: large campaigns, event execution, branch expansion or specific revenue targets.',
+          'For strong growth: big campaigns, events, expansion or revenue targets.',
           'Everything included in The One System.',
           'Support planning and running on-site events.',
           'Campaign strategy, creative direction, media planning and performance optimization.',

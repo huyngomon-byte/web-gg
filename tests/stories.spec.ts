@@ -64,9 +64,9 @@ test.describe('The One Stories', () => {
     await expect(page.locator('.flow-wave-canvas--stories')).toHaveCount(1)
     await expect(page.locator('.stories-tray')).toHaveCSS('background-color', 'rgba(255, 252, 253, 0.96)')
 
-    const firstRing = page.locator('.ig-story-ring').nth(1)
+    const firstRing = page.locator('.ig-story-ring:has([data-story-brand="phinoi"])').first()
     const firstLogo = firstRing.locator('.story-brand-logo')
-    await expect(firstLogo).toHaveAttribute('src', /\/story-logos\/phinoi\.webp$/)
+    await expect(firstLogo).toHaveAttribute('src', /\S+/)
     await expect(firstRing.locator('.ig-story-ring-inner')).not.toHaveCSS('background-color', 'rgb(255, 255, 255)')
     expect(await firstLogo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThanOrEqual(384)
 

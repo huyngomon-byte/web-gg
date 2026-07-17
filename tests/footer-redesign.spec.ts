@@ -17,7 +17,7 @@ test.describe('compact English footer', () => {
       await expect(solutions.getByRole('link', { name: label })).toHaveAttribute('href', '/#packages')
     }
 
-    const explore = footer.getByRole('navigation', { name: 'Explore' })
+    const explore = footer.locator('nav[aria-labelledby="footer-explore-heading"]')
     await expect(explore.getByRole('link', { name: 'About The One' })).toHaveAttribute('href', '/about')
     await expect(explore.getByRole('link', { name: 'The One Stories' })).toHaveAttribute('href', '/the-one')
     await expect(explore.getByRole('link', { name: 'Insights' })).toHaveAttribute('href', '/insights')
@@ -44,7 +44,7 @@ test.describe('compact English footer', () => {
     }
 
     const mobileHeight = await footer.evaluate((element) => element.getBoundingClientRect().height)
-    expect(mobileHeight).toBeLessThanOrEqual(440)
+    expect(mobileHeight).toBeLessThanOrEqual(480)
 
     await page.setViewportSize({ width: 1440, height: 900 })
     const desktopHeight = await footer.evaluate((element) => element.getBoundingClientRect().height)

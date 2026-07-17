@@ -30,9 +30,11 @@ test('keeps Homepage seams soft and the Sounds Familiar stage media-free', async
   expect(reducedMotion).toEqual(['none', 'none'])
 
   const atmosphere = page.locator('.brand-atmosphere-shell[data-continuous-atmosphere="true"]')
+  const footer = atmosphere.getByTestId('site-footer')
   await expect(atmosphere).toHaveCount(1)
   await expect(atmosphere.locator(':scope > #main-content')).toHaveCount(1)
-  await expect(atmosphere.getByTestId('site-footer')).toHaveCount(1)
+  await expect(footer).toHaveCount(1)
+  await expect(footer).toHaveCSS('border-top-width', '0px')
   await expect(page.locator('.flow-wave-canvas--home')).toHaveCount(1)
 
   const heroTransition = page.getByTestId('hero-transition')
@@ -59,8 +61,6 @@ test('keeps Homepage seams soft and the Sounds Familiar stage media-free', async
   ])
   expect(Math.abs(seamGeometry[0] - seamGeometry[1])).toBeLessThanOrEqual(1)
   expect(seamGeometry[2]).toBeGreaterThanOrEqual(180)
-
-  await expect(page.getByTestId('site-footer')).toHaveCSS('border-top-width', '0px')
 
   const portalFadeHeight = await page.locator('.closing-portal-section').evaluate((element) => Number.parseFloat(getComputedStyle(element, '::after').height))
   expect(portalFadeHeight).toBeGreaterThan(120)

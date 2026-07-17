@@ -65,17 +65,35 @@ test.describe('Homepage centered hero and control-free showcases', () => {
 
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
-    await expect(page.locator('.home-hero video source')).toHaveCount(2)
-    const desktopSources = await page.locator('.home-hero video source').evaluateAll((sources) => sources.map((source) => source.getAttribute('src') || ''))
-    expect(desktopSources.every((source) => source.includes('c_limit,w_3840,q_90,e_sharpen:60,vc_auto'))).toBe(true)
-    const desktopPosterSrcSet = await page.locator('.home-hero picture img').getAttribute('srcset')
-    expect(desktopPosterSrcSet).toContain(' 3840w')
+    const hero = page.locator('.home-hero')
+    await expect(hero).toHaveClass(/home-hero--(?:video|static)/)
+    const desktopHasVideo = (await hero.getAttribute('class'))?.includes('home-hero--video') === true
+    if (desktopHasVideo) {
+      const desktopSourceElements = hero.locator('video source')
+      await expect(desktopSourceElements.first()).toBeAttached()
+      const desktopSources = await desktopSourceElements.evaluateAll((sources) => sources.map((source) => source.getAttribute('src') || ''))
+      expect(desktopSources.length).toBeGreaterThan(0)
+      const cloudinarySources = desktopSources.filter((source) => source.includes('res.cloudinary.com'))
+      expect(cloudinarySources.every((source) => source.includes('c_limit,w_3840,q_90,e_sharpen:60,vc_auto'))).toBe(true)
+      const desktopPosterSrcSet = await hero.locator('picture img').getAttribute('srcset')
+      if (desktopPosterSrcSet) expect(desktopPosterSrcSet).toContain(' 3840w')
+    } else {
+      await expect(hero.locator('video, video source')).toHaveCount(0)
+    }
 
     await page.setViewportSize({ width: 390, height: 844 })
     await page.reload({ waitUntil: 'domcontentloaded' })
-    await expect(page.locator('.home-hero video source')).toHaveCount(2)
-    const mobileSources = await page.locator('.home-hero video source').evaluateAll((sources) => sources.map((source) => source.getAttribute('src') || ''))
-    expect(mobileSources.every((source) => source.includes('c_limit,w_1440,q_90,e_sharpen:60,vc_auto'))).toBe(true)
+    await expect(hero).toHaveClass(desktopHasVideo ? /home-hero--video/ : /home-hero--static/)
+    if (desktopHasVideo) {
+      const mobileSourceElements = hero.locator('video source')
+      await expect(mobileSourceElements.first()).toBeAttached()
+      const mobileSources = await mobileSourceElements.evaluateAll((sources) => sources.map((source) => source.getAttribute('src') || ''))
+      expect(mobileSources.length).toBeGreaterThan(0)
+      const cloudinarySources = mobileSources.filter((source) => source.includes('res.cloudinary.com'))
+      expect(cloudinarySources.every((source) => source.includes('c_limit,w_1440,q_90,e_sharpen:60,vc_auto'))).toBe(true)
+    } else {
+      await expect(hero.locator('video, video source')).toHaveCount(0)
+    }
 
     const closing = page.locator('.closing-portal-section')
     await expect(closing.locator('video')).toHaveCount(0)

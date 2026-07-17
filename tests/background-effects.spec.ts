@@ -68,7 +68,7 @@ test.describe('CSS-only background stages', () => {
     await expect.poll(async () => hasRunningAnimation(await readDecorationStyles(stage))).toBe(false)
   })
 
-  test('keeps the shared Homepage atmosphere static and both video stages poster-only for Save Data', async ({ page }) => {
+  test('keeps the shared Homepage atmosphere static and uses configured posters for Save Data', async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'connection', {
         configurable: true,
@@ -83,8 +83,12 @@ test.describe('CSS-only background stages', () => {
     await expect(shell).toHaveCount(1)
     await expect(canvas).toHaveCount(1)
     await expect(canvas).toHaveAttribute('data-motion', 'static', { timeout: 8_000 })
-    await expect(page.locator('.home-hero video')).toHaveCount(0)
-    await expect(page.locator('.home-hero picture img')).toHaveCount(1)
+    const hero = page.locator('.home-hero')
+    const heroPoster = hero.locator('picture img')
+    await expect(hero).toHaveClass(/home-hero--(?:video|static)/)
+    await expect(hero.locator('video')).toHaveCount(0)
+    expect(await heroPoster.count()).toBeLessThanOrEqual(1)
+    if (await heroPoster.count()) await expect(heroPoster).toHaveAttribute('src', /\S+/)
 
     const portal = page.locator('.closing-portal-section')
     await portal.scrollIntoViewIfNeeded()

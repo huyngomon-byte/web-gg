@@ -112,12 +112,12 @@ test('selects the approved 1440 mobile, 2560 tablet and 4K desktop video tiers',
   expect(retargetCloudinaryVideoWidth('/closing/closing-portal-1920.webm', 3840)).toBe('/closing/closing-portal-1920.webm')
 })
 
-test('shares the same 1080/4K upload requirements between browser and server validation', () => {
+test('shares the same media upload requirements between browser and server validation', () => {
   expect(getImageRequirements('cms/pages/the-one/stories/background-carousel')).toMatchObject({
     minWidth: 3072,
     minHeight: 3840,
   })
-  expect(getImageRequirements('cms/pages/the-one/stories/homepage-banner-desktop')).toMatchObject({ minWidth: 3840 })
+  expect(getImageRequirements('cms/pages/the-one/stories/homepage-banner-desktop')).toMatchObject({ minWidth: 2560, minHeight: 1440 })
   expect(getImageRequirements('cms/pages/the-one/stories/homepage-banner-mobile')).toMatchObject({ minWidth: 1080 })
   expect(getVideoRequirements('cms/pages/homepage/hero/video')).toMatchObject({ minWidth: 3840, minHeight: 2160 })
   expect(getVideoRequirements('cms/pages/homepage/hero/video-mobile')).toMatchObject({ minWidth: 1440 })

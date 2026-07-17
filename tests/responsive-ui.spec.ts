@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const responsiveWidths = [1440, 1280, 1024, 768, 767, 430, 390, 360]
+const responsiveWidths = [1440, 1280, 1025, 1024, 1023, 900, 899, 768, 767, 430, 390, 360, 320]
 
 async function openAt(page: Page, path: string, width: number, height = 900) {
   await page.setViewportSize({ width, height })
@@ -20,6 +20,20 @@ async function expectNoPageOverflow(page: Page, width: number) {
   expect(dimensions.document, `page overflow at ${width}px`).toBeLessThanOrEqual(dimensions.client + 1)
 }
 
+async function packageCardBoxes(page: Page) {
+  return page.getByTestId('package-card').evaluateAll((cards) => cards.map((card) => {
+    const rect = card.getBoundingClientRect()
+    return {
+      bottom: rect.bottom,
+      left: rect.left,
+      right: rect.right,
+      tone: card.getAttribute('data-package-tone'),
+      top: rect.top,
+      width: rect.width,
+    }
+  }))
+}
+
 test.describe('responsive UI matrix', () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -37,7 +51,7 @@ test.describe('responsive UI matrix', () => {
     }
   })
 
-  test('keeps Homepage mobile content concise and immediately readable', async ({ page }) => {
+  test('keeps Homepage mobile content complete and immediately readable', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await openAt(page, '/', 390, 844)
 
@@ -48,12 +62,18 @@ test.describe('responsive UI matrix', () => {
 
     const packageCards = page.getByTestId('package-card')
     await expect(packageCards).toHaveCount(3)
-    await expect(page.locator('[data-testid="package-card"][data-selected="true"]')).toHaveCount(1)
-    const collapsedPackageFeatures = page.locator('[data-testid="package-card"][data-selected="false"] .package-card-features')
-    await expect(collapsedPackageFeatures).toHaveCount(2)
-    for (let index = 0; index < await collapsedPackageFeatures.count(); index += 1) {
-      await expect(collapsedPackageFeatures.nth(index)).toBeHidden()
+    await expect(page.locator('[data-testid="package-card"][data-featured="true"]')).toHaveAttribute('data-package-tone', 'system')
+    await expect(page.getByTestId('package-cta')).toHaveCount(3)
+    await expect(page.getByTestId('package-comparison-toggle')).toHaveCount(3)
+    for (let index = 0; index < 3; index += 1) {
+      await expect(page.getByTestId('package-cta').nth(index)).toBeVisible()
+      await expect(page.getByTestId('package-comparison-toggle').nth(index)).toBeVisible()
     }
+
+    const visualOrder = (await packageCardBoxes(page))
+      .sort((left, right) => left.top - right.top)
+      .map(({ tone }) => tone)
+    expect(visualOrder).toEqual(['system', 'start', 'scale'])
 
     const redFlagReplies = page.getByTestId('red-flag-reply')
     expect(await redFlagReplies.count()).toBeGreaterThan(3)
@@ -63,6 +83,45 @@ test.describe('responsive UI matrix', () => {
     const initialScroll = await page.evaluate(() => window.scrollY)
     await page.waitForTimeout(8_500)
     expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll)
+  })
+
+  test('uses three columns from 900px and a System-first stack below 900px', async ({ page }) => {
+    test.setTimeout(90_000)
+
+    for (const width of [1024, 1023, 900, 899, 768, 767, 390]) {
+      await openAt(page, '/#packages', width, width < 900 ? 844 : 900)
+      await expect(page.getByTestId('package-grid')).toBeVisible()
+      await expect(page.getByTestId('package-grid')).toHaveAttribute(
+        'data-mobile-order',
+        width < 900 ? 'system-first' : 'standard',
+      )
+      await expect(page.getByTestId('package-card')).toHaveCount(3)
+      await expectNoPageOverflow(page, width)
+
+      const boxes = await packageCardBoxes(page)
+      expect(boxes.every(({ left, right, width: cardWidth }) => (
+        left >= -1 && right <= width + 1 && cardWidth > 0
+      ))).toBe(true)
+
+      if (width >= 900) {
+        const byTone = Object.fromEntries(boxes.map((box) => [box.tone, box]))
+        expect(byTone.start.left).toBeLessThan(byTone.system.left)
+        expect(byTone.system.left).toBeLessThan(byTone.scale.left)
+        expect(Math.max(...boxes.map(({ top }) => top)) - Math.min(...boxes.map(({ top }) => top))).toBeLessThanOrEqual(48)
+        expect(boxes.every(({ width: cardWidth }) => cardWidth < width / 2)).toBe(true)
+      } else {
+        const byVisualPosition = [...boxes].sort((left, right) => left.top - right.top)
+        expect(byVisualPosition.map(({ tone }) => tone)).toEqual(['system', 'start', 'scale'])
+        expect(Math.max(...boxes.map(({ left }) => left)) - Math.min(...boxes.map(({ left }) => left))).toBeLessThanOrEqual(2)
+        expect(boxes.every(({ width: cardWidth }) => cardWidth >= width - 48)).toBe(true)
+        for (let index = 1; index < byVisualPosition.length; index += 1) {
+          expect(byVisualPosition[index].top).toBeGreaterThanOrEqual(byVisualPosition[index - 1].bottom - 1)
+        }
+
+        const ctas = page.getByTestId('package-cta')
+        for (let index = 0; index < 3; index += 1) await expect(ctas.nth(index)).toBeVisible()
+      }
+    }
   })
 
   test('keeps the Stories feed and Instagram-style pagination compact at every breakpoint', async ({ page }) => {

@@ -22,12 +22,20 @@ import { getStoryBrandLogoAsset } from '../../components/StoryBrandLogo'
 import { getAdminSectionLabel } from '../../cms/adminSectionLabels'
 import { uploadCmsAsset } from '../../cms/mediaRepository'
 import type { BrandLang } from '../../brandContent'
-import type { CmsBlock, CmsBlockItem, CmsLocalizedBlockFields, CmsLocalizedBlockItemFields, CmsStatChip } from '../../cms/types'
+import type {
+  CmsBlock,
+  CmsBlockItem,
+  CmsLocalizedBlockFields,
+  CmsLocalizedBlockItemFields,
+  CmsPackageComparisonRow,
+  CmsPackageFeature,
+  CmsStatChip,
+} from '../../cms/types'
 import { getUnsupportedPreviewVideoMessage } from '../../cms/videoValidation'
 
 type UpdateBlockItem = (pageId: string, blockId: string, itemIndex: number, patch: Partial<CmsBlockItem>) => void
 type BlockTextKey = Exclude<keyof CmsLocalizedBlockFields, 'statChips'>
-type ItemTextKey = Exclude<keyof CmsLocalizedBlockItemFields, 'services' | 'features' | 'keyMetrics' | 'featuredStats' | 'storyDetail'>
+type ItemTextKey = Exclude<keyof CmsLocalizedBlockItemFields, 'services' | 'features' | 'comparisonRows' | 'keyMetrics' | 'featuredStats' | 'storyDetail'>
 
 const storyMetricSlots = Array.from({ length: 10 }, (_, index) => index)
 const packageDetailPageIds = new Set(['the-one-start', 'the-one-system', 'the-one-scale'])
@@ -145,6 +153,10 @@ function getItemServices(item: CmsBlockItem, lang: BrandLang) {
 
 function getItemFeatures(item: CmsBlockItem, lang: BrandLang) {
   return lang === 'vi' ? item.features : item.locales?.[lang]?.features
+}
+
+function getItemComparisonRows(item: CmsBlockItem, lang: BrandLang) {
+  return lang === 'vi' ? item.comparisonRows : item.locales?.[lang]?.comparisonRows
 }
 
 function getItemKeyMetrics(item: CmsBlockItem, lang: BrandLang) {
@@ -518,14 +530,17 @@ function PackageItemEditor({
   const caseStudyLabel = getItemTextValue(item, activeLang, 'caseStudyLabel')
   const priceLabel = getItemTextValue(item, activeLang, 'priceLabel')
   const priceValue = getItemTextValue(item, activeLang, 'priceValue')
+  const priceSupportingText = getItemTextValue(item, activeLang, 'priceSupportingText')
+  const ctaMicrocopy = getItemTextValue(item, activeLang, 'ctaMicrocopy')
   const body = getItemTextValue(item, activeLang, 'body')
   const features = getItemFeatures(item, activeLang) ?? []
+  const comparisonRows = getItemComparisonRows(item, activeLang) ?? []
 
   function updateText(patch: CmsLocalizedBlockItemFields) {
     updateBlockItem(pageId, blockId, index, patchItemText(item, activeLang, patch))
   }
 
-  function updateFeature(featureIndex: number, patch: { label?: string; text?: string; group?: string; featured?: boolean }) {
+  function updateFeature(featureIndex: number, patch: Partial<CmsPackageFeature>) {
     const next = [...features]
     while (next.length <= featureIndex) next.push({ text: '' })
     next[featureIndex] = { ...next[featureIndex], ...patch }
@@ -541,14 +556,42 @@ function PackageItemEditor({
     updateText({ features: next })
   }
 
+  function updateComparisonRow(rowIndex: number, patch: Partial<CmsPackageComparisonRow>) {
+    const next = [...comparisonRows]
+    while (next.length <= rowIndex) next.push({ label: '', value: '' })
+    next[rowIndex] = { ...next[rowIndex], ...patch }
+    updateText({ comparisonRows: next })
+  }
+
+  function moveComparisonRow(rowIndex: number, direction: -1 | 1) {
+    const targetIndex = rowIndex + direction
+    if (targetIndex < 0 || targetIndex >= comparisonRows.length) return
+    const next = [...comparisonRows]
+    const [row] = next.splice(rowIndex, 1)
+    next.splice(targetIndex, 0, row)
+    updateText({ comparisonRows: next })
+  }
+
   return (
     <div className="grid gap-4">
       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs font-semibold leading-relaxed text-on-surface-variant">
-        Body format đang render trên front-end: dòng 1 = mô tả ngắn; dòng có “content units/month” = metric highlight; các dòng task = deliverable cards; dòng cuối “Price:” = Monthly setup.
+        Structured package fields are used by the pricing cards. Package content remains as the legacy fallback for older published data.
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Package name">
           <TextInput value={title} onChange={(value) => updateText({ title: value })} />
+        </Field>
+        <Field label="Package tier" hint="Controls the fixed visual identity and mobile ordering. Use each tier once across the three cards.">
+          <select
+            value={item.packageTier ?? ''}
+            onChange={(event) => updateBlockItem(pageId, blockId, index, { packageTier: (event.target.value || undefined) as CmsBlockItem['packageTier'] })}
+            className="h-10 w-full rounded-xl border border-outline-variant bg-surface px-3 text-sm font-bold text-on-surface outline-none focus:border-primary"
+          >
+            <option value="">Auto-detect from package name</option>
+            <option value="start">Start</option>
+            <option value="system">System</option>
+            <option value="scale">Scale</option>
+          </select>
         </Field>
         <Field label="Subtitle">
           <TextInput value={subtitle} onChange={(value) => updateText({ subtitle: value })} />
@@ -569,10 +612,16 @@ function PackageItemEditor({
           <TextInput value={caseStudyLabel} onChange={(value) => updateText({ caseStudyLabel: value })} placeholder="See case studies" />
         </Field>
         <Field label="Price label">
-          <TextInput value={priceLabel} onChange={(value) => updateText({ priceLabel: value })} placeholder="MONTHLY SETUP" />
+          <TextInput value={priceLabel} onChange={(value) => updateText({ priceLabel: value })} placeholder="From / Custom" />
         </Field>
         <Field label="Price value">
           <TextInput value={priceValue} onChange={(value) => updateText({ priceValue: value })} placeholder="15,000,000 VND/month" />
+        </Field>
+        <Field label="Price supporting text" hint="Optional factual context below the hero price; do not enter unverified discount or SLA claims.">
+          <TextInput value={priceSupportingText} onChange={(value) => updateText({ priceSupportingText: value })} placeholder="All-in-one: content + web + ads" />
+        </Field>
+        <Field label="CTA micro-copy" hint="Optional short line below the CTA. Leave empty unless the claim is approved.">
+          <TextInput value={ctaMicrocopy} onChange={(value) => updateText({ ctaMicrocopy: value })} placeholder="Optional approved copy" />
         </Field>
       </div>
       <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
@@ -627,12 +676,12 @@ function PackageItemEditor({
           <div>
             <p className="text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Feature rows</p>
             <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/75">
-              Each row: text + optional group + Featured flag. Rows stay exactly where you place them (no auto-grouping). Featured rows (max 4) show on the compact card; everything else lives in the expander, grouped by the Group field.
+              Each row: text + optional group + included/excluded state. Missing availability in older data is treated as included.
             </p>
           </div>
           <button
             type="button"
-            onClick={() => updateText({ features: [...features, { text: '', group: '', featured: false }] })}
+            onClick={() => updateText({ features: [...features, { text: '', group: '', availability: 'included', featured: false }] })}
             className="inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-surface px-3 py-2 text-xs font-extrabold text-primary"
           >
             <Plus size={15} /> Add row
@@ -640,13 +689,22 @@ function PackageItemEditor({
         </div>
         <div className="grid gap-3">
           {features.map((feature, featureIndex) => (
-            <div key={featureIndex} className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface p-3 md:grid-cols-[1.4fr_0.7fr_auto_auto]">
+            <div key={featureIndex} className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface p-3 md:grid-cols-2 xl:grid-cols-[1.4fr_0.7fr_130px_auto_auto]">
               <TextInput value={feature.text} onChange={(value) => updateFeature(featureIndex, { text: value })} placeholder="Feature detail" />
               <TextInput
                 value={feature.group ?? feature.label ?? ''}
                 onChange={(value) => updateFeature(featureIndex, { group: value })}
                 placeholder="Group (optional)"
               />
+              <select
+                value={feature.availability ?? 'included'}
+                onChange={(event) => updateFeature(featureIndex, { availability: event.target.value as CmsPackageFeature['availability'] })}
+                aria-label={`Feature ${featureIndex + 1} availability`}
+                className="h-9 rounded-lg border border-outline-variant bg-surface px-2.5 text-xs font-extrabold text-on-surface-variant outline-none focus:border-primary"
+              >
+                <option value="included">Included</option>
+                <option value="excluded">Excluded</option>
+              </select>
               <label className="inline-flex h-9 items-center gap-2 rounded-lg border border-outline-variant px-2.5 text-xs font-extrabold text-on-surface-variant">
                 <input
                   type="checkbox"
@@ -672,6 +730,56 @@ function PackageItemEditor({
           {features.length === 0 && (
             <p className="rounded-xl border border-dashed border-outline-variant/50 bg-surface px-4 py-3 text-xs font-semibold text-on-surface-variant">
               Chua co feature row. Neu de trong, front-end tam parse tu Body cu.
+            </p>
+          )}
+        </div>
+      </section>
+      <section className="rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-widest text-on-surface-variant">Comparison rows</p>
+            <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/75">
+              Compact service-level comparison shown in the card sub-panel. Missing rows in older data fall back safely on the public site.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => updateText({ comparisonRows: [...comparisonRows, { label: '', value: '', availability: 'included' }] })}
+            className="inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-surface px-3 py-2 text-xs font-extrabold text-primary"
+          >
+            <Plus size={15} /> Add row
+          </button>
+        </div>
+        <div className="grid gap-3">
+          {comparisonRows.map((row, rowIndex) => (
+            <div key={rowIndex} className="grid gap-3 rounded-xl border border-outline-variant/45 bg-surface p-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_130px_auto]">
+              <TextInput value={row.label} onChange={(value) => updateComparisonRow(rowIndex, { label: value })} placeholder="Landing pages" />
+              <TextInput value={row.value} onChange={(value) => updateComparisonRow(rowIndex, { value })} placeholder="Unlimited" />
+              <select
+                value={row.availability ?? 'included'}
+                onChange={(event) => updateComparisonRow(rowIndex, { availability: event.target.value as CmsPackageComparisonRow['availability'] })}
+                aria-label={`Comparison row ${rowIndex + 1} availability`}
+                className="h-9 rounded-lg border border-outline-variant bg-surface px-2.5 text-xs font-extrabold text-on-surface-variant outline-none focus:border-primary"
+              >
+                <option value="included">Included</option>
+                <option value="excluded">Excluded</option>
+              </select>
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => moveComparisonRow(rowIndex, -1)} disabled={rowIndex === 0} className="rounded-lg border border-outline-variant px-2.5 py-2 text-on-surface-variant disabled:opacity-40" aria-label="Move comparison row up">
+                  <ArrowUp size={14} />
+                </button>
+                <button type="button" onClick={() => moveComparisonRow(rowIndex, 1)} disabled={rowIndex === comparisonRows.length - 1} className="rounded-lg border border-outline-variant px-2.5 py-2 text-on-surface-variant disabled:opacity-40" aria-label="Move comparison row down">
+                  <ArrowDown size={14} />
+                </button>
+                <button type="button" onClick={() => updateText({ comparisonRows: comparisonRows.filter((_, itemIndex) => itemIndex !== rowIndex) })} className="rounded-lg border border-red-200 px-2.5 py-2 text-red-700" aria-label="Remove comparison row">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+          {comparisonRows.length === 0 && (
+            <p className="rounded-xl border border-dashed border-outline-variant/50 bg-surface px-4 py-3 text-xs font-semibold text-on-surface-variant">
+              No structured comparison rows yet. The public card keeps its backward-compatible fallback.
             </p>
           )}
         </div>
@@ -1402,6 +1510,7 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
   const showBlockCtaHref = false
   const showBlockHeading = !isPackageList
   const showBlockItems = !isHomepageHero && !isTheOneHero && !(block.id === 'intro' && !block.items?.length)
+  const blockEyebrow = getBlockTextValue(currentBlock, activeLang, 'eyebrow')
   const blockHeading = getBlockTextValue(currentBlock, activeLang, 'heading')
   const blockBody = getBlockTextValue(currentBlock, activeLang, 'body')
   const blockCtaLabel = getBlockTextValue(currentBlock, activeLang, 'ctaLabel')
@@ -1560,6 +1669,9 @@ export default function SectionEditorScreen({ pageId, blockId }: { pageId: strin
 
           {isPackageList && (
             <div className="grid gap-4 rounded-xl border border-outline-variant/45 bg-surface-container-low p-4">
+              <Field label="Eyebrow" hint="Small uppercase label above The One Packages heading.">
+                <TextInput value={blockEyebrow} onChange={(value) => updateBlockText({ eyebrow: value })} placeholder="PRICING" />
+              </Field>
               <Field label="Layout" hint="cards = 3 cot cu, horizontal = 3 hang ngang moi.">
                 <div className="inline-flex w-fit rounded-xl border border-outline-variant/45 bg-surface p-1">
                   {(['horizontal', 'cards'] as const).map((layout) => (

@@ -169,26 +169,37 @@ function RevealWords({ text, includeScreenReaderText = true }: { text: string; i
 }
 
 function SectionHeader({
+  eyebrow,
   title,
   intro,
   quote,
   dark = false,
   align = 'left',
   perWord = false,
+  className = '',
+  titleClassName = '',
 }: {
+  eyebrow?: string
   title: string
   intro?: string
   quote?: string
   dark?: boolean
   align?: 'left' | 'center'
   perWord?: boolean
+  className?: string
+  titleClassName?: string
 }) {
   const centered = align === 'center'
   const titleWordCount = countStaggerWords(title)
   const followDelayMs = perWord ? titleWordCount * 70 + 240 : 130
   return (
-    <div className={`mb-8 max-w-3xl ${centered ? 'mx-auto text-center' : ''}`}>
-      <h2 data-reveal={perWord ? 'words' : 'true'} data-reveal-phase="0" className={`text-[28px] md:text-[36px] font-extrabold leading-tight ${dark ? 'text-white' : 'text-on-surface'}`}>
+    <div className={`mb-8 max-w-3xl ${centered ? 'mx-auto text-center' : ''} ${className}`}>
+      {eyebrow && (
+        <p data-reveal="soft" data-reveal-phase="0" className="packages-eyebrow">
+          {eyebrow}
+        </p>
+      )}
+      <h2 data-reveal={perWord ? 'words' : 'true'} data-reveal-phase="0" className={`text-[28px] md:text-[36px] font-extrabold leading-tight ${dark ? 'text-white' : 'text-on-surface'} ${titleClassName}`}>
         {perWord ? <RevealWords text={title} /> : title}
       </h2>
       <div
@@ -2150,13 +2161,24 @@ export default function BrandHomePage({
       <CaseStudyShowcase stories={storyTargets} lang={lang} block={showcaseBlock} openingBaseMs={heroDelays.cta + 200} />
       <RedFlagsSection block={redFlagsBlock} />
 
-      <section id="packages" data-reveal-scene data-home-tone="mid" className="home-tone-zone home-section-pad px-5 lg:px-10">
-        <div className="quiet-zone quiet-zone--strong max-w-6xl mx-auto">
+      <section
+        id="packages"
+        data-reveal-scene
+        data-reveal-once
+        data-reveal-step-ms="100"
+        data-home-tone="dark"
+        className="packages-section home-tone-zone"
+      >
+        <div className="packages-section-inner mx-auto">
           <SectionHeader
+            eyebrow={packagesBlock?.eyebrow?.trim() || 'PRICING'}
             title={packagesTitle}
             intro={packagesBlock?.body || (lang === 'vi' ? 'Chọn nhịp tăng trưởng phù hợp với giai đoạn của bạn.' : 'Choose the growth system that fits your stage.')}
+            dark
             align="center"
             perWord
+            className="packages-section-header"
+            titleClassName="packages-section-title"
           />
           <div style={{ '--rd': `${packagesHeaderDelay + 260}ms` } as CSSProperties}>
             <PackageCards items={packageItems} lang={lang} layout={packagesBlock?.layout === 'cards' ? 'cards' : 'horizontal'} />

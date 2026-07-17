@@ -85,7 +85,10 @@ export function useScrollReveal() {
       const ordered = sortSceneSteps(scene)
       const sequence = direction === 'up' ? [...ordered].reverse() : ordered
       const rendered = new Set(ordered)
-      const stepMs = Math.max(42, Math.min(76, Math.floor(820 / Math.max(1, sequence.length))))
+      const requestedStepMs = Number.parseFloat(scene.dataset.revealStepMs ?? '')
+      const stepMs = Number.isFinite(requestedStepMs) && requestedStepMs >= 0
+        ? Math.min(500, requestedStepMs)
+        : Math.max(42, Math.min(76, Math.floor(820 / Math.max(1, sequence.length))))
 
       scene.dataset.revealPlayed = 'true'
       scene.dataset.revealDirection = direction
@@ -218,6 +221,7 @@ export function useScrollReveal() {
 
       const rearmDistance = window.innerHeight * SCENE_REARM_MARGIN
       document.querySelectorAll<HTMLElement>('[data-reveal-scene][data-reveal-played]').forEach((scene) => {
+        if (scene.dataset.revealOnce !== undefined) return
         const rect = scene.getBoundingClientRect()
         if (rect.bottom < -rearmDistance || rect.top > window.innerHeight + rearmDistance) resetScene(scene)
       })

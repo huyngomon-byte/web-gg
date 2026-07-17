@@ -1,23 +1,73 @@
 'use client'
 
 import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
-import { ArrowRight, Check, ChevronDown, Megaphone, Rocket, Workflow } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, Megaphone, Rocket, Workflow, X } from 'lucide-react'
 import { localizedPath, type BrandLang } from '../brandContent'
-import type { CmsBlockItem } from '../cms/types'
+import type { CmsBlockItem, CmsPackageComparisonRow } from '../cms/types'
 import { CmsIcon } from './CmsIcon'
 import { openBookingModal } from './openBookingModal'
 
-const packageIcons = [Rocket, Workflow, Megaphone]
-function resolvePackageId(item: CmsBlockItem) {
-  const hash = item.href?.match(/#([^#?]+)/)?.[1]
-  // `#packages` is the shared homepage-section destination, not a card id.
-  if (hash && hash !== 'packages') return decodeURIComponent(hash)
-  return item.title
+export type PackageTone = 'start' | 'system' | 'scale'
+const packageToneOrder = ['start', 'system', 'scale'] as const
+
+export type PackageFeatureRow = {
+  text: string
+  group?: string
+  label?: string
+  featured?: boolean
+  availability?: 'included' | 'excluded'
+}
+
+type PackageFeatureTextParts = {
+  before: string
+  emphasis: string
+  after: string
+}
+
+export type PackageFeaturePresentation = {
+  group: string
+  emphasisSource: 'explicit' | 'leading' | 'none'
+  parts: PackageFeatureTextParts
+}
+
+type NormalizedPackageDeliverable =
+  | { type: 'metric'; value: string; body: string }
+  | { type: 'task'; title: string; body: string }
+
+const packageIcons = {
+  start: Rocket,
+  system: Workflow,
+  scale: Megaphone,
+} satisfies Record<PackageTone, typeof Rocket>
+
+function safelyDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+function packageToken(value: string) {
+  return value
     .trim()
     .toLowerCase()
     .replace(/&/g, 'and')
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+    .replace(/^-|-$/g, '') || 'package'
+}
+
+function resolvePackageId(item: CmsBlockItem, index: number) {
+  const hash = item.href?.match(/#([^#?]+)/)?.[1]
+  // `#packages` targets the shared homepage section, not an individual card.
+  if (hash) {
+    const decodedHash = safelyDecodeURIComponent(hash)
+    if (decodedHash && decodedHash !== 'packages') return decodedHash
+  }
+
+  const stableSource = item.id?.trim() || item.title
+  const token = packageToken(stableSource)
+  return token === 'package' ? `package-${index + 1}` : token
 }
 
 function parsePackageBody(body: string | undefined) {
@@ -39,13 +89,9 @@ function packageDeliverableTitle(line: string) {
   return 'Growth task'
 }
 
-type NormalizedPackageDeliverable =
-  | { type: 'metric'; value: string; body: string }
-  | { type: 'task'; title: string; body: string }
-
 function normalizePackageDeliverables(lines: string[]): NormalizedPackageDeliverable[] {
   return lines.map((line) => {
-    const metricMatch = line.match(/^(\d+\s+content units\/month)(?:\s+\((.+)\))?$/i)
+    const metricMatch = line.match(/^(\d+\s+content units?\/month)(?:[\s,]+\(?(.+?)\)?)?$/i)
     if (metricMatch) {
       return {
         type: 'metric' as const,
@@ -61,67 +107,148 @@ function normalizePackageDeliverables(lines: string[]): NormalizedPackageDeliver
   })
 }
 
-function isMetricDeliverable(deliverable: NormalizedPackageDeliverable): deliverable is Extract<NormalizedPackageDeliverable, { type: 'metric' }> {
+function isMetricDeliverable(
+  deliverable: NormalizedPackageDeliverable,
+): deliverable is Extract<NormalizedPackageDeliverable, { type: 'metric' }> {
   return deliverable.type === 'metric'
-}
-
-function getPackageContent(item: CmsBlockItem) {
-  const parsed = parsePackageBody(item.body)
-  const fallbackDeliverables = normalizePackageDeliverables(parsed.bullets)
-  const fallbackFeatures = fallbackDeliverables.map((deliverable) => {
-    if (isMetricDeliverable(deliverable)) {
-      return {
-        label: 'CONTENT ENGINE',
-        text: [deliverable.value, deliverable.body].filter(Boolean).join(' - '),
-      }
-    }
-    return {
-      label: deliverable.title.toUpperCase(),
-      text: deliverable.body,
-    }
-  })
-
-  return {
-    subtitle: item.subtitle?.trim() || parsed.subtitle,
-    features: item.features?.filter((feature) => feature.label?.trim() || feature.text.trim()) ?? fallbackFeatures,
-    priceLabel: item.priceLabel?.trim() || 'MONTHLY SETUP',
-    priceValue: item.priceValue?.trim() || parsed.price,
-  }
-}
-
-export type PackageFeatureRow = { text: string; group?: string; label?: string; featured?: boolean }
-
-export type PackageTone = 'start' | 'system' | 'scale'
-
-type PackageFeatureTextParts = {
-  before: string
-  emphasis: string
-  after: string
-}
-
-export type PackageFeaturePresentation = {
-  group: string
-  emphasisSource: 'explicit' | 'leading' | 'none'
-  parts: PackageFeatureTextParts
 }
 
 function isContentMetricRow(row: PackageFeatureRow) {
   return /content units?/i.test(row.text)
 }
 
+function getPackageContent(item: CmsBlockItem) {
+  const parsed = parsePackageBody(item.body)
+  const fallbackDeliverables = normalizePackageDeliverables(parsed.bullets)
+  const fallbackFeatures: PackageFeatureRow[] = fallbackDeliverables.map((deliverable) => {
+    if (isMetricDeliverable(deliverable)) {
+      return {
+        label: 'CONTENT ENGINE',
+        text: [deliverable.value, deliverable.body].filter(Boolean).join(' - '),
+        availability: 'included',
+      }
+    }
+    return {
+      label: deliverable.title.toUpperCase(),
+      text: deliverable.body,
+      availability: 'included',
+    }
+  })
+
+  const cmsFeatures = item.features?.filter((feature) => feature.label?.trim() || feature.text.trim()) ?? []
+  const rows: PackageFeatureRow[] = cmsFeatures.length ? cmsFeatures : fallbackFeatures
+  const featureCapacity = rows.find(isContentMetricRow)
+  const parsedCapacity = !featureCapacity
+    ? fallbackFeatures.find(isContentMetricRow)
+    : undefined
+
+  return {
+    subtitle: item.subtitle?.trim() || parsed.subtitle,
+    capacity: featureCapacity ?? parsedCapacity,
+    features: rows.filter((row) => row !== featureCapacity && !isContentMetricRow(row)),
+    priceLabel: item.priceLabel?.trim() || 'From',
+    priceValue: item.priceValue?.trim() || parsed.price,
+    priceSupportingText: item.priceSupportingText?.trim() || '',
+    ctaMicrocopy: item.ctaMicrocopy?.trim() || '',
+  }
+}
+
+export function normalizePackagePrice(
+  priceLabel: string,
+  priceValue: string,
+  priceSupportingText: string,
+  tone: PackageTone,
+) {
+  const normalizedLabel = !priceLabel || /^monthly setup$/i.test(priceLabel) || (tone === 'scale' && /^from$/i.test(priceLabel))
+    ? tone === 'scale' ? 'Custom' : 'From'
+    : priceLabel
+  const normalizedValue = /^from$/i.test(normalizedLabel)
+    ? priceValue.replace(/^from\s+/i, '').trim()
+    : priceValue
+  let normalizedSupportingText = priceSupportingText || (tone === 'system'
+    ? 'All-in-one: content + web + ads'
+    : '')
+  let displayValue = normalizedValue
+
+  if (tone === 'scale') {
+    const customPrice = normalizedValue.match(/^(.+?)\s+[\u2013\u2014-]\s+(.+)$/)
+    if (customPrice) {
+      displayValue = customPrice[1].trim()
+      if (!normalizedSupportingText) normalizedSupportingText = customPrice[2].trim()
+    }
+  }
+
+  const suffixMatch = displayValue.match(/^(.+?)(\/(?:month|tháng))$/i)
+
+  return {
+    priceLabel: normalizedLabel,
+    priceValue: suffixMatch?.[1].trim() || displayValue,
+    priceSuffix: suffixMatch?.[2] || '',
+    priceSupportingText: normalizedSupportingText,
+  }
+}
+
 function rowGroupName(row: PackageFeatureRow) {
   const source = row.group?.trim() || row.label?.trim() || ''
   if (!source) return 'Deliverables'
   // Legacy labels are stored UPPERCASE; show them in title case.
-  return source.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase())
+  return source.toLowerCase().replace(/(^|\s)\S/g, (character) => character.toUpperCase())
 }
 
-export function resolvePackageTone(item: Pick<CmsBlockItem, 'title'>, packageId: string, index: number): PackageTone {
+export function resolvePackageTone(
+  item: Pick<CmsBlockItem, 'title' | 'packageTier'>,
+  packageId: string,
+  index: number,
+): PackageTone {
   const stableKey = `${packageId} ${item.title}`.toLowerCase()
   if (/\bscale\b/.test(stableKey)) return 'scale'
   if (/\bsystem\b/.test(stableKey)) return 'system'
   if (/\bstart(?:er)?\b/.test(stableKey)) return 'start'
-  return (['start', 'system', 'scale'] as const)[index] ?? 'start'
+  if (item.packageTier) return item.packageTier
+  return packageToneOrder[index] ?? 'start'
+}
+
+export function resolvePackageTones(
+  items: Array<Pick<CmsBlockItem, 'title' | 'packageTier'>>,
+  packageIds: string[],
+) {
+  const requested = items.map((item, index) => resolvePackageTone(item, packageIds[index] ?? '', index))
+  if (items.length !== packageToneOrder.length) return requested
+
+  const assigned: Array<PackageTone | undefined> = Array(items.length).fill(undefined)
+  const available = new Set<PackageTone>(packageToneOrder)
+
+  // Stable package names/anchors define the public hierarchy even if a stale
+  // CMS tier field is duplicated or misassigned.
+  items.forEach((item, index) => {
+    const stableKey = `${packageIds[index] ?? ''} ${item.title}`.toLowerCase()
+    const stableTone = packageToneOrder.find((tone) => (
+      tone === 'start'
+        ? /\bstart(?:er)?\b/.test(stableKey)
+        : new RegExp(`\\b${tone}\\b`).test(stableKey)
+    ))
+    if (stableTone && available.has(stableTone)) {
+      assigned[index] = stableTone
+      available.delete(stableTone)
+    }
+  })
+
+  requested.forEach((tone, index) => {
+    if (!assigned[index] && available.has(tone)) {
+      assigned[index] = tone
+      available.delete(tone)
+    }
+  })
+
+  assigned.forEach((tone, index) => {
+    if (tone) return
+    const positionalTone = packageToneOrder[index]
+    const fallbackTone = available.has(positionalTone) ? positionalTone : available.values().next().value
+    assigned[index] = fallbackTone ?? positionalTone
+    available.delete(assigned[index]!)
+  })
+
+  return assigned as PackageTone[]
 }
 
 function splitExactPhrase(text: string, phrase: string): PackageFeatureTextParts | null {
@@ -140,7 +267,7 @@ function splitLeadingMeaningfulClause(text: string): PackageFeatureTextParts | n
   const start = text.search(/\S/)
   if (start < 0) return null
   const content = text.slice(start)
-  const boundary = /(?:,|;|:|\s+[—–]\s+|\s+\()/.exec(content)
+  const boundary = /(?:,|;|:|\s+[\u2013\u2014]\s+|\s+\()/.exec(content)
   const end = start + (boundary?.index ?? content.length)
   const emphasis = text.slice(start, end).trimEnd()
   if (!emphasis) return null
@@ -156,8 +283,7 @@ export function getPackageFeaturePresentation(
   important = row.featured === true,
 ): PackageFeaturePresentation {
   // `label` is a legacy group fallback when no explicit `group` exists. It only
-  // becomes an inline emphasis instruction when both fields are present, so old
-  // CMS rows keep their original meaning.
+  // becomes inline emphasis when both fields exist, preserving old CMS meaning.
   const explicitPhrase = row.group?.trim() ? row.label?.trim() ?? '' : ''
   const explicitParts = explicitPhrase ? splitExactPhrase(row.text, explicitPhrase) : null
   if (explicitParts) {
@@ -176,69 +302,71 @@ export function getPackageFeaturePresentation(
   }
 }
 
-function packageToken(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || 'deliverables'
+function fallbackExcludedFeatures(lang: BrandLang): PackageFeatureRow[] {
+  if (lang === 'vi') {
+    return [
+      { label: 'ECOMMERCE OPS', text: 'Vận hành thương mại điện tử (Shopee, TikTok Shop, Lazada...)', availability: 'excluded' },
+      { label: 'WEBSITE SYSTEM', text: 'Landing page không giới hạn', availability: 'excluded' },
+    ]
+  }
+
+  return [
+    { label: 'ECOMMERCE OPS', text: 'E-commerce management (Shopee, TikTok Shop, Lazada...)', availability: 'excluded' },
+    { label: 'WEBSITE SYSTEM', text: 'Unlimited landing pages', availability: 'excluded' },
+  ]
+}
+
+function withStartExclusions(features: PackageFeatureRow[], tone: PackageTone, lang: BrandLang) {
+  if (tone !== 'start') return features
+
+  const nextRows = [...features]
+  for (const fallback of fallbackExcludedFeatures(lang)) {
+    const semanticMatch = /e-?commerce|shopee|tiktok shop|lazada/i.test(fallback.text)
+      ? /e-?commerce|shopee|tiktok shop|lazada/i
+      : /unlimited landing pages|landing page không giới hạn/i
+    if (!nextRows.some((row) => semanticMatch.test(row.text))) nextRows.push(fallback)
+  }
+  return nextRows
 }
 
 function PackageFeatureRowView({
-  as = 'li',
   row,
-  important = row.featured === true,
-  showGroup = true,
-  variant,
+  tone,
   style,
 }: {
-  as?: 'li' | 'div'
   row: PackageFeatureRow
-  important?: boolean
-  showGroup?: boolean
-  variant: 'compact' | 'expanded' | 'card'
+  tone: PackageTone
   style?: CSSProperties
 }) {
-  const presentation = getPackageFeaturePresentation(row, important)
-  const Element = as
-  const showCheck = variant !== 'card'
-  const classes = variant === 'compact'
-    ? 'pkg-rv package-feature-row flex items-start gap-2 text-[13px] font-semibold leading-snug text-[#3d1226]'
-    : variant === 'expanded'
-      ? 'pkg-acc-row package-feature-row flex items-start gap-2 text-[12px] font-semibold leading-relaxed text-[#7a5566]'
-      : 'pkg-rv package-feature-row group/task rounded-2xl border border-outline-variant/45 bg-white/60 p-3 transition hover:border-primary/30 hover:bg-primary/5'
+  const presentation = getPackageFeaturePresentation(row)
+  const availability = row.availability ?? 'included'
+  const included = availability === 'included'
+  const systemBase = tone === 'scale' && /everything included in the one system/i.test(row.text)
 
   return (
-    <Element
-      className={classes}
+    <li
+      className={`package-feature-row pkg-rv${systemBase ? ' package-feature-row--system-base' : ''}`}
       style={style}
       data-testid="package-feature-row"
       data-feature-group={presentation.group}
-      data-featured={important ? 'true' : 'false'}
+      data-featured={row.featured === true ? 'true' : 'false'}
+      data-availability={availability}
+      data-system-base={systemBase ? 'true' : 'false'}
     >
-      {showCheck && (
-        <Check
-          size={variant === 'expanded' ? 13 : 15}
-          strokeWidth={3}
-          className={`mt-0.5 shrink-0 ${variant === 'expanded' ? 'text-primary/70' : 'text-primary'}`}
-          aria-hidden="true"
-        />
-      )}
-      <span className="package-feature-copy block min-w-0 flex-1 [overflow-wrap:anywhere]">
-        {showGroup && (
-          <span className="package-feature-group mb-1 block text-[9px] font-black uppercase tracking-[0.12em] text-primary/80">
-            {presentation.group}
-          </span>
-        )}
-        <span className={`package-feature-text block ${variant === 'card' ? 'text-[12px] font-semibold leading-relaxed text-on-surface-variant' : ''}`}>
+      <span className="package-feature-status" aria-hidden="true">
+        {included ? <Check size={15} strokeWidth={3} /> : <X size={15} strokeWidth={3} />}
+      </span>
+      <span className="sr-only">{included ? 'Included: ' : 'Not included: '}</span>
+      <span className="package-feature-copy">
+        <span className="package-feature-group">{presentation.group}</span>
+        <span className="package-feature-text">
           {presentation.parts.emphasis ? (
             <>
               {presentation.parts.before}
               <strong
                 data-testid="package-feature-emphasis"
                 data-emphasis-source={presentation.emphasisSource}
-                className="package-feature-emphasis font-black text-[#3d1226]"
+                className="package-feature-emphasis"
               >
                 {presentation.parts.emphasis}
               </strong>
@@ -247,7 +375,7 @@ function PackageFeatureRowView({
           ) : row.text}
         </span>
       </span>
-    </Element>
+    </li>
   )
 }
 
@@ -263,68 +391,136 @@ function normalizePackageStoryLabel(value: string | undefined, fallback: string)
   return trimmed
 }
 
-// Round 7 A4: compact card shows the content chip + up to 4 featured rows; every
-// row (in admin-defined order, grouped only by its own "group" field) lives in
-// the expander. No auto-assignment of rows to groups.
-function organizePackageFeatures(features: PackageFeatureRow[]) {
-  const rows = features.filter((row) => row.text.trim())
-  const metricRow = rows.find(isContentMetricRow)
-  const listRows = rows.filter((row) => row !== metricRow)
-  const flagged = listRows.filter((row) => row.featured === true)
-  // Round 8 A4.1: CMS decides how many rows are featured (no hard cap); fallback caps at 4.
-  const compactRows = flagged.length ? flagged : listRows.slice(0, 4)
+function packageBadgeLabel(item: CmsBlockItem, tone: PackageTone, lang: BrandLang) {
+  if (tone === 'start') return ''
+  const customLabel = item.label?.trim()
+  if (tone === 'scale') return customLabel || 'Custom'
+  if (!customLabel) return 'Most Popular'
+  if (lang === 'en' && /được chọn nhiều nhất|most popular/i.test(customLabel)) return 'Most Popular'
+  return customLabel
+}
 
-  const groups: Array<{ name: string; rows: PackageFeatureRow[] }> = []
-  for (const row of listRows) {
-    const name = rowGroupName(row)
-    const existing = groups.find((group) => group.name === name)
-    if (existing) existing.rows.push(row)
-    else groups.push({ name, rows: [row] })
+function fallbackComparisonRows(tone: PackageTone, lang: BrandLang): CmsPackageComparisonRow[] {
+  const isVi = lang === 'vi'
+  const labels = isVi
+    ? ['Landing pages', 'Vận hành thương mại điện tử', 'Tổ chức sự kiện']
+    : ['Landing pages', 'E-commerce ops', 'Event execution']
+
+  if (tone === 'start') {
+    return [
+      { label: labels[0], value: isVi ? '10 trang' : '10 pages', availability: 'included' },
+      { label: labels[1], value: isVi ? 'Không bao gồm' : 'No access', availability: 'excluded' },
+      { label: labels[2], value: isVi ? 'Không bao gồm' : 'No access', availability: 'excluded' },
+    ]
   }
 
-  return { metricRow, compactRows, groups, totalRows: listRows.length }
+  if (tone === 'system') {
+    return [
+      { label: labels[0], value: isVi ? 'Không giới hạn' : 'Unlimited', availability: 'included' },
+      { label: labels[1], value: isVi ? 'Toàn quyền' : 'Full access', availability: 'included' },
+      { label: labels[2], value: isVi ? 'Không bao gồm' : 'No access', availability: 'excluded' },
+    ]
+  }
+
+  return [
+    { label: labels[0], value: isVi ? 'Không giới hạn' : 'Unlimited', availability: 'included' },
+    { label: labels[1], value: isVi ? 'Toàn quyền' : 'Full access', availability: 'included' },
+    { label: labels[2], value: isVi ? 'Tại sự kiện' : 'On-site', availability: 'included' },
+  ]
 }
 
-function isSystemPackage(item: CmsBlockItem, index: number) {
-  return index === 1 || /system/i.test(item.title)
+function packageComparisonRows(item: CmsBlockItem, tone: PackageTone, lang: BrandLang) {
+  const cmsRows = item.comparisonRows?.filter((row) => row.label.trim() && row.value.trim()) ?? []
+  const rows = cmsRows.length ? cmsRows : fallbackComparisonRows(tone, lang)
+  return rows.map((row) => ({
+    ...row,
+    availability: row.availability ?? (/^(?:✗|×)|no access|not included|không bao gồm/i.test(row.value)
+      ? 'excluded'
+      : 'included'),
+  }))
 }
 
-function PackageSelectionControl({
-  checked,
-  name,
-  packageId,
-  packageTitle,
-  onSelect,
-}: {
-  checked: boolean
-  name: string
-  packageId: string
-  packageTitle: string
-  onSelect: () => void
-}) {
+function Capacity({ row }: { row: PackageFeatureRow }) {
+  const match = row.text.match(/^(.+?content units?\/month)(?:,\s*|\s+[\u2013\u2014-]\s*|\s+)(.+)$/i)
+  const main = match?.[1]?.trim() || row.text
+  const supporting = match?.[2]?.trim() || ''
+
   return (
-    <label
-      className={[
-        'mt-4 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-colors',
-        checked
-          ? 'border-primary/45 bg-primary/10 text-primary'
-          : 'border-outline-variant/60 bg-white/45 text-on-surface-variant hover:border-primary/30 hover:bg-primary/5',
-      ].join(' ')}
-    >
-      <input
-        type="radio"
-        name={name}
-        value={packageId}
-        checked={checked}
-        onChange={onSelect}
-        aria-label={`Choose ${packageTitle} package`}
-        data-testid="package-radio"
-        className="h-5 w-5 shrink-0 cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-      />
-      <span className="text-xs font-extrabold">
-        {checked ? 'Selected package' : 'Select this package'}
+    <div className="package-metric-chip pkg-rv" data-testid="package-capacity">
+      <span className="package-capacity-icon" aria-hidden="true">✦</span>
+      <span className="sr-only">Package capacity: </span>
+      <span className="package-capacity-copy">
+        <strong>{main}</strong>
+        {supporting && <span>{supporting}</span>}
       </span>
-    </label>
+    </div>
+  )
+}
+
+function PackageComparison({
+  item,
+  tone,
+  lang,
+  panelId,
+  expanded,
+  onToggle,
+}: {
+  item: CmsBlockItem
+  tone: PackageTone
+  lang: BrandLang
+  panelId: string
+  expanded: boolean
+  onToggle: () => void
+}) {
+  const rows = packageComparisonRows(item, tone, lang)
+  const toggleLabel = lang === 'vi' ? 'So sánh chi tiết' : 'Compare details'
+  const panelLabel = lang === 'vi' ? 'Mức độ dịch vụ' : 'Service access'
+
+  return (
+    <div className="package-comparison pkg-rv" data-testid="package-comparison">
+      <button
+        type="button"
+        className="package-comparison-toggle"
+        data-testid="package-comparison-toggle"
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        onClick={onToggle}
+      >
+        <span>{toggleLabel}</span>
+        <ChevronDown className={expanded ? 'is-expanded' : ''} size={16} strokeWidth={2.5} aria-hidden="true" />
+      </button>
+      <div
+        id={panelId}
+        className={`package-comparison-panel${expanded ? ' is-open' : ''}`}
+        data-testid="package-comparison-panel"
+        data-expanded={expanded ? 'true' : 'false'}
+      >
+        <h4 className="package-comparison-title">{panelLabel}</h4>
+        <dl className="package-comparison-list">
+          {rows.map((row, index) => {
+            const availability = row.availability ?? 'included'
+            const included = availability === 'included'
+            const value = row.value.replace(/^[✓✗×]\s*/, '')
+            return (
+              <div
+                key={`${row.label}-${index}`}
+                className="package-comparison-row"
+                data-availability={availability}
+              >
+                <dt>{row.label}</dt>
+                <dd>
+                  <span className="package-comparison-status" aria-hidden="true">
+                    {included ? <Check size={12} strokeWidth={3} /> : <X size={12} strokeWidth={3} />}
+                  </span>
+                  <span className="sr-only">{included ? 'Included: ' : 'Not included: '}</span>
+                  <span>{value}</span>
+                </dd>
+              </div>
+            )
+          })}
+        </dl>
+      </div>
+    </div>
   )
 }
 
@@ -339,300 +535,184 @@ export function PackageCards({
   className?: string
   layout?: 'cards' | 'horizontal'
 }) {
+  const componentId = useId().replace(/:/g, '')
   const cardIds = useMemo(() => items.map(resolvePackageId), [items])
-  const radioGroupName = `package-selection-${useId().replace(/:/g, '')}`
-  const systemIndex = Math.max(0, items.findIndex(isSystemPackage))
-  const [selectedIndex, setSelectedIndex] = useState(systemIndex)
   const [highlightedId, setHighlightedId] = useState('')
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({})
+  const [viewportOrder, setViewportOrder] = useState({ mobile: false, ready: false })
   const chooseLabel = lang === 'vi' ? 'Chọn The One này' : 'Pick this One'
   const caseStudyLabel = lang === 'vi' ? 'Xem tất cả stories' : 'View all stories'
 
   useEffect(() => {
-    setSelectedIndex(systemIndex)
-  }, [systemIndex])
+    const mediaQuery = window.matchMedia('(max-width: 899px)')
+    const syncViewportOrder = () => setViewportOrder({ mobile: mediaQuery.matches, ready: true })
+    syncViewportOrder()
+    mediaQuery.addEventListener('change', syncViewportOrder)
+    return () => mediaQuery.removeEventListener('change', syncViewportOrder)
+  }, [])
 
   useEffect(() => {
+    let highlightTimer: number | undefined
     const syncHash = () => {
-      const hash = decodeURIComponent(window.location.hash.replace(/^#/, ''))
-      if (!hash) return
-      const nextIndex = cardIds.indexOf(hash)
-      if (nextIndex < 0) return
-      setSelectedIndex(nextIndex)
+      const hash = safelyDecodeURIComponent(window.location.hash.replace(/^#/, ''))
+      if (!hash || !cardIds.includes(hash)) return
       setHighlightedId(hash)
-      window.setTimeout(() => setHighlightedId(''), 800)
+      if (highlightTimer) window.clearTimeout(highlightTimer)
+      highlightTimer = window.setTimeout(() => setHighlightedId(''), 800)
     }
 
     syncHash()
     window.addEventListener('hashchange', syncHash)
-    return () => window.removeEventListener('hashchange', syncHash)
+    return () => {
+      window.removeEventListener('hashchange', syncHash)
+      if (highlightTimer) window.clearTimeout(highlightTimer)
+    }
   }, [cardIds])
 
-  if (layout === 'horizontal') {
-    // Round 7 A4: compact "5-line" glass cards on the wave background —
-    // icon + name · subtitle · content chip · max 4 featured rows · price · 2 CTAs,
-    // with the full grouped deliverable list inside an in-card expander.
-    return (
-      <div role="radiogroup" aria-label="Choose a package" className={`grid items-stretch gap-5 lg:grid-cols-3 ${className}`}>
-        {items.map((item, index) => {
-          const { subtitle, features, priceLabel, priceValue } = getPackageContent(item)
-          const { metricRow, compactRows, groups, totalRows } = organizePackageFeatures(features)
-          const system = isSystemPackage(item, index)
-          const id = cardIds[index]
-          const tone = resolvePackageTone(item, id, index)
-          const highlight = highlightedId === id
-          const expanded = Boolean(expandedIds[id])
-          const Icon = packageIcons[index] ?? Rocket
-          const caseStudyLink = localizedPath(lang, '/the-one')
+  const cardTones = useMemo(() => resolvePackageTones(items, cardIds), [cardIds, items])
+  const cards = useMemo(() => items.map((item, sourceIndex) => {
+    const id = cardIds[sourceIndex]
+    return {
+      item,
+      id,
+      sourceIndex,
+      tone: cardTones[sourceIndex] ?? packageToneOrder[sourceIndex] ?? 'start',
+    }
+  }), [cardIds, cardTones, items])
 
-          const selected = selectedIndex === index
-
-          // Round 12 A4.1 (3rd report): the gradient border + scale + pink shadow
-          // used to be hardcoded on the System card, so clicking Start/Scale
-          // changed state without any visible response. Emphasis is now driven
-          // ONLY by `selected`; the badge alone stays tied to System.
-          return (
-            <div
-              key={`${item.title}-${index}-horizontal`}
-              data-reveal="pkg-card"
-              data-reveal-phase="2"
-              data-testid="package-card"
-              data-package-id={id}
-              data-package-tone={tone}
-              data-selected={selected ? 'true' : 'false'}
-              data-system-package={system ? 'true' : 'false'}
-              style={{ '--ri': index } as CSSProperties}
-              className={[
-                'rounded-[22px] p-[2px] transition-[transform,box-shadow] duration-[250ms]',
-                system ? 'pkg-card-spring' : '',
-                selected ? 'bg-gradient-to-r from-primary via-tertiary to-secondary md:scale-[1.02]' : 'bg-transparent',
-              ].join(' ')}
-            >
-              <article
-                id={id}
-                className={[
-                  // Round 8 A4.2: denser frost so text stays readable over the wave; emphasis by border, never by background.
-                  'glass-panel glass-panel--frost relative flex h-full scroll-mt-32 flex-col p-6 transition duration-[250ms]',
-                  selected ? 'shadow-[0_24px_60px_-24px_rgba(219,39,119,0.55)]' : '',
-                  highlight ? 'is-anchor-highlighted' : '',
-                ].join(' ')}
-              >
-                {system && (
-                  <span className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-white shadow-lg">
-                    {item.label || 'Most Popular'}
-                  </span>
-                )}
-                {/* Round 12 A3.3: internal cascade — each block carries --pi; CSS turns
-                    that into a 60ms/step transition-delay after the card reveals. */}
-                <div className="pkg-rv flex items-center gap-3" style={{ '--pi': 0 } as CSSProperties}>
-                  <span className="package-tone-icon flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.imageAlt || item.title} className="h-7 w-7 object-contain" />
-                    ) : (
-                      <CmsIcon name={item.icon} fallback={Icon} size={22} />
-                    )}
-                  </span>
-                  <h3 className="text-xl font-extrabold text-[#3d1226]">{item.title}</h3>
-                </div>
-                {subtitle && <p className="pkg-rv mt-3 text-sm font-semibold leading-relaxed text-[#7a5566]" style={{ '--pi': 1 } as CSSProperties}>{subtitle}</p>}
-                <PackageSelectionControl
-                  checked={selected}
-                  name={radioGroupName}
-                  packageId={id}
-                  packageTitle={item.title}
-                  onSelect={() => setSelectedIndex(index)}
-                />
-                {metricRow && (
-                  // Round 8 A4.2: solid chip — same style on all three cards, no gradient text.
-                  <span className="package-metric-chip pkg-rv mt-4 w-fit rounded-full border border-[#F9C1D6] bg-[#FFF1F5] px-3 py-1.5 text-xs font-extrabold text-[#B3124B]" style={{ '--pi': 2 } as CSSProperties}>
-                    {metricRow.text}
-                  </span>
-                )}
-                {compactRows.length > 0 && (
-                  <ul className="package-card-features mt-4 grid gap-2">
-                    {compactRows.map((row, rowIndex) => (
-                      <PackageFeatureRowView
-                        key={`${item.title}-featured-${rowIndex}`}
-                        row={row}
-                        important
-                        variant="compact"
-                        style={{ '--pi': 3 + rowIndex } as CSSProperties}
-                      />
-                    ))}
-                  </ul>
-                )}
-                {totalRows > compactRows.length && (
-                  <button
-                    type="button"
-                    onClick={() => setExpandedIds((current) => ({ ...current, [id]: !current[id] }))}
-                    aria-expanded={expanded}
-                    style={{ '--pi': 3 + compactRows.length } as CSSProperties}
-                    className="package-card-expander pkg-rv mt-3 inline-flex w-fit items-center gap-1 text-xs font-extrabold text-primary transition-colors hover:text-primary/70"
-                  >
-                    {expanded ? 'Hide full deliverables' : 'See full deliverables'}
-                    <ChevronDown size={14} strokeWidth={3} className={`transition-transform duration-[250ms] ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
-                  </button>
-                )}
-                <div className={`package-card-details pkg-acc grid transition-[grid-template-rows] duration-[250ms] ${expanded ? 'is-open grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-                  <div className="overflow-hidden">
-                    <div className="mt-3 grid gap-3 rounded-2xl border border-white/70 bg-white/55 p-3.5">
-                      {(() => {
-                        let accRow = 0
-                        return groups.map((group, groupIndex) => {
-                          const headingId = `${id}-group-${packageToken(group.name)}-${groupIndex}`
-                          return (
-                          <section key={`${item.title}-group-${group.name}`} aria-labelledby={headingId}>
-                            <h4 id={headingId} className="pkg-acc-row text-[10px] font-black uppercase tracking-[0.14em] text-primary/80" style={{ '--pi': accRow++ } as CSSProperties}>{group.name}</h4>
-                            <ul className="mt-1.5 grid gap-1.5">
-                              {group.rows.map((row, rowIndex) => (
-                                <PackageFeatureRowView
-                                  key={`${item.title}-${group.name}-${rowIndex}`}
-                                  row={row}
-                                  important={compactRows.includes(row)}
-                                  showGroup={false}
-                                  variant="expanded"
-                                  style={{ '--pi': accRow++ } as CSSProperties}
-                                />
-                              ))}
-                            </ul>
-                          </section>
-                          )
-                        })
-                      })()}
-                    </div>
-                  </div>
-                </div>
-                {priceValue && (
-                  <div className="package-card-price pkg-rv mt-5 rounded-2xl border border-primary/15 bg-[#FFF8F4] p-3.5" style={{ '--pi': 4 + compactRows.length } as CSSProperties}>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7a5566]">{priceLabel}</p>
-                    <p className="home-price-shimmer mt-1 text-2xl font-extrabold text-[#B3124B]">
-                      {priceValue}
-                    </p>
-                  </div>
-                )}
-                <div className="package-card-actions pkg-rv mt-auto flex flex-col gap-2 pt-5" style={{ '--pi': 5 + compactRows.length } as CSSProperties}>
-                  <button
-                    type="button"
-                    onClick={openBookingModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border-[1.5px] border-primary bg-white/30 px-4 py-2.5 text-sm font-extrabold text-primary transition hover:bg-primary hover:text-white"
-                  >
-                    {normalizePackageCtaLabel(item.ctaText, chooseLabel)}
-                  </button>
-                  {caseStudyLink && (
-                    <a
-                      href={caseStudyLink}
-                      className="inline-flex items-center justify-center gap-2 px-2 py-2 text-sm font-extrabold text-primary transition-colors hover:text-primary/70"
-                    >
-                      {normalizePackageStoryLabel(item.caseStudyLabel, caseStudyLabel)}
-                      <ArrowRight size={15} />
-                    </a>
-                  )}
-                </div>
-              </article>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
+  const orderedCards = useMemo(() => {
+    if (!viewportOrder.mobile) return cards
+    return [...cards].sort((left, right) => Number(right.tone === 'system') - Number(left.tone === 'system'))
+  }, [cards, viewportOrder.mobile])
 
   return (
-    <div role="radiogroup" aria-label="Choose a package" className={`grid gap-5 md:grid-cols-3 ${className}`}>
-      {items.map((item, index) => {
-        const { subtitle, features, priceLabel, priceValue } = getPackageContent(item)
-        const { compactRows } = organizePackageFeatures(features)
-        const selected = selectedIndex === index
-        const system = isSystemPackage(item, index)
-        const id = cardIds[index]
-        const tone = resolvePackageTone(item, id, index)
+    <div
+      className={`package-grid grid items-stretch gap-5 ${className}`.trim()}
+      data-testid="package-grid"
+      data-package-layout={layout}
+      data-mobile-order-ready={viewportOrder.ready ? 'true' : 'false'}
+      data-mobile-order={viewportOrder.mobile ? 'system-first' : 'standard'}
+    >
+      {orderedCards.map(({ item, id, sourceIndex, tone }, visualIndex) => {
+        const {
+          subtitle,
+          capacity,
+          features: sourceFeatures,
+          priceLabel,
+          priceValue,
+          priceSupportingText,
+          ctaMicrocopy,
+        } = getPackageContent(item)
+        const normalizedPrice = normalizePackagePrice(priceLabel, priceValue, priceSupportingText, tone)
+        const features = withStartExclusions(sourceFeatures, tone, lang)
+        const featured = tone === 'system'
         const highlight = highlightedId === id
-        const Icon = packageIcons[index] ?? Rocket
+        const expanded = Boolean(expandedIds[id])
+        const Icon = packageIcons[tone]
+        const badgeLabel = packageBadgeLabel(item, tone, lang)
+        const headingId = `${componentId}-${packageToken(id)}-title`
+        const comparisonPanelId = `${componentId}-${packageToken(id)}-comparison`
         const caseStudyLink = localizedPath(lang, '/the-one')
 
         return (
           <div
-            key={`${item.title}-${index}`}
+            key={`${id}-${sourceIndex}`}
+            className={`package-card-shell${featured ? ' package-card-shell--featured pkg-card-spring' : ''}${highlight ? ' is-anchor-highlighted' : ''}`}
             data-reveal="pkg-card"
             data-reveal-phase="2"
             data-testid="package-card"
             data-package-id={id}
             data-package-tone={tone}
-            data-selected={selected ? 'true' : 'false'}
-            data-system-package={system ? 'true' : 'false'}
-            style={{ '--ri': index } as CSSProperties}
-            className={system ? 'pkg-card-spring' : undefined}
+            data-featured={featured ? 'true' : 'false'}
+            style={{ '--ri': visualIndex } as CSSProperties}
           >
-          <article
-            id={id}
-            className={[
-              'home-package-card package-card glass-card card-hover relative flex scroll-mt-32 flex-col overflow-hidden rounded-2xl p-6 transition duration-300',
-              selected ? 'is-selected' : '',
-              system ? 'home-package-featured md:-translate-y-2' : '',
-              highlight ? 'is-anchor-highlighted' : '',
-            ].join(' ')}
-          >
-            {system && (
-              <span className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-white shadow-lg">
-                {item.label || 'Most Popular'}
-              </span>
-            )}
-            <span className="package-tone-icon pkg-rv icon-chip mb-5 h-12 w-12" style={{ '--pi': 0 } as CSSProperties}>
-              {item.imageUrl ? (
-                <img src={item.imageUrl} alt={item.imageAlt || item.title} className="h-7 w-7 object-contain" />
-              ) : (
-                <CmsIcon name={item.icon} fallback={Icon} size={22} />
+            <article
+              id={id}
+              className={`package-card home-package-card${featured ? ' package-card--featured home-package-featured' : ''}${highlight ? ' is-anchor-highlighted' : ''}`}
+              data-package-tone={tone}
+              data-featured={featured ? 'true' : 'false'}
+              aria-labelledby={headingId}
+            >
+              {badgeLabel && (
+                <span className="package-card-badge pkg-rv" style={{ '--pi': 0 } as CSSProperties}>
+                  {badgeLabel}
+                </span>
               )}
-            </span>
-            <h3 className="pkg-rv text-xl font-extrabold text-on-surface" style={{ '--pi': 1 } as CSSProperties}>{item.title}</h3>
-            {subtitle && <p className="pkg-rv mt-3 text-sm font-semibold leading-relaxed text-on-surface-variant" style={{ '--pi': 2 } as CSSProperties}>{subtitle}</p>}
-            <PackageSelectionControl
-              checked={selected}
-              name={radioGroupName}
-              packageId={id}
-              packageTitle={item.title}
-              onSelect={() => setSelectedIndex(index)}
-            />
-            {features.length > 0 && (
-              <div className="mt-4 grid gap-2">
-                {features.map((feature, featureIndex) => (
-                  <PackageFeatureRowView
-                    key={`${item.title}-feature-${featureIndex}-${feature.label}`}
-                    as="div"
-                    row={feature}
-                    important={compactRows.includes(feature)}
-                    variant="card"
-                    style={{ '--pi': 3 + featureIndex } as CSSProperties}
-                  />
-                ))}
+
+              <div className="package-card-heading pkg-rv" style={{ '--pi': 1 } as CSSProperties}>
+                <span className="package-tone-icon" aria-hidden="true">
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt="" className="package-tone-image" />
+                  ) : (
+                    <CmsIcon name={item.icon} fallback={Icon} size={22} />
+                  )}
+                </span>
+                <div>
+                  <h3 id={headingId} className="package-card-name">{item.title}</h3>
+                  {subtitle && <p className="package-card-description">{subtitle}</p>}
+                </div>
               </div>
-            )}
-            {priceValue && (
-              <div className="package-card-price pkg-rv mt-5 rounded-2xl border border-primary/20 bg-gradient-to-r from-white via-primary/5 to-secondary/10 p-3" style={{ '--pi': 4 + features.length } as CSSProperties}>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface-variant">{priceLabel}</p>
-                <p className="home-price-shimmer mt-1 text-lg font-black text-primary">
-                  {priceValue}
-                </p>
-              </div>
-            )}
-            <div className="pkg-rv mt-auto flex flex-col gap-2 pt-5" style={{ '--pi': 5 + features.length } as CSSProperties}>
-              <button
-                type="button"
-                onClick={openBookingModal}
-                className="inline-flex items-center justify-center gap-2 rounded-full border-[1.5px] border-primary bg-white/20 px-4 py-2.5 text-sm font-extrabold text-primary transition hover:bg-primary hover:text-white"
-              >
-                {normalizePackageCtaLabel(item.ctaText, chooseLabel)}
-              </button>
-              {caseStudyLink && (
-                <a
-                  href={caseStudyLink}
-                  className="inline-flex items-center justify-center gap-2 px-2 py-2 text-sm font-extrabold text-primary transition-colors hover:text-primary/70"
+
+              {normalizedPrice.priceValue && (
+                <div
+                  className="package-card-price pkg-rv"
+                  data-testid="package-price"
+                  style={{ '--pi': 2 } as CSSProperties}
                 >
-                  {normalizePackageStoryLabel(item.caseStudyLabel, caseStudyLabel)}
-                  <ArrowRight size={15} />
-                </a>
+                  {normalizedPrice.priceLabel && <p className="package-price-label">{normalizedPrice.priceLabel}</p>}
+                  <p className="package-price-value">
+                    <span>{normalizedPrice.priceValue}</span>
+                    {normalizedPrice.priceSuffix && (
+                      <span className="package-price-suffix">{normalizedPrice.priceSuffix}</span>
+                    )}
+                  </p>
+                  {normalizedPrice.priceSupportingText && (
+                    <p className="package-price-supporting">{normalizedPrice.priceSupportingText}</p>
+                  )}
+                </div>
               )}
-            </div>
-          </article>
+
+              <div className="package-card-cta-block pkg-rv" style={{ '--pi': 3 } as CSSProperties}>
+                <button
+                  type="button"
+                  className="package-cta"
+                  data-testid="package-cta"
+                  onClick={() => openBookingModal(`package-${tone}`)}
+                >
+                  {normalizePackageCtaLabel(item.ctaText, chooseLabel)}
+                </button>
+                {ctaMicrocopy && <p className="package-cta-microcopy">{ctaMicrocopy}</p>}
+              </div>
+
+              {capacity && <Capacity row={capacity} />}
+
+              {features.length > 0 && (
+                <ul className="package-card-features">
+                  {features.map((feature, featureIndex) => (
+                    <PackageFeatureRowView
+                      key={`${id}-feature-${featureIndex}-${feature.label ?? feature.group ?? ''}`}
+                      row={feature}
+                      tone={tone}
+                      style={{ '--pi': 4 + featureIndex } as CSSProperties}
+                    />
+                  ))}
+                </ul>
+              )}
+
+              <PackageComparison
+                item={item}
+                tone={tone}
+                lang={lang}
+                panelId={comparisonPanelId}
+                expanded={expanded}
+                onToggle={() => setExpandedIds((current) => ({ ...current, [id]: !current[id] }))}
+              />
+
+              <a className="package-stories-link pkg-rv" href={caseStudyLink}>
+                {normalizePackageStoryLabel(item.caseStudyLabel, caseStudyLabel)}
+                <ArrowRight size={15} aria-hidden="true" />
+              </a>
+            </article>
           </div>
         )
       })}

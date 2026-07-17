@@ -8,6 +8,7 @@ type RevealStep = {
   reveal: string | null
   testId: string | null
   text: string
+  tone: string | null
 }
 
 type SceneSnapshot = {
@@ -38,6 +39,7 @@ async function sceneSnapshot(sceneLocator: Locator): Promise<SceneSnapshot> {
         reveal: element.getAttribute('data-reveal'),
         testId: element.getAttribute('data-testid'),
         text: (element.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        tone: element.getAttribute('data-package-tone'),
       }))
 
     return {
@@ -47,9 +49,9 @@ async function sceneSnapshot(sceneLocator: Locator): Promise<SceneSnapshot> {
   })
 }
 
-function expectValidSequence(snapshot: SceneSnapshot, direction: 'down' | 'up') {
+function expectValidSequence(snapshot: SceneSnapshot) {
   expect(snapshot.steps.length).toBeGreaterThan(5)
-  expect(snapshot.stepMs).toBeGreaterThan(0)
+  expect(snapshot.stepMs).toBe(100)
 
   const byOrder = [...snapshot.steps].sort((left, right) => left.order - right.order)
   expect(byOrder.map((step) => step.order)).toEqual(
@@ -58,24 +60,24 @@ function expectValidSequence(snapshot: SceneSnapshot, direction: 'down' | 'up') 
   expect(byOrder.map((step) => step.phase)).toEqual(
     [...byOrder]
       .map((step) => step.phase)
-      .sort(direction === 'down' ? (left, right) => left - right : (left, right) => right - left),
+      .sort((left, right) => left - right),
   )
 
   for (const step of snapshot.steps) {
-    expect(step.direction).toBe(direction)
+    expect(step.direction).toBe('down')
     expect(step.delayMs).toBeCloseTo(step.order * snapshot.stepMs, 5)
   }
 }
 
-test.describe('Homepage bidirectional scene reveal', () => {
-  test('does not pre-run distant scenes and reverses their sequence on upward entry', async ({ page }) => {
+test.describe('Homepage one-shot package reveal', () => {
+  test('stays armed offscreen, staggers once, and does not replay after leaving the section', async ({ page }) => {
     test.setTimeout(60_000)
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForIntroToFinish(page)
 
-    const packages = page.locator('#packages[data-reveal-scene]')
+    const packages = page.locator('#packages[data-reveal-scene][data-reveal-once]')
     await expect(packages).toBeAttached()
     await expect(page.getByTestId('package-card')).toHaveCount(3)
     expect(await page.evaluate(() => window.scrollY)).toBeLessThan(10)
@@ -91,51 +93,31 @@ test.describe('Homepage bidirectional scene reveal', () => {
     await expect(packages).toHaveAttribute('data-reveal-direction', 'down')
 
     const down = await sceneSnapshot(packages)
-    expectValidSequence(down, 'down')
+    expectValidSequence(down)
 
     const downCards = down.steps.filter((step) => step.testId === 'package-card')
     expect(downCards).toHaveLength(3)
-    expect(downCards.map((step) => step.order)).toEqual(
-      [...downCards].map((step) => step.order).sort((left, right) => left - right),
-    )
+    expect(downCards.map((step) => step.tone).sort()).toEqual(['scale', 'start', 'system'])
+    const orderedCards = [...downCards].sort((left, right) => left.order - right.order)
+    expect(orderedCards[1].delayMs - orderedCards[0].delayMs).toBe(100)
+    expect(orderedCards[2].delayMs - orderedCards[1].delayMs).toBe(100)
     const downTitle = down.steps.find((step) => step.reveal === 'words' && step.text.includes('The One Packages'))
     expect(downTitle).toBeDefined()
     expect(downTitle!.order).toBeLessThan(Math.min(...downCards.map((step) => step.order)))
 
-    const sceneBottom = await packages.evaluate((element) => {
-      const rect = element.getBoundingClientRect()
-      return rect.bottom + window.scrollY
-    })
-
-    // Move well beyond the scene so it rearms, then approach it from below in
-    // two scrolls. The first scroll establishes an upward direction while the
-    // scene is still outside the observer margin; the second enters the scene.
+    // Once played, leaving the section must preserve the completed state. The
+    // previous bidirectional behavior removed these attributes and replayed it.
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-    await expect.poll(() => packages.getAttribute('data-reveal-played')).toBeNull()
-
-    await page.evaluate((bottom) => {
-      window.scrollTo(0, bottom + window.innerHeight * 0.55)
-    }, sceneBottom)
     await waitForTwoFrames(page)
     await expect(packages).not.toBeInViewport()
-
-    await page.evaluate((bottom) => {
-      window.scrollTo(0, Math.max(0, bottom - window.innerHeight * 0.35))
-    }, sceneBottom)
     await expect(packages).toHaveAttribute('data-reveal-played', 'true')
-    await expect(packages).toHaveAttribute('data-reveal-direction', 'up')
+    await expect(packages).toHaveAttribute('data-reveal-direction', 'down')
+    expect(await sceneSnapshot(packages)).toEqual(down)
 
-    const up = await sceneSnapshot(packages)
-    expectValidSequence(up, 'up')
-    expect(up.steps).toHaveLength(down.steps.length)
-    up.steps.forEach((step, domIndex) => {
-      expect(step.reveal).toBe(down.steps[domIndex].reveal)
-    })
-
-    const upCards = up.steps.filter((step) => step.testId === 'package-card')
-    expect(upCards.map((step) => step.order)).toEqual(
-      [...upCards].map((step) => step.order).sort((left, right) => right - left),
-    )
+    await packages.scrollIntoViewIfNeeded()
+    await expect(packages).toHaveAttribute('data-reveal-played', 'true')
+    await expect(packages).toHaveAttribute('data-reveal-direction', 'down')
+    expect(await sceneSnapshot(packages)).toEqual(down)
   })
 
   test('keeps every reveal step static and readable for reduced motion', async ({ page }) => {
@@ -143,7 +125,7 @@ test.describe('Homepage bidirectional scene reveal', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    const packages = page.locator('#packages[data-reveal-scene]')
+    const packages = page.locator('#packages[data-reveal-scene][data-reveal-once]')
     await expect(packages).toBeAttached()
     await expect(packages.locator('[data-reveal]').first()).toHaveAttribute('data-revealed', 'true')
 
@@ -152,8 +134,15 @@ test.describe('Homepage bidirectional scene reveal', () => {
       const steps = Array.from(scene.querySelectorAll<HTMLElement>('[data-reveal]'))
         .filter((element) => element.closest('[data-reveal-scene]') === scene)
       const words = Array.from(scene.querySelectorAll<HTMLElement>('.rw-word'))
+      const cards = Array.from(scene.querySelectorAll<HTMLElement>('[data-testid="package-card"]'))
 
       return {
+        cardsStatic: cards.length === 3 && cards.every((card) => {
+          const style = window.getComputedStyle(card)
+          return style.animationName === 'none'
+            && style.transform === 'none'
+            && Number.parseFloat(style.opacity) > 0.99
+        }),
         stepCount: steps.length,
         stepsVisible: steps.every((element) => {
           const style = window.getComputedStyle(element)
@@ -167,6 +156,7 @@ test.describe('Homepage bidirectional scene reveal', () => {
     })
 
     expect(state.stepCount).toBeGreaterThan(5)
+    expect(state.cardsStatic).toBe(true)
     expect(state.stepsVisible).toBe(true)
     expect(state.wordsVisible).toBe(true)
     await expect(packages.getByRole('heading', { name: 'The One Packages' })).toBeVisible()

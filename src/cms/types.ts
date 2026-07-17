@@ -13,11 +13,19 @@ export type CmsPackageFeature = {
   label?: string
   text: string
   group?: string
+  availability?: 'included' | 'excluded'
   // Featured rows appear in the compact card view (max 4); the rest live in the expander.
   featured?: boolean
 }
 
+export type CmsPackageComparisonRow = {
+  label: string
+  value: string
+  availability?: 'included' | 'excluded'
+}
+
 export type CmsLocalizedBlockFields = {
+  eyebrow?: string
   heading?: string
   body?: string
   subtitle?: string
@@ -64,6 +72,9 @@ export type CmsLocalizedBlockItemFields = {
   caseStudyLabel?: string
   priceLabel?: string
   priceValue?: string
+  priceSupportingText?: string
+  ctaMicrocopy?: string
+  comparisonRows?: CmsPackageComparisonRow[]
   featuredStats?: CmsStatChip[]
   proofPoint?: string
   testimonialQuote?: string
@@ -157,6 +168,10 @@ export type CmsBlockItem = {
   caseStudyLink?: string
   priceLabel?: string
   priceValue?: string
+  packageTier?: 'start' | 'system' | 'scale'
+  priceSupportingText?: string
+  ctaMicrocopy?: string
+  comparisonRows?: CmsPackageComparisonRow[]
   leftBackgroundUrl?: string
   rightBackgroundUrl?: string
   overlayOpacity?: string
@@ -178,6 +193,7 @@ export type CmsBlockItem = {
 
 export type CmsBlock = {
   id: string
+  eyebrow?: string
   heading: string
   body: string
   icon?: string

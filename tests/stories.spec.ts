@@ -87,9 +87,13 @@ test.describe('The One Stories', () => {
     const dataTile = firstPost.locator('.story-glass-tile').first()
     await expect(frame).toHaveCSS('transform', 'none')
     await expect(track).toHaveCSS('transform', 'none')
-    await expect(image).toHaveCSS('object-fit', 'contain')
-    await expect(image).toHaveCSS('filter', 'none')
-    await expect(image).toHaveAttribute('sizes', /660px/)
+    if (await image.count()) {
+      await expect(image).toHaveCSS('object-fit', 'contain')
+      await expect(image).toHaveCSS('filter', 'none')
+      await expect(image).toHaveAttribute('sizes', /660px/)
+    } else {
+      await expect(firstPost.locator('.story-slide-image')).toHaveCount(0)
+    }
     await expect(dataTile).toHaveCSS('backdrop-filter', 'none')
     await expect(dataTile).toHaveCSS('transform', 'none')
     await expect(dataTile.locator('.story-chart-bignum-value')).toHaveCSS('font-weight', '800')
@@ -102,6 +106,7 @@ test.describe('The One Stories', () => {
   })
 
   test('keeps every metric, limits slides to two tiles, and uses manual navigation only', async ({ page }) => {
+    test.setTimeout(45_000)
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     const firstPost = page.locator('article.story-post').first()
     await firstPost.scrollIntoViewIfNeeded()

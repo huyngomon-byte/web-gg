@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "firebase": "^12.16.0",
-    "firebase-admin": "13.7.0",
+    "firebase-admin": "14.1.0",
     "framer-motion": "^11.3.28",
     "googleapis": "^173.0.0",
     "lucide-react": "^0.441.0",

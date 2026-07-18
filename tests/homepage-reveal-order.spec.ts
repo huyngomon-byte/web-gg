@@ -197,9 +197,6 @@ test.describe('Homepage grouped bidirectional package reveal', () => {
     const group = page.locator(`[data-rv-group="${name}"]`)
     const items = group.locator('.rv-item')
     await expect(items.first()).toBeAttached()
-    // Keep one item pending long enough to deterministically reverse direction
-    // while the scheduler is still running.
-    await items.last().evaluate((item) => { item.dataset.rvDelayMs = '3000' })
 
     const box = await packageGroupDocumentBox(page, name)
     await page.evaluate(
@@ -209,10 +206,25 @@ test.describe('Homepage grouped bidirectional package reveal', () => {
     await waitForTwoFrames(page)
     await expect(group.locator('.rv-item.rv-in')).toHaveCount(0)
 
+    // Reverse from inside the first class mutation. This runs before the next
+    // animation frame even on a loaded CI runner, so later stagger items are
+    // guaranteed to still be pending without altering the production delays.
+    await group.evaluate((root) => {
+      const first = root.querySelector<HTMLElement>('.rv-item')
+      if (!first) throw new Error('Missing first reveal item')
+      const observer = new MutationObserver(() => {
+        if (!first.classList.contains('rv-in')) return
+        observer.disconnect()
+        root.setAttribute('data-test-interrupt-origin', root.dataset.rvDirection ?? '')
+        window.scrollBy(0, -32)
+      })
+      observer.observe(first, { attributes: true, attributeFilter: ['class'] })
+    })
     await scrollPackageGroupIntoView(page, name, 'down')
     await expect(items.first()).toHaveClass(/rv-in/)
     await expect(group).not.toHaveClass(/rv-reset/)
-    expect(await group.evaluate((element) => getComputedStyle(element).getPropertyValue('--rv-dir').trim())).toBe('24px')
+    await expect(group).toHaveAttribute('data-test-interrupt-origin', 'down')
+    await expect(items.first()).toHaveAttribute('data-rv-reveal-direction', 'down')
     expect(await items.first().evaluate((element) => {
       const translate = getComputedStyle(element).translate
       if (translate === 'none') return 0
@@ -222,8 +234,6 @@ test.describe('Homepage grouped bidirectional package reveal', () => {
 
     // Interrupt an in-flight stagger: revealed items keep their frozen entry
     // direction, while items whose due time has not arrived use the new one.
-    await page.evaluate(() => window.scrollBy(0, -32))
-    await waitForTwoFrames(page)
     await expect(group).toHaveAttribute('data-rv-direction', 'up')
     await expect(items.last()).toHaveClass(/rv-in/)
     await expect(items.first()).toHaveAttribute('data-rv-reveal-direction', 'down')

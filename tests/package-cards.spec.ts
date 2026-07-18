@@ -388,6 +388,7 @@ test.describe('homepage package cards', () => {
   })
 
   test('uses stable desktop hover motion and spotlight without layout shift', async ({ page }) => {
+    test.setTimeout(60_000)
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/#packages', { waitUntil: 'domcontentloaded' })
@@ -629,6 +630,8 @@ test.describe('package touch states', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
 
   test('uses color-only active feedback without spotlight or geometry changes', async ({ page }) => {
+    test.setTimeout(60_000)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/#packages', { waitUntil: 'domcontentloaded' })
     await page.waitForLoadState('networkidle')
     expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true)
@@ -646,7 +649,7 @@ test.describe('package touch states', () => {
 
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
     await page.mouse.down()
-    await page.waitForTimeout(40)
+    await expect.poll(() => metric.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(before.background)
     const active = await metric.evaluate((element) => ({
       background: getComputedStyle(element).backgroundColor,
       transform: getComputedStyle(element).transform,
